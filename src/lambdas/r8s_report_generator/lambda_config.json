@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "name": "r8s-report-generator",
+  "func_name": "handler.lambda_handler",
+  "resource_type": "lambda",
+  "iam_role_name": "report-generator-role",
+  "runtime": "python3.8",
+  "memory": 128,
+  "timeout": 100,
+  "lambda_path": "/lambdas/r8s_report_generator",
+  "dependencies": [
+  ],
+  "event_sources": [
+  ],
+  "env_variables": {
+    "RABBITMQ_APPLICATION_ID": "${RABBITMQ_APPLICATION_ID}",
+    "log_level": "${log_level}"
+  },
+  "publish_version": true,
+  "alias": "${lambdas_alias_name}",
+  "subnet_ids": [
+    "${lambda_subnet_id}"
+  ],
+  "security_group_ids": [
+    "${lambda_security_group}"
+  ],
+  "ephemeral_storage": 512,
+  "url_config": {}
+}

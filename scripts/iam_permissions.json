@@ -1,0 +1,83 @@
+{
+  "name": "IAM_PERMISSIONS",
+  "value": {
+    "r8s:algorithm": [
+      "describe_algorithm",
+      "create_algorithm",
+      "update_algorithm",
+      "remove_algorithm"
+    ],
+    "r8s:storage": [
+      "describe_storage",
+      "create_storage",
+      "update_storage",
+      "remove_storage",
+      "describe_metrics"
+    ],
+    "r8s:job": [
+      "describe_definition",
+      "create_definition",
+      "update_definition",
+      "remove_definition",
+      "describe_job",
+      "submit_job",
+      "terminate_job",
+      "describe_report"
+    ],
+    "r8s:iam": [
+      "describe_policy",
+      "create_policy",
+      "update_policy",
+      "remove_policy",
+      "describe_role",
+      "create_role",
+      "update_role",
+      "remove_role",
+      "describe_user",
+      "create_user",
+      "update_user_password",
+      "delete_user"
+    ],
+    "r8s:application": [
+      "describe_application",
+      "create_application",
+      "update_application",
+      "remove_application"
+    ],
+    "r8s:parent": [
+      "describe_parent",
+      "create_parent",
+      "update_parent",
+      "remove_parent",
+      "describe_shape_rule",
+      "create_shape_rule",
+      "update_shape_rule",
+      "remove_shape_rule",
+      "describe_tenant_link",
+      "link_tenant",
+      "unlink_tenant",
+      "dry_run_shape_rule",
+      "describe_resize_insights"
+    ],
+    "r8s:shape": [
+      "describe_shape",
+      "create_shape",
+      "update_shape",
+      "remove_shape",
+      "describe_shape_price",
+      "create_shape_price",
+      "update_shape_price",
+      "remove_shape_price"
+    ],
+    "r8s:health_check": [
+      "describe_health_check"
+    ],
+    "r8s:recommendation": [
+      "describe_recommendation",
+      "update_recommendation"
+    ],
+    "r8s:report": [
+      "initiate_tenant_report"
+    ]
+  }
+}

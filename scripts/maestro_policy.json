@@ -1,0 +1,28 @@
+{
+    "name" : "maestro_policy",
+    "permissions" : [
+        "r8s:algorithm:describe_algorithm",
+        "r8s:application:describe_application",
+        "r8s:health_check:describe_health_check",
+        "r8s:iam:describe_policy",
+        "r8s:iam:describe_role",
+        "r8s:iam:describe_user",
+        "r8s:iam:update_user_password",
+        "r8s:job:describe_definition",
+        "r8s:job:describe_job",
+        "r8s:job:describe_report",
+        "r8s:job:submit_job",
+        "r8s:job:terminate_job",
+        "r8s:parent:describe_parent",
+        "r8s:parent:describe_shape_rule",
+        "r8s:parent:describe_tenant_link",
+        "r8s:parent:dry_run_shape_rule",
+        "r8s:parent:link_tenant",
+        "r8s:parent:unlink_tenant",
+        "r8s:report:initiate_tenant_report",
+        "r8s:shape:describe_shape",
+        "r8s:shape:describe_shape_price",
+        "r8s:storage:describe_metrics",
+        "r8s:storage:describe_storage"
+    ]
+}

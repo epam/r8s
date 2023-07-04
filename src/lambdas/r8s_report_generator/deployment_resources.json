@@ -1,0 +1,26 @@
+{
+  "report-generator-policy": {
+    "resource_type": "iam_policy",
+    "policy_content": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Action": [
+            "ssm:DeleteParameter"
+          ],
+          "Resource": "*",
+          "Effect": "Allow"
+        }
+      ]
+    }
+  },
+  "report-generator-role": {
+    "predefined_policies": [],
+    "principal_service": "lambda",
+    "custom_policies": [
+      "lambda-basic-execution",
+      "report-generator-policy"
+    ],
+    "resource_type": "iam_role"
+  }
+}

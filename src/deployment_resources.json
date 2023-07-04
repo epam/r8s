@@ -1,0 +1,2405 @@
+{
+  "lambda-basic-execution": {
+    "policy_content": {
+      "Statement": [
+        {
+          "Action": [
+            "dynamodb:Batch*",
+            "dynamodb:DeleteItem",
+            "dynamodb:GetItem",
+            "dynamodb:PutItem",
+            "dynamodb:Query",
+            "ec2:CreateNetworkInterface",
+            "ec2:DeleteNetworkInterface",
+            "ec2:DescribeNetworkInterfaces",
+            "kms:Decrypt",
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents",
+            "ssm:GetParameter",
+            "ssm:PutParameter"
+          ],
+          "Effect": "Allow",
+          "Resource": "*"
+        }
+      ],
+      "Version": "2012-10-17"
+    },
+    "resource_type": "iam_policy"
+  },
+  "r8s": {
+    "resource_type": "cognito_idp",
+    "region": "${region}",
+    "password_policy": {
+      "require_symbols": false
+    },
+    "custom_attributes": [
+      {
+        "name": "customer",
+        "type": "String"
+      },
+      {
+        "name": "r8s_role",
+        "type": "String"
+      },
+      {
+        "name": "latest_login",
+        "type": "String"
+      }
+    ],
+    "client": {
+      "client_name": "r8s_app",
+      "generate_secret": false,
+      "explicit_auth_flows": [
+        "ALLOW_ADMIN_USER_PASSWORD_AUTH",
+        "ALLOW_CUSTOM_AUTH",
+        "ALLOW_USER_SRP_AUTH",
+        "ALLOW_REFRESH_TOKEN_AUTH"
+      ]
+    }
+  },
+  "batch-execution": {
+    "policy_content": {
+      "Statement": [
+        {
+          "Action": [
+            "ecr:GetAuthorizationToken",
+            "ecr:BatchCheckLayerAvailability",
+            "ecr:GetDownloadUrlForLayer",
+            "ecr:BatchGetImage",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents",
+            "s3:PutObject",
+            "s3:ListBucket",
+            "s3:GetObject",
+            "ssm:GetParameter",
+            "ssm:DeleteParameter",
+            "batch:DescribeJobs",
+            "dynamodb:BatchGetItem",
+            "dynamodb:ListTables",
+            "dynamodb:Scan",
+            "dynamodb:Query",
+            "dynamodb:ListGlobalTables",
+            "dynamodb:DescribeTable",
+            "dynamodb:DescribeGlobalTable",
+            "dynamodb:GetItem"
+          ],
+          "Effect": "Allow",
+          "Resource": "*"
+        }
+      ],
+      "Version": "2012-10-17"
+    },
+    "resource_type": "iam_policy"
+  },
+  "batch-job-def-role": {
+    "predefined_policies": [],
+    "principal_service": "ecs-tasks",
+    "custom_policies": [
+      "batch-execution"
+    ],
+    "resource_type": "iam_role"
+  },
+  "comp-env-instance-role": {
+    "predefined_policies": [
+      "AmazonEC2ContainerServiceforEC2Role"
+    ],
+    "principal_service": "ec2",
+    "custom_policies": [],
+    "instance_profile": true,
+    "resource_type": "iam_role"
+  },
+  "r8s-compenv": {
+    "resource_type": "batch_compenv",
+    "compute_environment_type": "MANAGED",
+    "compute_resources": {
+      "type": "EC2",
+      "allocation_strategy": "BEST_FIT_PROGRESSIVE",
+      "minv_cpus": 0,
+      "desiredv_cpus": 0,
+      "maxv_cpus": 8,
+      "instance_types": [
+        "c4.large",
+        "c4.xlarge"
+      ],
+      "security_group_ids": [
+        "${batch_compenv_sg}"
+      ],
+      "subnets": [
+        "${batch_compenv_subnet}"
+      ],
+      "instance_role": "comp-env-instance-role"
+    }
+  },
+  "${r8s_job_queue}": {
+    "resource_type": "batch_jobqueue",
+    "state": "ENABLED",
+    "priority": 100,
+    "compute_environment_order": [
+      {
+        "order": 100,
+        "compute_environment": "r8s-compenv"
+      }
+    ]
+  },
+  "${r8s_job_definition}": {
+    "resource_type": "batch_jobdef",
+    "job_definition_name": "reports-submit-definition",
+    "job_definition_type": "container",
+    "container_properties": {
+      "image": "${docker-image-url}",
+      "vcpus": 1,
+      "memory": 1024,
+      "command": [
+        "python",
+        "/home/custodian/docker/executor.py"
+      ],
+      "readonly_root_filesystem": false,
+      "job_role_arn": "batch-job-def-role"
+    }
+  },
+  "r8s-api": {
+    "resource_name": "r8s-api",
+    "dependencies": [],
+    "resource_type": "api_gateway",
+    "deploy_stage": "r8s",
+    "authorizers": {
+      "authorizer": {
+        "type": "COGNITO_USER_POOLS",
+        "identity_source": "method.request.header.Authorization",
+        "user_pools": [
+          "r8s"
+        ],
+        "ttl": 300
+      }
+    },
+    "resources": {
+      "/signup": {
+        "enable_cors": true,
+        "POST": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "authorizer",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"signup\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      },
+      "/signin": {
+        "enable_cors": true,
+        "POST": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "NONE",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "{\"action\": \"signin\", \"username\": $input.json('$.username'), \"password\": $input.json('$.password'), \"http_method\": \"$context.httpMethod\", \"request_path\": \"$context.path\"}"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      },
+      "/policies": {
+        "enable_cors": true,
+        "ANY": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "authorizer",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"policy\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      },
+      "/roles": {
+        "enable_cors": true,
+        "ANY": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "authorizer",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"role\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      },
+      "/algorithms": {
+        "enable_cors": true,
+        "ANY": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "authorizer",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"algorithm\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      },
+      "/storages": {
+        "enable_cors": true,
+        "ANY": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "authorizer",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"storage\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      },
+      "/storages/data": {
+        "enable_cors": true,
+        "GET": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "authorizer",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"storage_data\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      },
+      "/jobs": {
+        "enable_cors": true,
+        "ANY": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "authorizer",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"job\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      },
+      "/recommendations": {
+        "enable_cors": true,
+        "ANY": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "authorizer",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"recommendation\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      },
+      "/reports": {
+        "enable_cors": true,
+        "ANY": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "authorizer",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"report\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      },
+      "/reports/mail/tenant": {
+        "enable_cors": true,
+        "ANY": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "authorizer",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"mail_report\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      },
+      "/applications": {
+        "enable_cors": true,
+        "ANY": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "authorizer",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"application\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      },
+      "/parents": {
+        "enable_cors": true,
+        "ANY": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "authorizer",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"parent\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      },
+      "/parents/insights/resize": {
+        "enable_cors": true,
+        "GET": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "authorizer",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"parent_insights_resize\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      },
+      "/parents/tenant-link": {
+        "enable_cors": true,
+        "ANY": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "authorizer",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"parent_tenant_link\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      },
+      "/parents/shape-rules": {
+        "enable_cors": true,
+        "ANY": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "authorizer",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"shape_rule\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      },
+          "/parents/shape-rules/dry-run": {
+        "enable_cors": true,
+        "GET": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "authorizer",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"shape_rule_dry_run\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      },
+      "/shapes": {
+        "enable_cors": true,
+        "ANY": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "authorizer",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"shape\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      },
+      "/shapes/prices": {
+        "enable_cors": true,
+        "ANY": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "authorizer",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"shape_price\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      },
+      "/users": {
+        "enable_cors": true,
+        "ANY": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "authorizer",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"user\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      },
+      "/health-check": {
+        "enable_cors": true,
+        "POST": {
+          "integration_type": "lambda",
+          "lambda_alias": "${lambdas_alias_name}",
+          "authorization_type": "authorizer",
+          "method_request_parameters": {},
+          "integration_request_body_template": {
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"health_check\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+          },
+          "lambda_name": "r8s-api-handler",
+          "responses": [
+            {
+              "status_code": "200"
+            },
+            {
+              "status_code": "400"
+            },
+            {
+              "status_code": "401"
+            },
+            {
+              "status_code": "403"
+            },
+            {
+              "status_code": "406"
+            },
+            {
+              "status_code": "404"
+            },
+            {
+              "status_code": "409"
+            },
+            {
+              "status_code": "500"
+            },
+            {
+              "status_code": "503"
+            }
+          ],
+          "integration_responses": [
+            {
+              "status_code": "200",
+              "response_templates": {
+                "application/json": "$input.json('$.body')"
+              }
+            },
+            {
+              "status_code": "400",
+              "error_regex": ".*400.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "401",
+              "error_regex": ".*401.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "403",
+              "error_regex": ".*403.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "404",
+              "error_regex": ".*404.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "406",
+              "error_regex": ".*406.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "409",
+              "error_regex": ".*409.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "500",
+              "error_regex": ".*500.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            },
+            {
+              "status_code": "503",
+              "error_regex": ".*503.*",
+              "response_templates": {
+                "application/json": "{\"message\": \"$input.path('$.errorMessage').replaceAll('\\d{3}:', '')\"}"
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
