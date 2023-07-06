@@ -290,9 +290,9 @@ def update_clustering_settings(algorithm_name, max_clusters, wcss_kmeans_init,
 @click.option('--discard_initial_zeros', '-did', type=bool, required=False,
               help='Discard metrics with zero-filled values at the '
                    'beginning of processing period.', default=True)
-@click.option('--forbid_change_series', '-fcs', is_flag=True, default=False,
+@click.option('--forbid_change_series', '-fcs', type=bool, required=False,
               help='Forbids to recommend shapes from different series')
-@click.option('--forbid_change_family', '-fcf', is_flag=True, default=False,
+@click.option('--forbid_change_family', '-fcf', type=bool, required=False,
               help='Forbids to recommend shapes from different family')
 @cli_response()
 def update_recommendation_settings(algorithm_name, record_step_minutes,
@@ -322,8 +322,8 @@ def update_recommendation_settings(algorithm_name, record_step_minutes,
                            max_recommended_shapes, shape_compatibility_rule,
                            shape_sorting, use_past_recommendations,
                            use_instance_tags, analysis_price, ignore_actions,
-                           target_timezone_name, discard_initial_zeros)
-
+                           target_timezone_name, discard_initial_zeros,
+                           forbid_change_series, forbid_change_family)
     if not any(parameter_not_specified(param) for param
                in optional_parameters):
         response = {'message': "At least one of the optional "

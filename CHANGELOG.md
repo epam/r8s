@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.3] - 2023-07-06
+* r8s algorithm update_recommendation_settings: change 
+  `forbid_change_series` and `forbid_change_family` parameters type to bool.
+
+## [2.10.2] - 2023-07-05
+* executor: cut incomplete edge days only if there are more than two weeks of metrics
+
 ## [2.10.1] - 2023-07-04
 * add missing packages in lambdas local_requirements.txt
 

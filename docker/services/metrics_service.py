@@ -28,6 +28,7 @@ DAY_RECORDS = 144
 
 META_KEY_RESOURCE_ID = 'resourceId'
 META_KEY_CREATE_DATE_TIMESTAMP = 'createDateTimestamp'
+MINIMUM_DAYS_TO_CUT_INCOMPLETE_EDGE_DAYS = 14
 
 
 class MetricsService:
@@ -307,7 +308,8 @@ class MetricsService:
         if not df_list:
             return df_list
 
-        if skip_incomplete_corner_days:
+        if len(df_list) > MINIMUM_DAYS_TO_CUT_INCOMPLETE_EDGE_DAYS \
+                and skip_incomplete_corner_days:
             last_day_df = df_list[-1]
             if len(last_day_df) < 24 * 60 // step_minutes:
                 df_list = df_list[:-1]

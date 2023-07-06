@@ -540,6 +540,8 @@ class RecommendationService:
     def _get_clusters_stats(centroids: list):
         cluster_count_per_day = [len(day_centroids)
                                  for day_centroids in centroids]
+        if not centroids:
+            return {}
         quartiles = list(np.quantile(cluster_count_per_day,
                                      np.arange(0.25, 1, 0.25))),
         quartiles = [round(float(quartile), 2) for quartile in quartiles[0]]
