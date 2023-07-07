@@ -1,8 +1,5 @@
 FROM public.ecr.aws/docker/library/python:3.8
 
-ARG mcdm=maestro-common-domain-model
-
-COPY $mcdm/mcdm_sdk ../mcdm_sdk/
 COPY r8s r8s/
 
 WORKDIR /r8s
@@ -14,7 +11,6 @@ RUN for file in $(find . -type f -name "*.txt"); do if grep -q "git+ssh://" $fil
     pip install -r src/exported_module/requirements.txt && \
     pip install -r scripts/requirements.txt && \
     pip install -r src/requirements.txt && \
-    pip install ../mcdm_sdk/ && \
     rm -rf r8s/.git
 
 ENV AWS_REGION=eu-central-1 \
