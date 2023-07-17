@@ -30,11 +30,17 @@ def describe(job_id=None, job_name=None):
               help='Customer to scan.')
 @click.option('--scan_tenants', '-t', multiple=True, required=False,
               help='List of tenants to scan.')
-@click.option('--scan_timestamp', '-st', type=int, required=False,
-              help='Timestamp to scan.')
+@click.option('--scan_date_from', '-sdf', type=str, required=False,
+              help='Processing start date. Format: "%Y_%m_%d" '
+                   'Example: 2023_06_20. If not set, '
+                   'all available metrics will be used.')
+@click.option('--scan_date_to', '-sdt', type=str, required=False,
+              help='Processing end date. Format: "%Y_%m_%d" '
+                   'Example: 2023_06_20. If not set, scan will be '
+                   'limitated by tomorrow\'s date.')
 @cli_response()
 def submit(parent_id, customer_id, scan_tenants,
-           scan_timestamp):
+           scan_date_from, scan_date_to):
     """
     Submits a R8s job.
     """
@@ -45,7 +51,8 @@ def submit(parent_id, customer_id, scan_tenants,
     return init_configuration().job_post(parent_id=parent_id,
                                          scan_customer=customer_id,
                                          scan_tenants=scan_tenants,
-                                         scan_timestamp=scan_timestamp)
+                                         scan_date_from=scan_date_from,
+                                         scan_date_to=scan_date_to)
 
 
 @job.command(cls=ViewCommand, name='terminate')

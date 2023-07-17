@@ -42,7 +42,8 @@ _LOG = get_logger('r8s-executor')
 JOB_ID = environment_service.get_batch_job_id()
 SCAN_CUSTOMER = environment_service.get_scan_customer()
 SCAN_TENANTS = environment_service.get_scan_tenants()
-SCAN_TIMESTAMP = environment_service.get_scan_timestamp()
+SCAN_FROM_DATE = environment_service.get_scan_from_date()
+SCAN_TO_DATE = environment_service.get_scan_to_date()
 SCAN_CLOUDS = environment_service.get_scan_clouds()
 
 
@@ -162,7 +163,8 @@ def main():
                                      scan_customer=SCAN_CUSTOMER,
                                      scan_clouds=SCAN_CLOUDS,
                                      scan_tenants=tenants_to_scan,  # temporary
-                                     scan_timestamp=SCAN_TIMESTAMP)
+                                     scan_from_date=SCAN_FROM_DATE,
+                                     scan_to_date=SCAN_TO_DATE)
 
     _LOG.info(f'Loading instances meta')
     instance_meta_mapping = metrics_service.read_meta(

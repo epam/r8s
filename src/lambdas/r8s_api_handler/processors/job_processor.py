@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from modular_sdk.services.customer_service import CustomerService
 from modular_sdk.services.tenant_service import TenantService
 
@@ -6,9 +8,10 @@ from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
     validate_params, RESPONSE_FORBIDDEN_CODE, RESPONSE_SERVICE_UNAVAILABLE_CODE
 from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import POST_METHOD, GET_METHOD, DELETE_METHOD, ID_ATTR, \
-    NAME_ATTR, USER_ID_ATTR, PARENT_ID_ATTR
+    NAME_ATTR, USER_ID_ATTR, PARENT_ID_ATTR, SCAN_FROM_DATE_ATTR, \
+    SCAN_TO_DATE_ATTR
 from commons.constants import TENANTS_ATTR, CUSTOMER_ATTR, \
-    SCAN_TIMESTAMP_ATTR, CLOUDS, CLOUD_AWS, CLOUD_ATTR
+    SCAN_TIMESTAMP_ATTR, CLOUD_AWS
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -27,6 +30,7 @@ from services.shape_service import ShapeService
 _LOG = get_logger('r8s-job-processor')
 
 DEFAULT_SCAN_CLOUDS = [CLOUD_AWS]
+DATE_FORMAT = '%Y_%m_%d'
 
 
 class JobProcessor(AbstractCommandProcessor):
@@ -216,6 +220,17 @@ class JobProcessor(AbstractCommandProcessor):
                             f'\'{envs.get("SCAN_CUSTOMER", "None")}\'.'
                 )
             envs['SCAN_TENANTS'] = ','.join(scan_tenants)
+        scan_from_date = event.get(SCAN_FROM_DATE_ATTR)
+        if scan_from_date:
+            _LOG.debug(f'Validating {SCAN_FROM_DATE_ATTR}')
+            self._validate_scan_date(date_str=scan_from_date)
+            envs[SCAN_FROM_DATE_ATTR.upper()] = scan_from_date
+
+        scan_to_date = event.get(SCAN_TO_DATE_ATTR)
+        if scan_to_date:
+            _LOG.debug(f'Validating {SCAN_TO_DATE_ATTR}')
+            self._validate_scan_date(date_str=scan_to_date)
+            envs[SCAN_TO_DATE_ATTR.upper()] = scan_to_date
 
         scan_timestamp = event.get(SCAN_TIMESTAMP_ATTR)
         if scan_timestamp:
@@ -335,4 +350,17 @@ class JobProcessor(AbstractCommandProcessor):
             return build_response(
                 code=RESPONSE_SERVICE_UNAVAILABLE_CODE,
                 content=', '.join(errors)
+            )
+
+    @staticmethod
+    def _validate_scan_date(date_str):
+        try:
+            datetime.strptime(date_str, DATE_FORMAT)
+        except (ValueError, TypeError):
+            _LOG.error(f'Invalid date specified: \'{date_str}\'. Date must '
+                       f'be in {DATE_FORMAT} format.')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'Invalid date specified: \'{date_str}\'. Date must '
+                        f'be in {DATE_FORMAT} format.'
             )
