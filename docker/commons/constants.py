@@ -25,6 +25,8 @@ POLICIES_TO_ATTACH = 'policies_to_attach'
 POLICIES_TO_DETACH = 'policies_to_detach'
 POLICIES_ATTR = 'policies'
 TENANT_ATTR = 'tenant'
+CUSTOMER_ATTR = 'customer'
+VALUE_ATTR = 'value'
 
 SERVICE_ATTR = 'service'
 TYPE_ATTR = 'type'
@@ -198,3 +200,40 @@ SYSTEM_CUSTOMER = 'SYSTEM'
 ENV_MAX_NUMBER_OF_JOBS_ON_PREM = 'MAX_NUMBER_OF_JOBS'
 BATCH_ENV_SUBMITTED_AT = 'SUBMITTED_AT'
 BATCH_ENV_JOB_ID = 'AWS_BATCH_JOB_ID'
+JOB_ID = 'job_id'
+
+# License Manager
+CUSTOMERS_ATTR = 'customers'
+TENANTS_ATTR = 'tenants'
+ATTACHMENT_MODEL_ATTR = 'attachment_model'
+LICENSE_KEY_ATTR = 'license_key'
+LICENSE_KEYS_ATTR = 'license_keys'
+TENANT_LICENSE_KEY_ATTR = 'tenant_license_key'
+TENANT_LICENSE_KEYS_ATTR = 'tenant_license_keys'
+AUTHORIZATION_PARAM = 'authorization'
+STATUS_ATTR = 'status'
+ALGORITHM_ID_ATTR = 'algorithm_id'
+
+KID_ATTR = 'kid'
+ALG_ATTR = 'alg'
+TYP_ATTR = 'typ'
+
+TOKEN_DATE_ATTR = 'token_date'
+CLIENT_TOKEN_ATTR = 'client-token'
+STAGE_ATTR = 'stage'
+KEY_ID_ATTR = 'key_id'
+B64ENCODED_ATTR = 'b64_encoded'
+
+SERVICE_TYPE_ATTR = 'service_type'
+SERVICE_TYPE_RIGHTSIZER = 'RIGHTSIZER'
+ALGORITHMS_ATTR = 'algorithms'
+
+RESPONSE_BAD_REQUEST_CODE = 400
+RESPONSE_UNAUTHORIZED = 401
+RESPONSE_FORBIDDEN_CODE = 403
+RESPONSE_RESOURCE_NOT_FOUND_CODE = 404
+RESPONSE_OK_CODE = 200
+
+BODY_PARAM = 'body'
+ITEMS_PARAM = 'items'
+MESSAGE_PARAM = 'message'
