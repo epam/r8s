@@ -1,3 +1,4 @@
+from modular_sdk.models.parent import Parent
 from modular_sdk.services.customer_service import CustomerService
 from modular_sdk.services.tenant_service import TenantService
 
@@ -6,9 +7,10 @@ from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
     validate_params, RESPONSE_FORBIDDEN_CODE, RESPONSE_SERVICE_UNAVAILABLE_CODE
 from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import POST_METHOD, GET_METHOD, DELETE_METHOD, ID_ATTR, \
-    NAME_ATTR, USER_ID_ATTR, PARENT_ID_ATTR
+    NAME_ATTR, USER_ID_ATTR, PARENT_ID_ATTR, TENANT_LICENSE_KEY_ATTR, \
+    LICENSE_KEY_ATTR
 from commons.constants import TENANTS_ATTR, CUSTOMER_ATTR, \
-    SCAN_TIMESTAMP_ATTR, CLOUDS, CLOUD_AWS, CLOUD_ATTR
+    SCAN_TIMESTAMP_ATTR, CLOUD_AWS
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -17,6 +19,8 @@ from services.abstract_api_handler_lambda import PARAM_USER_ID, \
     PARAM_USER_CUSTOMER
 from services.environment_service import EnvironmentService
 from services.job_service import JobService
+from services.license_manager_service import LicenseManagerService
+from services.license_service import LicenseService
 from services.rightsizer_application_service import \
     RightSizerApplicationService
 from services.rightsizer_parent_service import RightSizerParentService
@@ -38,7 +42,9 @@ class JobProcessor(AbstractCommandProcessor):
                  settings_service: SettingsService,
                  shape_service: ShapeService,
                  shape_price_service: ShapePriceService,
-                 parent_service: RightSizerParentService):
+                 parent_service: RightSizerParentService,
+                 license_service: LicenseService,
+                 license_manager_service: LicenseManagerService):
         self.job_service = job_service
         self.application_service = application_service
         self.environment_service = environment_service
@@ -48,6 +54,8 @@ class JobProcessor(AbstractCommandProcessor):
         self.shape_service = shape_service
         self.shape_price_service = shape_price_service
         self.parent_service = parent_service
+        self.license_service = license_service
+        self.license_manager_service = license_manager_service
 
         self.method_to_handler = {
             GET_METHOD: self.get,
@@ -217,6 +225,17 @@ class JobProcessor(AbstractCommandProcessor):
                 )
             envs['SCAN_TENANTS'] = ','.join(scan_tenants)
 
+        parent_meta = self.parent_service.get_parent_meta(
+            parent=parent)
+        license_key = parent_meta.license_key
+        if license_key:
+            self._validate_licensed_job(
+                parent=parent,
+                license_key=license_key,
+                scan_tenants=scan_tenants
+            )
+            envs[LICENSE_KEY_ATTR] = license_key
+
         scan_timestamp = event.get(SCAN_TIMESTAMP_ATTR)
         if scan_timestamp:
             _LOG.debug(f'Validating scan timestamp')
@@ -336,3 +355,54 @@ class JobProcessor(AbstractCommandProcessor):
                 code=RESPONSE_SERVICE_UNAVAILABLE_CODE,
                 content=', '.join(errors)
             )
+
+    def _validate_licensed_job(self, parent: Parent, license_key: str,
+                               scan_tenants: list = None):
+        _LOG.debug(f'Resolving Tenant list')
+        if not scan_tenants or len(scan_tenants) != 1:
+            _LOG.error(f'Exactly 1 tenant must be specified '
+                       f'for licensed jobs.')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'Exactly 1 tenant must be specified '
+                        f'for licensed jobs.'
+            )
+        _license = self.license_service.get_license(license_key)
+        if self.license_service.is_expired(_license):
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content='Affected license has expired'
+            )
+        tenant_license_key = _license.customers.get(
+            parent.customer_id, {}).get(TENANT_LICENSE_KEY_ATTR)
+        _LOG.debug(f'Validating permission to submit licensed job.')
+        self._ensure_job_is_allowed(
+            customer=parent.customer_id,
+            tenant_names=scan_tenants,
+            tlk=tenant_license_key
+        )
+
+    def _ensure_job_is_allowed(self, customer, tenant_names: list, tlk: str):
+        _LOG.info(f'Going to check for permission to exhaust'
+                  f'{tlk} TenantLicense(s).')
+        forbidden = []
+        for tenant_name in tenant_names:
+            if not self.license_manager_service.is_allowed_to_license_a_job(
+                    customer=customer, tenant=tenant_name,
+                    tenant_license_keys=[tlk]):
+                forbidden.append(tenant_name)
+                message = f'Tenant:\'{tenant_name}\' could not be granted ' \
+                          f'to start a licensed job.'
+                return build_response(
+                    content=message, code=RESPONSE_FORBIDDEN_CODE
+                )
+        if forbidden:
+            _LOG.error(f'Licensed job is forbidden for tenants: '
+                       f'{", ".join(forbidden)}')
+            return build_response(
+                code=RESPONSE_FORBIDDEN_CODE,
+                content=f'Licensed job is forbidden for tenants: '
+                        f'{", ".join(forbidden)}'
+            )
+        _LOG.info(f'Permission to submit job has been granted for tenants: '
+                  f'{tenant_names}.')
