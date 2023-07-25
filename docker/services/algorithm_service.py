@@ -6,7 +6,7 @@ from bson.errors import InvalidId
 from mongoengine import DoesNotExist, ValidationError, EmbeddedDocument
 
 from commons.constants import CLUSTERING_SETTINGS_ATTR, METRIC_FORMAT_ATTR, \
-    RECOMMENDATION_SETTINGS_ATTR
+    RECOMMENDATION_SETTINGS_ATTR, ALGORITHM_ATTR
 from commons.log_helper import get_logger
 from models.algorithm import Algorithm, RecommendationSettings, \
     ClusteringSettings, MetricFormatSettings
@@ -58,6 +58,32 @@ class AlgorithmService:
     @staticmethod
     def delete(algorithm: Algorithm):
         algorithm.delete()
+
+    def update_from_licensed_job(self, algorithm: Algorithm,
+                                 licensed_job: dict):
+        licensed_algorithm_data = licensed_job.get(ALGORITHM_ATTR)
+        cur_clust_settings = dict(algorithm.clustering_settings.to_mongo())
+        cur_rec_settings = dict(algorithm.recommendation_settings.to_mongo())
+
+        clustering_settings = licensed_algorithm_data.get(
+            CLUSTERING_SETTINGS_ATTR)
+        recommendation_settings = licensed_algorithm_data.get(
+            RECOMMENDATION_SETTINGS_ATTR)
+
+        if cur_clust_settings != clustering_settings:
+            _LOG.warning(f'Updating algorithm \'{algorithm.name}\' '
+                         f'clustering settings.')
+            self.update_clustering_settings(
+                algorithm=algorithm,
+                clustering_settings=clustering_settings
+            )
+        if cur_rec_settings != recommendation_settings:
+            _LOG.warning(f'Updating algorithm \'{algorithm.name}\' '
+                         f'recommendation settings.')
+            self.update_recommendation_settings(
+                algorithm=algorithm,
+                recommendation_settings=recommendation_settings
+            )
 
     def update_clustering_settings(self, algorithm: Algorithm,
                                    clustering_settings: dict):

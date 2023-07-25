@@ -95,6 +95,7 @@ class Algorithm(BaseModel):
     dto_skip_attrs = ['_id', 'md5', 'format_version']
 
     name = StringField(unique=True)
+    licensed = BooleanField(default=False)
     customer = StringField(null=True)
     cloud = EnumField(CloudEnum)
 
