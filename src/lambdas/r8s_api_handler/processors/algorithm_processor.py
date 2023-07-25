@@ -24,7 +24,7 @@ from commons.constants import POST_METHOD, ID_ATTR, NAME_ATTR, \
     SHAPE_SORTING_ATTR, USE_PAST_RECOMMENDATIONS_ATTR, USE_INSTANCE_TAGS_ATTR, \
     ANALYSIS_PRICE_ATTR, IGNORE_ACTIONS_ATTR, TARGET_TIMEZONE_NAME_ATTR, \
     THRESHOLDS_ATTR, RECOMMENDATION_SETTINGS_ATTRS, DISCARD_INITIAL_ZEROS_ATTR, \
-    FORBID_CHANGE_FAMILY_ATTR, FORBID_CHANGE_SERIES_ATTR
+    FORBID_CHANGE_FAMILY_ATTR, FORBID_CHANGE_SERIES_ATTR, LICENSED_ATTR
 from commons.enum import ListEnum
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
@@ -158,6 +158,7 @@ class AlgorithmProcessor(AbstractCommandProcessor):
             REQUIRED_DATA_ATTRS_ATTR: required_data_attrs,
             METRIC_ATTRS_ATTR: metric_attrs,
             TIMESTAMP_ATTR: timestamp_attr,
+            LICENSED_ATTR: False
         }
 
         _LOG.debug(f'Algorithm data: {algorithm_data}.')
@@ -220,6 +221,44 @@ class AlgorithmProcessor(AbstractCommandProcessor):
                 content=f'Algorithm with name \'{name}\' does not exist.'
             )
 
+        clustering_settings = event.get(CLUSTERING_SETTINGS_ATTR, {})
+        clustering_settings = {k: v for k, v in clustering_settings.items()
+                               if k in CLUSTERING_SETTINGS_ATTRS}
+
+        recommendation_settings = event.get(RECOMMENDATION_SETTINGS_ATTR, {})
+        recommendation_settings = {k: v for k, v
+                                   in recommendation_settings.items()
+                                   if k in RECOMMENDATION_SETTINGS_ATTRS}
+        if algorithm.licensed and (clustering_settings or
+                                   recommendation_settings):
+            _LOG.error(f'\'{RECOMMENDATION_SETTINGS_ATTR}\' and '
+                       f'\'{CLUSTERING_SETTINGS_ATTR}\' are forbidden '
+                       f'to update in licensed algorithm')
+            return build_response(
+                code=RESPONSE_FORBIDDEN_CODE,
+                content=f'\'{RECOMMENDATION_SETTINGS_ATTR}\' and '
+                        f'\'{CLUSTERING_SETTINGS_ATTR}\' are forbidden '
+                        f'to update in licensed algorithm'
+            )
+
+        if clustering_settings:
+            _LOG.debug(f'Updating algorithm clustering settings')
+            self._validate_clustering_settings(
+                clustering_settings=clustering_settings)
+            self.algorithm_service.update_clustering_settings(
+                algorithm=algorithm,
+                clustering_settings=clustering_settings
+            )
+
+        if recommendation_settings:
+            _LOG.debug(f'Updating algorithm recommendation settings')
+            self._validate_recommendation_settings(
+                recommendation_settings=recommendation_settings)
+            self.algorithm_service.update_recommendation_settings(
+                algorithm=algorithm,
+                recommendation_settings=recommendation_settings
+            )
+
         required_data_attributes = event.get(REQUIRED_DATA_ATTRS_ATTR)
         if required_data_attributes:
             _LOG.debug(f'Updating algorithm \'{REQUIRED_DATA_ATTRS_ATTR}\'')
@@ -251,31 +290,6 @@ class AlgorithmProcessor(AbstractCommandProcessor):
             self._validate_metric_format_settings(metric_format=metric_format)
             self.algorithm_service.update_metric_format_settings(
                 algorithm=algorithm, metric_format_settings=metric_format)
-
-        clustering_settings = event.get(CLUSTERING_SETTINGS_ATTR, {})
-        clustering_settings = {k: v for k, v in clustering_settings.items()
-                               if k in CLUSTERING_SETTINGS_ATTRS}
-        if clustering_settings:
-            _LOG.debug(f'Updating algorithm clustering settings')
-            self._validate_clustering_settings(
-                clustering_settings=clustering_settings)
-            self.algorithm_service.update_clustering_settings(
-                algorithm=algorithm,
-                clustering_settings=clustering_settings
-            )
-
-        recommendation_settings = event.get(RECOMMENDATION_SETTINGS_ATTR, {})
-        recommendation_settings = {k: v for k, v
-                                   in recommendation_settings.items()
-                                   if k in RECOMMENDATION_SETTINGS_ATTRS}
-        if recommendation_settings:
-            _LOG.debug(f'Updating algorithm recommendation settings')
-            self._validate_recommendation_settings(
-                recommendation_settings=recommendation_settings)
-            self.algorithm_service.update_recommendation_settings(
-                algorithm=algorithm,
-                recommendation_settings=recommendation_settings
-            )
 
         try:
             _LOG.debug(f'Saving updated algorithm')
