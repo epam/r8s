@@ -30,13 +30,15 @@ class RightSizerParentService(ParentService):
     def create_rightsizer_parent(self, application_id, customer_id,
                                  description, cloud: str,
                                  algorithm: Algorithm,
-                                 scope: str):
+                                 scope: str, license_key:str = None):
         meta = ParentMeta(
             cloud=cloud,
             algorithm=algorithm.name,
             shape_rules=[],
             scope=scope
         )
+        if license_key:
+            meta.license_key = license_key
         parent = self.create(
             application_id=application_id,
             customer_id=customer_id,

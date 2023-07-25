@@ -15,3 +15,4 @@ class ParentMeta(MapAttribute):
     algorithm = UnicodeAttribute(null=True)
     scope = UnicodeAttribute(null=True)
     shape_rules = ListAttribute(null=True, of=ShapeRule)
+    license_key = UnicodeAttribute(null=True)
