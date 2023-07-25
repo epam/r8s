@@ -26,7 +26,8 @@ setup(
         'PyYAML==6.0',
         'tabulate==0.8.9',
         'requests==2.27.1',
-        'prettytable==3.2.0'
+        'prettytable==3.2.0',
+        'modular-cli-sdk==1.1.0'
     ],
     entry_points='''
         [console_scripts]
