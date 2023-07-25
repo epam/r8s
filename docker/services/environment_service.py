@@ -3,7 +3,7 @@ import os
 from commons.constants import INSTANCE_SPECS_STORAGE_TYPE, \
     STORAGE_TYPE_SETTING, DEFAULT_DAYS_TO_PROCESS, CLOUDS, \
     DEFAULT_META_POSTPONED_KEY, DEFAULT_META_POSTPONED_FOR_ACTIONS_KEY, \
-    ENV_SERVICE_MODE, DOCKER_SERVICE_MODE
+    ENV_SERVICE_MODE, DOCKER_SERVICE_MODE, LICENSE_KEY_ATTR
 
 
 class EnvironmentService:
@@ -57,6 +57,10 @@ class EnvironmentService:
     def get_instance_specs_storage_type():
         return os.environ.get(INSTANCE_SPECS_STORAGE_TYPE,
                               STORAGE_TYPE_SETTING)
+
+    @staticmethod
+    def get_license_key():
+        return os.environ.get(LICENSE_KEY_ATTR)
 
     @staticmethod
     def is_debug():
