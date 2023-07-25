@@ -1,3 +1,6 @@
+from datetime import datetime
+
+from modular_sdk.models.parent import Parent
 from modular_sdk.services.customer_service import CustomerService
 from modular_sdk.services.tenant_service import TenantService
 
@@ -9,7 +12,7 @@ from commons.constants import POST_METHOD, GET_METHOD, DELETE_METHOD, ID_ATTR, \
     NAME_ATTR, USER_ID_ATTR, PARENT_ID_ATTR, SCAN_FROM_DATE_ATTR, \
     SCAN_TO_DATE_ATTR, TENANT_LICENSE_KEY_ATTR, LICENSE_KEY_ATTR
 from commons.constants import TENANTS_ATTR, CUSTOMER_ATTR, \
-    SCAN_TIMESTAMP_ATTR, CLOUD_AWS
+    CLOUD_AWS
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
