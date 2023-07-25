@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.0] - 2023-07-25
+* License Manager integration:
+  - add `r8s setting config` command group, to manage License Manager access data;
+  - add `r8s setting client` command group, to manage License Manager client data;
+  - add `r8s license` command group, to manage r8s licences;
+  - add `tenant_license_key` parameter to `r8s parent add` command.
+
 ## [2.10.5] - 2023-07-17
 * `r8s job submit` commend:
   - remove `--scan_timestamp` parameter

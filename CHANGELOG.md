@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.0] - 2023-07-25
+* License Manager integration:
+  - add `r8s setting config` command group, to manage License Manager access data;
+  - add `r8s setting client` command group, to manage License Manager client data;
+  - add `r8s license` command group, to manage r8s licences;
+  - add `tenant_license_key` parameter to `r8s parent add` command. 
+    On parent creation, licensed algorithm will be pulled from LM;
+  - implement job permission check on submitting a job with parent 
+    linked to licensed algorithm;
+  - remove `r8s-job-updater` lambda, replaced with direct job state 
+    updates in executor;
+  - implement sending job state update requests to License Manager 
+    from executor.
+
 ## [2.10.5] - 2023-07-17
 * change metrics storage folder structure:
   - replace `$timestamp` with `$date` (%Y_%m_%d)
