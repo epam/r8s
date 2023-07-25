@@ -12,6 +12,14 @@ from lambdas.r8s_api_handler.processors.application_processor import \
 from lambdas.r8s_api_handler.processors.health_check_processor import \
     HealthCheckProcessor
 from lambdas.r8s_api_handler.processors.job_processor import JobProcessor
+from lambdas.r8s_api_handler.processors.license_manager_client_processor import \
+    LicenseManagerClientProcessor
+from lambdas.r8s_api_handler.processors.license_manager_config_processor import \
+    LicenseManagerConfigProcessor
+from lambdas.r8s_api_handler.processors.license_processor import \
+    LicenseProcessor
+from lambdas.r8s_api_handler.processors.license_sync_processor import \
+    LicenseSyncProcessor
 from lambdas.r8s_api_handler.processors.mail_report_processor import \
     MailReportProcessor
 from lambdas.r8s_api_handler.processors.parent_processor import ParentProcessor
@@ -49,6 +57,9 @@ from services.clients.s3 import S3Client
 from services.customer_preferences_service import CustomerPreferencesService
 from services.environment_service import EnvironmentService
 from services.job_service import JobService
+from services.key_management_service import KeyManagementService
+from services.license_manager_service import LicenseManagerService
+from services.license_service import LicenseService
 from services.rbac.access_control_service import AccessControlService
 from services.rbac.iam_service import IamService
 from services.recommendation_history_service import \
@@ -89,6 +100,10 @@ SHAPE_PRICE_ACTION = 'shape_price'
 USER_ACTION = 'user'
 HEALTH_CHECK_ACTION = 'health_check'
 RECOMMENDATION_ACTION = 'recommendation'
+LM_SETTING_CONFIG_ACTION = 'settings-config'
+LM_SETTING_CLIENT_ACTION = 'settings-client'
+LICENSE_ACTION = 'license'
+LICENSE_SYNC_ACTION = 'license-sync'
 
 
 class R8sApiHandler(AbstractApiHandlerLambda):
@@ -113,7 +128,10 @@ class R8sApiHandler(AbstractApiHandlerLambda):
                  recommendation_history_service: RecommendationHistoryService,
                  lambda_client: LambdaClient,
                  customer_preferences_service: CustomerPreferencesService,
-                 resize_service: ResizeService):
+                 resize_service: ResizeService,
+                 key_management_service: KeyManagementService,
+                 license_manager_service: LicenseManagerService,
+                 license_service: LicenseService):
         self.user_service = user_service
         self.access_control_service = access_control_service
         self.algorithm_service = algorithm_service
@@ -138,6 +156,9 @@ class R8sApiHandler(AbstractApiHandlerLambda):
         self.lambda_client = lambda_client
         self.customer_preferences_service = customer_preferences_service
         self.resize_service = resize_service
+        self.key_management_service = key_management_service
+        self.license_manager_service = license_manager_service
+        self.license_service = license_service
 
         self.processor_registry = {
             SIGNIN_ACTION: self._instantiate_signin_processor,
@@ -163,7 +184,11 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             HEALTH_CHECK_ACTION: self._instantiate_health_check_processor,
             RECOMMENDATION_ACTION: self._instantiate_recommendation_processor,
             PARENT_INSIGHTS_RESIZE_ACTION:
-                self._instantiate_resize_insights_processor
+                self._instantiate_resize_insights_processor,
+            LM_SETTING_CONFIG_ACTION: self._instantiate_lm_config_processor,
+            LM_SETTING_CLIENT_ACTION: self._instantiate_lm_client_processor,
+            LICENSE_ACTION: self._instantiate_license_processor,
+            LICENSE_SYNC_ACTION: self._instantiate_license_sync_processor
         }
 
     def validate_request(self, event) -> dict:
@@ -246,7 +271,9 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             settings_service=self.settings_service,
             shape_service=self.shape_service,
             shape_price_service=self.shape_price_service,
-            parent_service=self.parent_service
+            parent_service=self.parent_service,
+            license_service=self.license_service,
+            license_manager_service=self.license_manager_service
         )
 
     def _instantiate_report_processor(self):
@@ -281,7 +308,9 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             customer_service=self.customer_service,
             application_service=self.application_service,
             parent_service=self.parent_service,
-            tenant_service=self.tenant_service
+            tenant_service=self.tenant_service,
+            license_service=self.license_service,
+            license_manager_service=self.license_manager_service
         )
 
     def _instantiate_parent_tenant_linkage_processor(self):
@@ -346,6 +375,31 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             resize_service=self.resize_service
         )
 
+    def _instantiate_lm_config_processor(self):
+        return LicenseManagerConfigProcessor(
+            settings_service=self.settings_service
+        )
+
+    def _instantiate_lm_client_processor(self):
+        return LicenseManagerClientProcessor(
+            settings_service=self.settings_service,
+            license_manager_service=self.license_manager_service,
+            key_management_service=self.key_management_service
+        )
+
+    def _instantiate_license_processor(self):
+        return LicenseProcessor(
+            license_service=self.license_service,
+            algorithm_service=self.algorithm_service
+        )
+
+    def _instantiate_license_sync_processor(self):
+        return LicenseSyncProcessor(
+            license_service=self.license_service,
+            license_manager_service=self.license_manager_service,
+            algorithm_service=self.algorithm_service
+        )
+
 
 HANDLER = R8sApiHandler(
     user_service=SERVICE_PROVIDER.user_service(),
@@ -371,7 +425,10 @@ HANDLER = R8sApiHandler(
     recommendation_history_service=SERVICE_PROVIDER.recommendation_history_service(),
     lambda_client=SERVICE_PROVIDER.lambda_client(),
     customer_preferences_service=SERVICE_PROVIDER.customer_preferences_service(),
-    resize_service=SERVICE_PROVIDER.resize_service()
+    resize_service=SERVICE_PROVIDER.resize_service(),
+    key_management_service=SERVICE_PROVIDER.key_management_service(),
+    license_manager_service=SERVICE_PROVIDER.license_manager_service(),
+    license_service=SERVICE_PROVIDER.license_service()
 )
 
 
