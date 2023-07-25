@@ -1,12 +1,18 @@
-from commons.constants import JOB_STEP_INITIALIZATION
+from modular_sdk.models.parent import Parent
+
+from commons.constants import JOB_STEP_INITIALIZATION, TENANT_LICENSE_KEY_ATTR
 from commons.exception import ExecutorException
 from commons.log_helper import get_logger
+from commons.time_helper import utc_iso
 from models.job import Job, JobStatusEnum
+from models.license import License
 from models.storage import Storage
 from services import SERVICE_PROVIDER
 from services.algorithm_service import AlgorithmService
 from services.environment_service import EnvironmentService
 from services.job_service import JobService
+from services.license_manager_service import LicenseManagerService
+from services.license_service import LicenseService
 from services.metrics_service import MetricsService
 from services.mocked_data_service import MockedDataService
 from services.os_service import OSService
@@ -36,6 +42,9 @@ parent_service: RightSizerParentService = SERVICE_PROVIDER.parent_service()
 mocked_data_service: MockedDataService = SERVICE_PROVIDER.mocked_data_service()
 application_service: RightSizerApplicationService = SERVICE_PROVIDER. \
     application_service()
+license_service: LicenseService = SERVICE_PROVIDER.license_service()
+license_manager_service: LicenseManagerService = SERVICE_PROVIDER. \
+    license_manager_service()
 
 _LOG = get_logger('r8s-executor')
 
@@ -44,9 +53,10 @@ SCAN_CUSTOMER = environment_service.get_scan_customer()
 SCAN_TENANTS = environment_service.get_scan_tenants()
 SCAN_TIMESTAMP = environment_service.get_scan_timestamp()
 SCAN_CLOUDS = environment_service.get_scan_clouds()
+LICENSE_KEY = environment_service.get_license_key()
 
 
-def set_job_fail_reason(exception: Exception):
+def set_job_fail_reason(exception: Exception, licensed: bool):
     if isinstance(exception, ExecutorException):
         reason = str(exception)
     else:
@@ -58,6 +68,44 @@ def set_job_fail_reason(exception: Exception):
         job.fail_reason = reason
         job.save()
         _LOG.debug('Job reason was saved.')
+    if licensed:
+        _LOG.debug(f'Updating job status in LM')
+        license_manager_service.update_job_in_license_manager(
+            job_id=JOB_ID,
+            created_at=utc_iso(job.created_at),
+            started_at=utc_iso(job.started_at),
+            stopped_at=utc_iso(job.stopped_at),
+            status=job.status.value
+        )
+
+
+def submit_licensed_job(parent: Parent, scan_tenants: list, license_: License):
+    if not scan_tenants or len(scan_tenants) != 1:
+        _LOG.error(f'Exactly 1 tenant must be specified for licensed jobs.')
+        raise ExecutorException(
+            step_name=JOB_STEP_INITIALIZATION,
+            reason=f'Exactly 1 tenant must be specified for licensed jobs.'
+        )
+    customer = parent.customer_id
+    tenant_license_key = license_.customers.get(customer, {}).get(
+        TENANT_LICENSE_KEY_ATTR)
+    algorithm_name = parent.meta.algorithm
+
+    algorithm_map = {
+        tenant_license_key: algorithm_name
+    }
+
+    licensed_job = license_manager_service.instantiate_licensed_job_dto(
+        job_id=JOB_ID,
+        customer=customer,
+        tenant=scan_tenants[0],
+        algorithm_map=algorithm_map
+    )
+    if not licensed_job:
+        reason = 'Job execution could not be granted.'
+        raise ExecutorException(reason=reason,
+                                step_name=JOB_STEP_INITIALIZATION)
+    return licensed_job
 
 
 def main():
@@ -67,11 +115,6 @@ def main():
 
     _LOG.debug(f'Describing job with id \'{JOB_ID}\'')
     job: Job = job_service.get_by_id(object_id=JOB_ID)
-
-    if environment_service.is_docker():
-        _LOG.debug(f'Setting job status to RUNNING')
-        job = job_service.set_status(job=job,
-                                     status=JobStatusEnum.JOB_RUNNING_STATUS.value)
 
     if not job:
         _LOG.error(f'Job with id \'{JOB_ID}\' does not exist')
@@ -90,6 +133,20 @@ def main():
             step_name=JOB_STEP_INITIALIZATION,
             reason=f'Parent \'{parent_id}\' does not exist'
         )
+
+    licensed_job_data = None
+    if LICENSE_KEY:
+        license_: License = license_service.get_license(license_id=LICENSE_KEY)
+        licensed_job_data = submit_licensed_job(
+            parent=parent,
+            license_=license_,
+            scan_tenants=SCAN_TENANTS)
+
+    _LOG.debug(f'Setting job status to RUNNING')
+    job = job_service.set_status(job=job,
+                                 status=JobStatusEnum.JOB_RUNNING_STATUS.value,
+                                 licensed=bool(LICENSE_KEY))
+
     parent_meta = parent_service.get_parent_meta(
         parent=parent
     )
@@ -117,6 +174,12 @@ def main():
             step_name=JOB_STEP_INITIALIZATION,
             reason=f'Application \'{application_id}\' does not have algorithm '
                    f'specified'
+        )
+    if licensed_job_data:
+        _LOG.debug(f'Syncing algorithm with licensed job data')
+        algorithm_service.update_from_licensed_job(
+            algorithm=algorithm,
+            licensed_job=licensed_job_data
         )
     if not algorithm.checksum_matches():
         _LOG.error(f'Algorithm \'{algorithm.name}\' checksum '
@@ -223,16 +286,16 @@ def main():
     )
 
     _LOG.debug(f'Job {JOB_ID} has finished successfully')
-    if environment_service.is_docker():
-        _LOG.debug(f'Setting job state to SUCCEEDED')
-        job_service.set_status(job=job,
-                               status=JobStatusEnum.JOB_SUCCEEDED_STATUS.value)
-        os_service.clean_workdir(work_dir=work_dir)
+    _LOG.debug(f'Setting job state to SUCCEEDED')
+    job_service.set_status(job=job,
+                           status=JobStatusEnum.JOB_SUCCEEDED_STATUS.value,
+                           licensed=bool(LICENSE_KEY))
+    os_service.clean_workdir(work_dir=work_dir)
 
 
 if __name__ == '__main__':
     try:
         main()
     except Exception as exception:
-        set_job_fail_reason(exception=exception)
+        set_job_fail_reason(exception=exception, licensed=bool(LICENSE_KEY))
         raise
