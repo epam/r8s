@@ -101,5 +101,19 @@ ENDPOINT_PERMISSION_MAPPING = {
     '/recommendations/': {
         GET_METHOD: 'r8s:recommendation:describe_recommendation',
         PATCH_METHOD: 'r8s:recommendation:update_recommendation',
+    },
+    '/licenses/': {
+        GET_METHOD: 'r8s:license:describe_license',
+        DELETE_METHOD: 'r8s:license:delete_license',
+    },
+    '/settings/license-manager/config': {
+        GET_METHOD: 'r8s:setting:describe_lm_config',
+        POST_METHOD: 'r8s:setting:create_lm_config',
+        DELETE_METHOD: 'r8s:setting:delete_lm_config',
+    },
+    '/settings/license-manager/client': {
+        GET_METHOD: 'r8s:setting:describe_lm_client',
+        POST_METHOD: 'r8s:setting:create_lm_client',
+        DELETE_METHOD: 'r8s:setting:delete_lm_client',
     }
 }
