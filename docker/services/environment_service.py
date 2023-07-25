@@ -54,6 +54,14 @@ class EnvironmentService:
         return os.environ.get('SCAN_TIMESTAMP')
 
     @staticmethod
+    def get_scan_from_date():
+        return os.environ.get('SCAN_FROM_DATE')
+
+    @staticmethod
+    def get_scan_to_date():
+        return os.environ.get('SCAN_TO_DATE')
+
+    @staticmethod
     def get_instance_specs_storage_type():
         return os.environ.get(INSTANCE_SPECS_STORAGE_TYPE,
                               STORAGE_TYPE_SETTING)
