@@ -33,8 +33,10 @@ def describe(application_id=None, parent_id=None):
               help='Parent description.')
 @click.option('--cloud', '-c', type=click.Choice(AVAILABLE_CLOUDS),
               required=True, help='Parent cloud')
-@click.option('--algorithm', '-a', required=True, type=str,
+@click.option('--algorithm', '-a', required=False, type=str,
               help='Name of Algorithm to use in scans.')
+@click.option('--tenant_license_key', '-tlk', required=False, type=str,
+              help='Tenant license key.')
 @click.option('--scope', '-s', required=True,
               type=click.Choice(AVAILABLE_PARENT_SCOPES),
               help='Parent scope. If intended to use for all Tenants, '
@@ -43,7 +45,8 @@ def describe(application_id=None, parent_id=None):
               help=f'Tenant name to be linked to Parent. '
                    f'Only for {PARENT_SCOPE_SPECIFIC_TENANT} scope.')
 @cli_response()
-def add(application_id, description, cloud, algorithm, scope, tenant_name):
+def add(application_id, description, cloud, algorithm, tenant_license_key,
+        scope, tenant_name):
     """
     Creates Maestro RIGHTSIZER Parent
     """
@@ -54,6 +57,7 @@ def add(application_id, description, cloud, algorithm, scope, tenant_name):
         description=description,
         cloud=cloud,
         algorithm=algorithm,
+        tenant_license_key=tenant_license_key,
         scope=scope,
         tenant_name=tenant_name
     )

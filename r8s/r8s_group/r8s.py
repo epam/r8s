@@ -12,6 +12,8 @@ from r8s_group.shape import shape
 from r8s_group.shape_rule import shape_rule
 from r8s_group.storage import storage
 from r8s_group.user import user
+from r8s_group.setting import setting
+from r8s_group.license import license
 from r8s_group.recommendation import recommendation
 from r8s_service.config import create_configuration, clean_up_configuration, \
     save_token
@@ -120,3 +122,5 @@ r8s.add_command(application)
 r8s.add_command(parent)
 r8s.add_command(shape)
 r8s.add_command(recommendation)
+r8s.add_command(setting)
+r8s.add_command(license)

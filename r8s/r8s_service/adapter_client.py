@@ -560,15 +560,19 @@ class AdapterClient:
                                    method=HTTP_GET,
                                    payload=request)
 
-    def parent_post(self, application_id, description, algorithm, cloud,
-                    scope, tenant_name=None):
+    def parent_post(self, application_id, description, algorithm,
+                    tenant_license_key,
+                    cloud, scope, tenant_name=None):
         request = {
             PARAM_APPLICATION_ID: application_id,
             PARAM_DESCRIPTION: description,
-            PARAM_ALGORITHM: algorithm,
             PARAM_CLOUD: cloud,
             PARAM_SCOPE: scope
         }
+        if tenant_license_key:
+            request[PARAM_TENANT_LICENSE_KEY] = tenant_license_key
+        else:
+            request[PARAM_ALGORITHM] = algorithm
         if tenant_name:
             request[PARAM_TENANT] = tenant_name
 
@@ -634,7 +638,6 @@ class AdapterClient:
         return self.__make_request(resource=API_PARENT_INSIGHTS_RESIZE,
                                    method=HTTP_GET,
                                    payload=request)
-
 
     def shape_rule_get(self, parent_id=None, rule_id=None):
         request = {}
@@ -845,3 +848,81 @@ class AdapterClient:
         return self.__make_request(resource=API_RECOMMENDATION,
                                    method=HTTP_PATCH,
                                    payload=request)
+
+    def license_get(self, license_key=None):
+        request = {}
+        if license_key:
+            request[PARAM_LICENSE_KEY] = license_key
+        return self.__make_request(
+            resource=API_LICENSE, method=HTTP_GET, payload={}
+        )
+
+    def license_delete(self, license_key):
+        request = {
+            PARAM_LICENSE_KEY: license_key
+        }
+        return self.__make_request(
+            resource=API_LICENSE, method=HTTP_DELETE, payload={}
+        )
+
+    def license_sync_post(self, license_key=None):
+        request = {}
+        if license_key:
+            request[PARAM_LICENSE_KEY] = license_key
+        return self.__make_request(
+            resource=API_LICENSE_SYNC, method=HTTP_POST, payload={}
+        )
+
+    def lm_config_setting_get(self):
+        return self.__make_request(
+            resource=API_LM_CONFIG_SETTING, method=HTTP_GET, payload={}
+        )
+
+    def lm_config_setting_post(self, host, port, protocol, stage):
+        request = {
+            PARAM_HOST: host,
+            PARAM_PORT: port,
+            PARAM_PROTOCOL: protocol,
+            PARAM_STAGE: stage
+        }
+        return self.__make_request(
+            resource=API_LM_CONFIG_SETTING,
+            method=HTTP_POST,
+            payload=request
+        )
+
+    def lm_config_setting_delete(self):
+        return self.__make_request(
+            resource=API_LM_CONFIG_SETTING, method=HTTP_DELETE, payload={}
+        )
+
+    def lm_client_setting_get(self, frmt: str):
+        query = {
+            PARAM_FORMAT: frmt
+        }
+        return self.__make_request(
+            resource=API_LM_CLIENT_SETTING,
+            method=HTTP_GET, payload=query
+        )
+
+    def lm_client_setting_post(
+            self, key_id: str, algorithm: str, private_key: str, frmt: str,
+            b64encoded: bool
+    ):
+        payload = {
+            PARAM_KEY_ID: key_id,
+            PARAM_ALGORITHM: algorithm,
+            PARAM_PRIVATE_KEY: private_key,
+            PARAM_FORMAT: frmt,
+            PARAM_B64ENCODED: b64encoded
+        }
+        return self.__make_request(
+            resource=API_LM_CLIENT_SETTING, method=HTTP_POST, payload=payload
+        )
+
+    def lm_client_setting_delete(self, key_id: str):
+        return self.__make_request(
+            resource=API_LM_CLIENT_SETTING, method=HTTP_DELETE, payload={
+                PARAM_KEY_ID: key_id
+            }
+        )

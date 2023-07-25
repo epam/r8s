@@ -40,6 +40,10 @@ API_SHAPE = 'shapes'
 API_SHAPE_PRICE = 'shapes/prices'
 API_HEALTH_CHECK = 'health-check'
 API_RECOMMENDATION = 'recommendations'
+API_LICENSE = 'licenses'
+API_LICENSE_SYNC = 'licenses/sync'
+API_LM_CONFIG_SETTING = 'settings/license-manager/config'
+API_LM_CLIENT_SETTING = 'settings/license-manager/client'
 PARAM_ID = 'id'
 PARAM_JOB_ID = 'job_id'
 
@@ -179,10 +183,12 @@ ALLOWED_SHAPE_FIELDS = ('name', 'family_type', 'physical_processor',
 PARAM_DESCRIPTION = 'description'
 PARAM_INPUT_STORAGE = 'input_storage'
 PARAM_OUTPUT_STORAGE = 'output_storage'
+PARAM_TENANT_LICENSE_KEY = 'tenant_license_key'
 PARAM_CONNECTION = 'connection'
 PARAM_HOST = 'host'
 PARAM_PORT = 'port'
 PARAM_PROTOCOL = 'protocol'
+PARAM_STAGE = 'stage'
 
 PROTOCOL_HTTP = 'HTTP'
 PROTOCOL_HTTPS = 'HTTPS'
@@ -215,3 +221,13 @@ AVAILABLE_RECOMMENDATION_TYPES = ('SCHEDULE', 'SHUTDOWN', 'SCALE_UP',
 AVAILABLE_FEEDBACK_STATUSES = ('APPLIED', 'DONT_RECOMMEND', 'WRONG',
                                'TOO_LARGE', 'TOO_SMALL',
                                'TOO_EXPENSIVE', 'TOO_WIDE')
+PARAM_LICENSE_KEY = 'license_key'
+PARAM_LM_HOST = 'host'
+PARAM_LM_PORT = 'port'
+PARAM_LM_VERSION = 'version'
+
+PARAM_KEY_ID = 'key_id'
+PARAM_PRIVATE_KEY = 'private_key'
+PARAM_ALGORITHM = 'algorithm'
+PARAM_FORMAT = 'format'
+PARAM_B64ENCODED = 'b64_encoded'
