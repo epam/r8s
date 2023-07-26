@@ -897,9 +897,9 @@ class AdapterClient:
             resource=API_LM_CONFIG_SETTING, method=HTTP_DELETE, payload={}
         )
 
-    def lm_client_setting_get(self, frmt: str):
+    def lm_client_setting_get(self, format: str):
         query = {
-            PARAM_FORMAT: frmt
+            PARAM_FORMAT: format
         }
         return self.__make_request(
             resource=API_LM_CLIENT_SETTING,
@@ -907,14 +907,14 @@ class AdapterClient:
         )
 
     def lm_client_setting_post(
-            self, key_id: str, algorithm: str, private_key: str, frmt: str,
-            b64encoded: bool
+            self, key_id: str, algorithm: str, private_key: str,
+            format: str, b64encoded: bool
     ):
         payload = {
             PARAM_KEY_ID: key_id,
             PARAM_ALGORITHM: algorithm,
             PARAM_PRIVATE_KEY: private_key,
-            PARAM_FORMAT: frmt,
+            PARAM_FORMAT: format,
             PARAM_B64ENCODED: b64encoded
         }
         return self.__make_request(
