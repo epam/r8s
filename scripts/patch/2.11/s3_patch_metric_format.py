@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 import boto3
 import pandas as pd
 
-DATE_FORMAT = '%Y_%m_%d'
+DATE_FORMAT = '%Y-%m-%d'
 
 
 def parse_args():

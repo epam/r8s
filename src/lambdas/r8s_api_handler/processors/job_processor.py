@@ -33,7 +33,7 @@ from services.shape_service import ShapeService
 _LOG = get_logger('r8s-job-processor')
 
 DEFAULT_SCAN_CLOUDS = [CLOUD_AWS]
-DATE_FORMAT = '%Y_%m_%d'
+DATE_FORMAT = '%Y-%m-%d'
 
 
 class JobProcessor(AbstractCommandProcessor):

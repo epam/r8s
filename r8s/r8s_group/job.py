@@ -31,12 +31,12 @@ def describe(job_id=None, job_name=None):
 @click.option('--scan_tenants', '-t', multiple=True, required=False,
               help='List of tenants to scan.')
 @click.option('--scan_date_from', '-sdf', type=str, required=False,
-              help='Processing start date. Format: "%Y_%m_%d" '
-                   'Example: 2023_06_20. If not set, '
+              help='Processing start date. Format: "%Y-%m-%d" '
+                   'Example: 2023-06-20. If not set, '
                    'all available metrics will be used.')
 @click.option('--scan_date_to', '-sdt', type=str, required=False,
-              help='Processing end date. Format: "%Y_%m_%d" '
-                   'Example: 2023_06_20. If not set, scan will be '
+              help='Processing end date. Format: "%Y-%m-%d" '
+                   'Example: 2023-06-20. If not set, scan will be '
                    'limitated by tomorrow\'s date.')
 @cli_response()
 def submit(parent_id, customer_id, scan_tenants,

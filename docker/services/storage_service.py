@@ -15,7 +15,7 @@ from services.clients.s3 import S3Client
 
 _LOG = get_logger('r8s-storage-service')
 
-DATE_FORMAT = '%Y_%m_%d'
+DATE_FORMAT = '%Y-%m-%d'
 
 
 class StorageService:
