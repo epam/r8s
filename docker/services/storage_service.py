@@ -117,7 +117,7 @@ class StorageService:
 
         filter_only_dates = self.get_scan_dates_list(
             scan_from_date=scan_from_date,
-            scan_to_date=None
+            scan_to_date=scan_to_date
         )
         if filter_only_dates:
             objects = [obj for obj in objects if obj['Key'].split('/')[-2]
@@ -228,4 +228,4 @@ class StorageService:
     @staticmethod
     def __date_range(start_date, end_date):
         return [start_date + timedelta(n)
-                for n in range(int((end_date - start_date).days))]
+                for n in range(int((end_date - start_date).days) + 1)]
