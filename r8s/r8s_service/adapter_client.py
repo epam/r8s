@@ -426,13 +426,13 @@ class AdapterClient:
                                    payload=request)
 
     def job_post(self, parent_id, scan_customer,
-                 scan_tenants, scan_date_from, scan_date_to):
+                 scan_tenants, scan_from_date, scan_to_date):
         request = {
             PARAM_PARENT_ID: parent_id,
             PARAM_CUSTOMER: scan_customer,
             PARAM_TENANTS: scan_tenants,
-            PARAM_SCAN_DATE_FROM: scan_date_from,
-            PARAM_SCAN_DATE_TO: scan_date_to,
+            PARAM_SCAN_FROM_DATE: scan_from_date,
+            PARAM_SCAN_TO_DATE: scan_to_date,
         }
         request = {k: v for k, v in request.items()}
         return self.__make_request(resource=API_JOB,
