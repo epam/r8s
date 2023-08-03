@@ -112,3 +112,10 @@ class LicenseService:
     @staticmethod
     def get_dto(license_: License):
         return license_.get_dto()
+
+    @staticmethod
+    def list_allowed_tenants(license_obj: License, customer: str):
+        customer_map = license_obj.customers.get(customer)
+        if not customer_map:
+            return
+        return list(customer_map.get(TENANTS_ATTR, []))

@@ -4,6 +4,8 @@ from commons.constants import ENV_SERVICE_MODE, DOCKER_SERVICE_MODE, \
     MAIL_REPORT_DEFAULT_PROCESSING_DAYS, \
     MAIL_REPORT_DEFAULT_HIGH_PRIORITY_THRESHOLD
 
+DEFAULT_TENANTS_CUSTOMER_NAME_INDEX_RCU = 5
+
 
 class EnvironmentService:
     @staticmethod
@@ -60,3 +62,8 @@ class EnvironmentService:
             return int(os.environ.get('mail_report_high_priority_threshold'))
         except (TypeError, ValueError):
             return MAIL_REPORT_DEFAULT_HIGH_PRIORITY_THRESHOLD
+
+    @staticmethod
+    def tenants_customer_name_index_rcu():
+        return int(os.environ.get('tenants_customer_name_index_rcu',
+                                  DEFAULT_TENANTS_CUSTOMER_NAME_INDEX_RCU))
