@@ -1,7 +1,6 @@
 import json
 
 import requests
-
 from r8s_service.constants import *
 from r8s_service.local_response_processor import LocalCommandResponse
 from r8s_service.logger import get_logger, get_user_logger
@@ -425,15 +424,15 @@ class AdapterClient:
                                    method=HTTP_GET,
                                    payload=request)
 
-    def job_post(self, parent_id, scan_customer,
+    def job_post(self, parent_id,
                  scan_tenants, scan_from_date, scan_to_date):
         request = {
             PARAM_PARENT_ID: parent_id,
-            PARAM_CUSTOMER: scan_customer,
             PARAM_TENANTS: scan_tenants,
             PARAM_SCAN_FROM_DATE: scan_from_date,
             PARAM_SCAN_TO_DATE: scan_to_date,
         }
+
         request = {k: v for k, v in request.items()}
         return self.__make_request(resource=API_JOB,
                                    method=HTTP_POST,
@@ -561,36 +560,19 @@ class AdapterClient:
                                    method=HTTP_GET,
                                    payload=request)
 
-    def parent_post(self, application_id, description, algorithm,
-                    tenant_license_key,
-                    cloud, scope, tenant_name=None):
+    def parent_post(self, application_id, description,
+                    clouds, scope, tenant_name=None):
         request = {
             PARAM_APPLICATION_ID: application_id,
             PARAM_DESCRIPTION: description,
-            PARAM_CLOUD: cloud,
+            PARAM_CLOUDS: clouds,
             PARAM_SCOPE: scope
         }
-        if tenant_license_key:
-            request[PARAM_TENANT_LICENSE_KEY] = tenant_license_key
-        else:
-            request[PARAM_ALGORITHM] = algorithm
         if tenant_name:
             request[PARAM_TENANT] = tenant_name
 
         return self.__make_request(resource=API_PARENT,
                                    method=HTTP_POST,
-                                   payload=request)
-
-    def parent_patch(self, parent_id, description=None, algorithm=None):
-        request = {
-            PARAM_PARENT_ID: parent_id,
-            PARAM_DESCRIPTION: description,
-            PARAM_ALGORITHM: algorithm,
-        }
-        request = {k: v for k, v in request.items() if v is not None}
-
-        return self.__make_request(resource=API_PARENT,
-                                   method=HTTP_PATCH,
                                    payload=request)
 
     def parent_delete(self, parent_id):
@@ -638,6 +620,39 @@ class AdapterClient:
 
         return self.__make_request(resource=API_PARENT_INSIGHTS_RESIZE,
                                    method=HTTP_GET,
+                                   payload=request)
+
+    def parent_licenses_get(self, application_id=None, parent_id=None):
+        request = {}
+        if application_id:
+            request[PARAM_APPLICATION_ID] = application_id
+        if parent_id:
+            request[PARAM_PARENT_ID] = parent_id
+
+        return self.__make_request(resource=API_PARENT_LICENSES,
+                                   method=HTTP_GET,
+                                   payload=request)
+
+    def parent_licenses_post(self, application_id, description,
+                             cloud, tenant_license_key):
+        request = {
+            PARAM_APPLICATION_ID: application_id,
+            PARAM_DESCRIPTION: description,
+            PARAM_CLOUD: cloud,
+            PARAM_TENANT_LICENSE_KEY: tenant_license_key
+        }
+
+        return self.__make_request(resource=API_PARENT_LICENSES,
+                                   method=HTTP_POST,
+                                   payload=request)
+
+    def parent_licenses_delete(self, parent_id):
+        request = {
+            PARAM_PARENT_ID: parent_id
+        }
+
+        return self.__make_request(resource=API_PARENT_LICENSES,
+                                   method=HTTP_DELETE,
                                    payload=request)
 
     def shape_rule_get(self, parent_id=None, rule_id=None):
