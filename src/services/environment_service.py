@@ -2,7 +2,7 @@ import os
 
 from commons.constants import ENV_SERVICE_MODE, DOCKER_SERVICE_MODE, \
     MAIL_REPORT_DEFAULT_PROCESSING_DAYS, \
-    MAIL_REPORT_DEFAULT_HIGH_PRIORITY_THRESHOLD
+    MAIL_REPORT_DEFAULT_HIGH_PRIORITY_THRESHOLD, ENV_TENANT_CUSTOMER_INDEX
 
 DEFAULT_TENANTS_CUSTOMER_NAME_INDEX_RCU = 5
 
@@ -65,5 +65,5 @@ class EnvironmentService:
 
     @staticmethod
     def tenants_customer_name_index_rcu():
-        return int(os.environ.get('tenants_customer_name_index_rcu',
+        return int(os.environ.get(ENV_TENANT_CUSTOMER_INDEX,
                                   DEFAULT_TENANTS_CUSTOMER_NAME_INDEX_RCU))
