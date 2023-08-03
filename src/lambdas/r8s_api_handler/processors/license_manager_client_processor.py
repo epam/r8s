@@ -87,10 +87,15 @@ class LicenseManagerClientProcessor(AbstractCommandProcessor):
                         exported_key=managed.export_key(frmt=fmt),
                         value_attr=PUBLIC_KEY_ATTR
                     )
-
+        if not response:
+            _LOG.warning(f'No valid License Manager Client-Key found.')
+            return build_response(
+                code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
+                content=f'No valid License Manager Client-Key found.'
+            )
         return build_response(
             code=RESPONSE_OK_CODE,
-            content=response or []
+            content=response
         )
 
     def post(self, event: dict):
