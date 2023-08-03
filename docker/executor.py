@@ -49,15 +49,12 @@ license_manager_service: LicenseManagerService = SERVICE_PROVIDER. \
 _LOG = get_logger('r8s-executor')
 
 JOB_ID = environment_service.get_batch_job_id()
-SCAN_CUSTOMER = environment_service.get_scan_customer()
-SCAN_TENANTS = environment_service.get_scan_tenants()
 SCAN_FROM_DATE = environment_service.get_scan_from_date()
 SCAN_TO_DATE = environment_service.get_scan_to_date()
-SCAN_CLOUDS = environment_service.get_scan_clouds()
-LICENSE_KEY = environment_service.get_license_key()
+PARENT_ID = environment_service.get_licensed_parent_id()
 
 
-def set_job_fail_reason(exception: Exception, licensed: bool):
+def set_job_fail_reason(exception: Exception):
     if isinstance(exception, ExecutorException):
         reason = str(exception)
     else:
@@ -69,8 +66,8 @@ def set_job_fail_reason(exception: Exception, licensed: bool):
         job.fail_reason = reason
         job.save()
         _LOG.debug('Job reason was saved.')
-    if licensed:
-        _LOG.debug(f'Updating job status in LM')
+    for tenant in environment_service.get_scan_tenants():
+        _LOG.debug(f'Updating job status in LM for tenant: {tenant}')
         license_manager_service.update_job_in_license_manager(
             job_id=JOB_ID,
             created_at=utc_iso(job.created_at),
@@ -80,12 +77,13 @@ def set_job_fail_reason(exception: Exception, licensed: bool):
         )
 
 
-def submit_licensed_job(parent: Parent, scan_tenants: list, license_: License):
-    if not scan_tenants or len(scan_tenants) != 1:
-        _LOG.error(f'Exactly 1 tenant must be specified for licensed jobs.')
+def submit_licensed_jobs(parent: Parent, scan_tenants: list,
+                         license_: License):
+    if not scan_tenants:
+        _LOG.error(f'At least 1 tenant must be specified for licensed jobs.')
         raise ExecutorException(
             step_name=JOB_STEP_INITIALIZATION,
-            reason=f'Exactly 1 tenant must be specified for licensed jobs.'
+            reason=f'At least 1 tenant must be specified for licensed jobs.'
         )
     customer = parent.customer_id
     tenant_license_key = license_.customers.get(customer, {}).get(
@@ -95,18 +93,20 @@ def submit_licensed_job(parent: Parent, scan_tenants: list, license_: License):
     algorithm_map = {
         tenant_license_key: algorithm_name
     }
-
-    licensed_job = license_manager_service.instantiate_licensed_job_dto(
-        job_id=JOB_ID,
-        customer=customer,
-        tenant=scan_tenants[0],
-        algorithm_map=algorithm_map
-    )
-    if not licensed_job:
-        reason = 'Job execution could not be granted.'
-        raise ExecutorException(reason=reason,
-                                step_name=JOB_STEP_INITIALIZATION)
-    return licensed_job
+    licensed_jobs = []
+    for tenant_name in scan_tenants:
+        licensed_job = license_manager_service.instantiate_licensed_job_dto(
+            job_id=f'{JOB_ID}:{tenant_name}',
+            customer=customer,
+            tenant=tenant_name,
+            algorithm_map=algorithm_map
+        )
+        if not licensed_job:
+            _LOG.warning(f'Job execution could not be granted '
+                         f'for tenant {tenant_name}.')
+            continue
+        licensed_jobs.append(licensed_job)
+    return licensed_jobs
 
 
 def main():
@@ -124,6 +124,11 @@ def main():
             reason=f'Job with id \'{JOB_ID}\' does not exist'
         )
 
+    _LOG.debug(f'Setting job status to RUNNING')
+    job = job_service.set_status(
+        job=job,
+        status=JobStatusEnum.JOB_RUNNING_STATUS.value)
+
     parent_id = job.parent_id
     parent = parent_service.get_parent_by_id(
         parent_id=parent_id)
@@ -135,24 +140,9 @@ def main():
             reason=f'Parent \'{parent_id}\' does not exist'
         )
 
-    licensed_job_data = None
-    if LICENSE_KEY:
-        license_: License = license_service.get_license(license_id=LICENSE_KEY)
-        licensed_job_data = submit_licensed_job(
-            parent=parent,
-            license_=license_,
-            scan_tenants=SCAN_TENANTS)
+    parent_meta = parent_service.get_parent_meta(parent=parent)
+    license_key = parent_meta.license_key
 
-    _LOG.debug(f'Setting job status to RUNNING')
-    job = job_service.set_status(job=job,
-                                 status=JobStatusEnum.JOB_RUNNING_STATUS.value,
-                                 licensed=bool(LICENSE_KEY))
-
-    parent_meta = parent_service.get_parent_meta(
-        parent=parent
-    )
-    if parent_meta.cloud != 'ALL_CLOUDS':
-        SCAN_CLOUDS = [parent_meta.cloud.lower()]
     application_id = parent.application_id
     application = application_service.get_application_by_id(
         application_id=application_id)
@@ -176,20 +166,7 @@ def main():
             reason=f'Application \'{application_id}\' does not have algorithm '
                    f'specified'
         )
-    if licensed_job_data:
-        _LOG.debug(f'Syncing algorithm with licensed job data')
-        algorithm_service.update_from_licensed_job(
-            algorithm=algorithm,
-            licensed_job=licensed_job_data
-        )
-    if not algorithm.checksum_matches():
-        _LOG.error(f'Algorithm \'{algorithm.name}\' checksum '
-                   f'verification failed.')
-        raise ExecutorException(
-            step_name=JOB_STEP_INITIALIZATION,
-            reason=f'Algorithm \'{algorithm.name}\' checksum '
-                   f'verification failed.'
-        )
+
     input_storage_name = application_meta.input_storage
     _LOG.debug(f'Input storage: \'{input_storage_name}\'')
     input_storage: Storage = storage_service.get_by_name(
@@ -212,20 +189,14 @@ def main():
             reason=f'Output storage \'{output_storage_name}\' does not exist.'
         )
 
-    _LOG.debug(f'Resolving tenants to scan')
-    tenants_to_scan = parent_service.resolve_scan_tenants_list(
-        scan_tenants=SCAN_TENANTS,
-        parent=parent
-    )
-    _LOG.debug(f'Tenants to process \'{tenants_to_scan}\'')
-
+    scan_tenants = environment_service.get_scan_tenants()
     _LOG.info(
         f'Downloading metrics from storage \'{input_storage_name}\'')
     storage_service.download_metrics(data_source=input_storage,
                                      output_path=metrics_dir,
-                                     scan_customer=SCAN_CUSTOMER,
-                                     scan_clouds=SCAN_CLOUDS,
-                                     scan_tenants=tenants_to_scan,  # temporary
+                                     scan_customer=parent.customer_id,
+                                     scan_clouds=[parent_meta.cloud.lower()],
+                                     scan_tenants=scan_tenants,
                                      scan_from_date=SCAN_FROM_DATE,
                                      scan_to_date=SCAN_TO_DATE)
 
@@ -267,6 +238,37 @@ def main():
             metric_file_paths=metric_file_paths
         )
 
+    if not scan_tenants:
+        _LOG.debug(f'Resolving tenants to scan from metrics')
+        scan_tenants = list(set([os_service.path_to_tenant(path)
+                        for path in metric_file_paths]))
+
+    _LOG.debug(f'Describing License \'{license_key}\'')
+    license_: License = license_service.get_license(license_id=license_key)
+
+    _LOG.debug(f'Batch submitting licensed jobs for tenants {scan_tenants}')
+    licensed_jobs_data = submit_licensed_jobs(
+        parent=parent,
+        license_=license_,
+        scan_tenants=scan_tenants)
+
+    if not licensed_jobs_data:
+        _LOG.debug(f'Job execution could not be granted '
+                   f'for tenants {scan_tenants}.')
+        raise ExecutorException(
+            step_name=JOB_STEP_INITIALIZATION,
+            reason=f'Job execution could not be granted '
+                   f'for tenants {scan_tenants}.'
+        )
+    licensed_job_ids = [job_data.get('job_id')
+                        for job_data in licensed_jobs_data]
+
+    _LOG.debug(f'Syncing licensed algorithm from license')
+    algorithm_service.update_from_licensed_job(
+        algorithm=algorithm,
+        licensed_job=licensed_jobs_data[0]
+    )
+
     _LOG.info(f'Metric file paths to process: \'{metric_file_paths}\'')
     for index, metric_file_path in enumerate(metric_file_paths, start=1):
         _LOG.debug(
@@ -291,7 +293,7 @@ def main():
     _LOG.debug(f'Setting job state to SUCCEEDED')
     job_service.set_status(job=job,
                            status=JobStatusEnum.JOB_SUCCEEDED_STATUS.value,
-                           licensed=bool(LICENSE_KEY))
+                           licensed_job_ids=licensed_job_ids)
     os_service.clean_workdir(work_dir=work_dir)
 
 
@@ -299,5 +301,5 @@ if __name__ == '__main__':
     try:
         main()
     except Exception as exception:
-        set_job_fail_reason(exception=exception, licensed=bool(LICENSE_KEY))
+        set_job_fail_reason(exception=exception)
         raise

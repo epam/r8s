@@ -239,6 +239,7 @@ class ServiceProvider:
                 self.__parent_service = RightSizerParentService(
                     tenant_service=self.tenant_service(),
                     customer_service=self.customer_service(),
+                    environment_service=self.environment_service()
                 )
             return self.__parent_service
 
