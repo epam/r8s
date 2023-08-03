@@ -226,11 +226,11 @@ class LicenseManagerClientProcessor(AbstractCommandProcessor):
             else:
                 is_key_data_removed = True
 
-        if self.settings_service.delete(setting=setting):
-            committed = 'completely ' if is_key_data_removed else ''
-            committed += 'removed'
-            code = RESPONSE_OK_CODE
-            content = head + f' has been {committed}'
+        self.settings_service.delete(setting=setting)
+        committed = 'completely ' if is_key_data_removed else ''
+        committed += 'removed'
+        code = RESPONSE_OK_CODE
+        content = head + f' has been {committed}'
 
         return build_response(code=code, content=content)
 
