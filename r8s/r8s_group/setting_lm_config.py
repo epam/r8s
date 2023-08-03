@@ -1,5 +1,6 @@
 import click
 from r8s_group import cli_response, ViewCommand
+from r8s_service.local_response_processor import LocalCommandResponse
 
 
 @click.group(name='config')
@@ -47,7 +48,8 @@ def delete(confirm: bool):
     Removes current License Manager access configuration data
     """
     if not confirm:
-        return {'message': 'Please, specify `--confirm` flag'}
+        return LocalCommandResponse(
+            body={'message': 'Please, specify `--confirm` flag'})
 
     from r8s_service.initializer import init_configuration
     return init_configuration().lm_config_setting_delete()
