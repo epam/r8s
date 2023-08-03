@@ -11,7 +11,8 @@ from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
     build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
     validate_params, RESPONSE_FORBIDDEN_CODE, RESPONSE_SERVICE_UNAVAILABLE_CODE
 from commons.abstract_lambda import PARAM_HTTP_METHOD
-from commons.constants import CLOUD_AWS, TENANTS_ATTR
+from commons.constants import CLOUD_AWS, TENANTS_ATTR, \
+    ENV_TENANT_CUSTOMER_INDEX
 from commons.constants import POST_METHOD, GET_METHOD, DELETE_METHOD, ID_ATTR, \
     NAME_ATTR, USER_ID_ATTR, PARENT_ID_ATTR, SCAN_FROM_DATE_ATTR, \
     SCAN_TO_DATE_ATTR, TENANT_LICENSE_KEY_ATTR, PARENT_SCOPE_SPECIFIC_TENANT
@@ -178,6 +179,7 @@ class JobProcessor(AbstractCommandProcessor):
         rate_limit = self.environment_service.tenants_customer_name_index_rcu()
         _LOG.debug(f'Rate limiting on Tenants customer index rcu: '
                    f'{rate_limit}')
+        envs[ENV_TENANT_CUSTOMER_INDEX] = rate_limit
 
         parent_meta = self.parent_service.get_parent_meta(parent=parent)
         input_scan_tenants = event.get(TENANTS_ATTR)
