@@ -58,6 +58,14 @@
         "r8s:shape:remove_shape_price",
         "r8s:health_check:describe_health_check",
         "r8s:recommendation:describe_recommendation",
-        "r8s:recommendation:update_recommendation"
+        "r8s:recommendation:update_recommendation",
+        "r8s:license:describe_license",
+        "r8s:license:delete_license",
+        "r8s:setting:describe_lm_config",
+        "r8s:setting:create_lm_config",
+        "r8s:setting:delete_lm_config",
+        "r8s:setting:describe_lm_client",
+        "r8s:setting:create_lm_client",
+        "r8s:setting:delete_lm_client"
     ]
 }

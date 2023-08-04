@@ -171,13 +171,13 @@ class ParentTenantLinkageProcessor(AbstractCommandProcessor):
                 content=f'Parent \'{parent_id}\' scope must be set to '
                         f'\'{PARENT_SCOPE_SPECIFIC_TENANT}\' to link tenants.'
             )
-        if parent_meta.cloud != tenant.cloud:
+        if tenant.cloud not in parent_meta.clouds:
             _LOG.error(f'{tenant.cloud} tenant {tenant.name} cannot be '
-                       f'linked to {parent_meta.cloud} parent \'{parent_id}\'')
+                       f'linked to {parent_meta.clouds} parent \'{parent_id}\'')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
                 content=f'{tenant.cloud} tenant {tenant.name} cannot be '
-                        f'linked to {parent_meta.cloud} parent \'{parent_id}\''
+                        f'linked to {parent_meta.clouds} parent \'{parent_id}\''
             )
         try:
             _LOG.debug(f'Adding Parent \'{parent.parent_id}\' to tenant '

@@ -40,6 +40,8 @@ class ServiceProvider:
         __batch = None
         __api_gateway_client = None
         __lambda_client = None
+        __license_manager_conn = None
+        __standalone_key_management = None
 
         # services
         __environment_service = None
@@ -63,6 +65,10 @@ class ServiceProvider:
         __maestro_rabbitmq_service = None
         __customer_preferences_service = None
         __resize_service = None
+        __token_service = None
+        __license_manager_service = None
+        __key_management_service = None
+        __license_service = None
 
         def __str__(self):
             return id(self)
@@ -115,6 +121,23 @@ class ServiceProvider:
                 self.__lambda_client = LambdaClient(
                     environment_service=self.environment_service())
             return self.__lambda_client
+
+        def license_manager_client(self):
+            if not self.__license_manager_conn:
+                from services.clients.license_manager import \
+                    LicenseManagerClient
+                self.__license_manager_conn = LicenseManagerClient(
+                    setting_service=self.settings_service()
+                )
+            return self.__license_manager_conn
+
+        def standalone_key_management(self):
+            if not self.__standalone_key_management:
+                from services.clients.standalone_key_management import \
+                    StandaloneKeyManagementClient
+                self.__standalone_key_management = \
+                    StandaloneKeyManagementClient(ssm_client=self.ssm())
+            return self.__standalone_key_management
 
         # services
 
@@ -227,7 +250,8 @@ class ServiceProvider:
                 self.__rightsizer_parent_service = \
                     RightSizerParentService(
                         tenant_service=self.tenant_service(),
-                        customer_service=self.customer_service()
+                        customer_service=self.customer_service(),
+                        environment_service=self.environment_service()
                     )
             return self.__rightsizer_parent_service
 
@@ -297,6 +321,42 @@ class ServiceProvider:
                     customer_preferences_service=self.customer_preferences_service()
                 )
             return self.__resize_service
+
+        def token_service(self):
+            if not self.__token_service:
+                from services.token_service import TokenService
+                self.__token_service = TokenService(
+                    client=self.standalone_key_management()
+                )
+            return self.__token_service
+
+        def license_manager_service(self):
+            if not self.__license_manager_service:
+                from services.license_manager_service import \
+                    LicenseManagerService
+                self.__license_manager_service = LicenseManagerService(
+                    license_manager_client=self.license_manager_client(),
+                    token_service=self.token_service()
+                )
+            return self.__license_manager_service
+
+        def key_management_service(self):
+            if not self.__key_management_service:
+                from services.key_management_service import \
+                    KeyManagementService
+                self.__key_management_service = KeyManagementService(
+                    key_management_client=self.standalone_key_management()
+                )
+            return self.__key_management_service
+
+        def license_service(self):
+            if not self.__license_service:
+                from services.license_service import \
+                    LicenseService
+                self.__license_service = LicenseService(
+                    settings_service=self.settings_service()
+                )
+            return self.__license_service
 
     instance = None
 

@@ -27,10 +27,11 @@ POLICIES_TO_ATTACH = 'policies_to_attach'
 POLICIES_TO_DETACH = 'policies_to_detach'
 POLICIES_ATTR = 'policies'
 RESOURCE_ATTR = 'resource'
-TENANT_ATTR = 'tenant'
 CUSTOMER_ATTR = 'customer'
+CUSTOMERS_ATTR = 'customers'
 REGION_ATTR = 'region'
 CLOUD_ATTR = 'cloud'
+CLOUDS_ATTR = 'clouds'
 DETAILED_ATTR = 'detailed'
 OS_ATTR = 'os'
 DESCRIPTION_ATTR = 'description'
@@ -38,6 +39,7 @@ CONNECTION_ATTR = 'connection'
 HOST_ATTR = 'host'
 PORT_ATTR = 'port'
 PROTOCOL_ATTR = 'protocol'
+ATTACHMENT_MODEL_ATTR = 'attachment_model'
 
 SERVICE_ATTR = 'service'
 TYPE_ATTR = 'type'
@@ -57,6 +59,8 @@ PARAM_NATIVE_JOB_ID = 'jobId'
 TENANT_ATTR = 'tenant'
 TENANTS_ATTR = 'tenants'
 SCAN_TIMESTAMP_ATTR = 'scan_timestamp'
+SCAN_FROM_DATE_ATTR = 'scan_from_date'
+SCAN_TO_DATE_ATTR = 'scan_to_date'
 INSTANCE_ID_ATTR = 'instance_id'
 SCAN_CLOUDS_ATTR = 'scan_clouds'
 APPLICATION_ID_ATTR = 'application_id'
@@ -78,6 +82,7 @@ TIMESTAMP_ATTR = 'timestamp_attribute'
 ACTION_ATTR = 'action'
 REPORT_TYPE_ATTR = 'report_type'
 REPORT_TYPE_INSTANCE_SHAPE = 'instance_shape'
+LICENSED_ATTR = 'licensed'
 
 MONGODB_CONNECTION_URI_PARAMETER = 'r8s_mongodb_connection_uri'
 JSON_EXTENSION = '.json'
@@ -88,6 +93,23 @@ CLOUD_AZURE = 'AZURE'
 CLOUD_GOOGLE = 'GOOGLE'
 
 CLOUDS = [CLOUD_AWS, CLOUD_AZURE, CLOUD_GOOGLE]
+
+DEFAULT_DATA_ATTRIBUTES = [
+    "instance_id",
+    "instance_type",
+    "timestamp",
+    "cpu_load",
+    "memory_load",
+    "net_output_load",
+    "avg_disk_iops",
+    "max_disk_iops"
+]
+DEFAULT_METRIC_ATTRIBUTES = [
+    "cpu_load",
+    "memory_load",
+    "net_output_load",
+    "avg_disk_iops"
+]
 
 METRIC_FORMAT_ATTR = 'metric_format'
 DELIMITER_ATTR = 'delimiter'
@@ -235,6 +257,7 @@ ENV_VAULT_TOKEN = 'VAULT_TOKEN'
 ENV_VAULT_HOST = 'VAULT_URL'
 ENV_VAULT_PORT = 'VAULT_SERVICE_SERVICE_PORT'
 
+ENV_TENANT_CUSTOMER_INDEX = 'tenants_customer_name_index_rcu'
 EXP_ATTR = 'exp'
 
 # cognito
@@ -257,3 +280,22 @@ REPORT_SOURCE_RIGHTSIZER = 'RIGHTSIZER'
 REPORT_SEVERITY_ATTR = 'severity'
 REPORT_SEVERITY = 'MEDIUM'
 REPORT_RECOMMENDATION_ATTR = 'recommendation'
+
+# License Manager
+LICENSE_KEY_ATTR = 'license_key'
+LICENSE_KEYS_ATTR = 'license_keys'
+TENANT_LICENSE_KEY_ATTR = 'tenant_license_key'
+TENANT_LICENSE_KEYS_ATTR = 'tenant_license_keys'
+AUTHORIZATION_PARAM = 'authorization'
+STATUS_ATTR = 'status'
+ALGORITHM_ID_ATTR = 'algorithm_id'
+
+KID_ATTR = 'kid'
+ALG_ATTR = 'alg'
+TYP_ATTR = 'typ'
+
+TOKEN_DATE_ATTR = 'token_date'
+CLIENT_TOKEN_ATTR = 'client-token'
+STAGE_ATTR = 'stage'
+KEY_ID_ATTR = 'key_id'
+B64ENCODED_ATTR = 'b64_encoded'

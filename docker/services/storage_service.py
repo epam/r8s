@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta, date
 from glob import glob
 
 from bson import ObjectId
@@ -13,6 +14,8 @@ from models.storage import Storage, StorageServiceEnum, S3Storage
 from services.clients.s3 import S3Client
 
 _LOG = get_logger('r8s-storage-service')
+
+DATE_FORMAT = '%Y-%m-%d'
 
 
 class StorageService:
@@ -67,7 +70,8 @@ class StorageService:
         storage.delete()
 
     def download_metrics(self, data_source: Storage, output_path: str,
-                         scan_customer, scan_clouds, scan_tenants, scan_timestamp):
+                         scan_customer, scan_clouds, scan_tenants,
+                         scan_from_date, scan_to_date):
         type_downloader_mapping = {
             S3Storage: self._download_metrics_s3
         }
@@ -80,11 +84,12 @@ class StorageService:
                        f'\'{data_source.__class__}\''
             )
         return downloader(data_source, output_path, scan_customer,
-                          scan_clouds, scan_tenants, scan_timestamp)
+                          scan_clouds, scan_tenants, scan_from_date,
+                          scan_to_date)
 
     def _download_metrics_s3(self, data_source: S3Storage, output_path,
                              scan_customer, scan_clouds, scan_tenants,
-                             scan_timestamp):
+                             scan_from_date=None, scan_to_date=None):
         access = data_source.access
         prefix = access.prefix
         bucket_name = access.bucket_name
@@ -109,9 +114,14 @@ class StorageService:
         objects = [obj for obj in objects if
                    obj.get('Key').endswith(CSV_EXTENSION)
                    or obj.get('Key').endswith(f'/{META_FILE_NAME}')]
-        if scan_timestamp:
-            objects = [obj for obj in objects if f'/{scan_timestamp}/'
-                       in obj.get('Key')]
+
+        filter_only_dates = self.get_scan_dates_list(
+            scan_from_date=scan_from_date,
+            scan_to_date=scan_to_date
+        )
+        if filter_only_dates:
+            objects = [obj for obj in objects if obj['Key'].split('/')[-2]
+                       in filter_only_dates]
         _LOG.debug(f'{len(objects)} metric/meta files found, downloading')
         for file in objects:
             path = file.get('Key').split('/')
@@ -190,3 +200,32 @@ class StorageService:
         if not paths and path_lst:
             paths.append('/'.join(path_lst))
         return paths
+
+    def get_scan_dates_list(self, scan_from_date: str = None,
+                            scan_to_date: str = None):
+        if not scan_from_date:
+            _LOG.warning(f'No start date provided.')
+            return
+        try:
+            start_dt = datetime.strptime(scan_from_date, DATE_FORMAT)
+        except ValueError:
+            _LOG.warning(f'Invalid scan start date: {scan_from_date} '
+                         f'must have %Y_%m_%d pattern.')
+            return
+
+        try:
+            end_dt = datetime.strptime(scan_to_date, DATE_FORMAT)
+        except (ValueError, TypeError):
+            _LOG.warning(f'Invalid/Empty scan stop date: {scan_from_date} '
+                         f'must have %Y_%m_%d pattern.')
+            end_d = date.today() + timedelta(days=1)
+            end_dt = datetime.combine(end_d, datetime.min.time())
+            _LOG.debug(f'Default stop date will be used: {end_dt.isoformat()}')
+
+        dt_list = self.__date_range(start_date=start_dt, end_date=end_dt)
+        return [dt.strftime(DATE_FORMAT) for dt in dt_list]
+
+    @staticmethod
+    def __date_range(start_date, end_date):
+        return [start_date + timedelta(n)
+                for n in range(int((end_date - start_date).days) + 1)]

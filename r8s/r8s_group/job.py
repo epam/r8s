@@ -25,16 +25,20 @@ def describe(job_id=None, job_name=None):
 
 @job.command(cls=ViewCommand, name='submit')
 @click.option('--parent_id', '-pid', type=str, required=True,
-              help='Maestro RightSizer Parent id.')
-@click.option('--customer_id', '-cid', type=str, required=False,
-              help='Customer to scan.')
+              help='Maestro RIGHTSIZER_LICENSES parent id.')
 @click.option('--scan_tenants', '-t', multiple=True, required=False,
               help='List of tenants to scan.')
-@click.option('--scan_timestamp', '-st', type=int, required=False,
-              help='Timestamp to scan.')
+@click.option('--scan_from_date', '-sfd', type=str, required=False,
+              help='Processing start date. Format: "%Y-%m-%d" '
+                   'Example: 2023-06-20. If not set, '
+                   'all available metrics will be used.')
+@click.option('--scan_to_date', '-std', type=str, required=False,
+              help='Processing end date. Format: "%Y-%m-%d" '
+                   'Example: 2023-06-20. If not set, scan will be '
+                   'limitated by tomorrow\'s date.')
 @cli_response()
-def submit(parent_id, customer_id, scan_tenants,
-           scan_timestamp):
+def submit(parent_id, scan_tenants,
+           scan_from_date, scan_to_date):
     """
     Submits a R8s job.
     """
@@ -43,9 +47,9 @@ def submit(parent_id, customer_id, scan_tenants,
     scan_tenants = cast_to_list(scan_tenants)
 
     return init_configuration().job_post(parent_id=parent_id,
-                                         scan_customer=customer_id,
                                          scan_tenants=scan_tenants,
-                                         scan_timestamp=scan_timestamp)
+                                         scan_from_date=scan_from_date,
+                                         scan_to_date=scan_to_date)
 
 
 @job.command(cls=ViewCommand, name='terminate')

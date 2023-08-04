@@ -169,7 +169,7 @@ class RecommendationService:
                     cloud=cloud.upper(),
                     instance_meta=instance_meta,
                     resize_action=resize_action,
-                    parent_meta=parent_meta,
+                    # parent_meta=parent_meta, # todo temporary
                     max_results=max_recommended_shapes,
                     shape_compatibility_rule=compatibility_rule,
                     past_resize_recommendations=past_resize_recommendations
@@ -184,7 +184,7 @@ class RecommendationService:
                         cloud=cloud.upper(),
                         instance_meta=instance_meta,
                         resize_action=resize_action,
-                        parent_meta=parent_meta,
+                        # parent_meta=parent_meta, # todo temporary
                         max_results=1,
                         shape_compatibility_rule=compatibility_rule,
                         past_resize_recommendations=past_resize_recommendations

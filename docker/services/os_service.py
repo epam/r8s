@@ -91,3 +91,7 @@ class OSService:
     @staticmethod
     def path_to_cloud(file_path):
         return file_path.split(os.sep)[-5]
+
+    @staticmethod
+    def path_to_tenant(file_path):
+        return file_path.split(os.sep)[-4]

@@ -1,9 +1,10 @@
 import os
 
 from commons.constants import INSTANCE_SPECS_STORAGE_TYPE, \
-    STORAGE_TYPE_SETTING, DEFAULT_DAYS_TO_PROCESS, CLOUDS, \
-    DEFAULT_META_POSTPONED_KEY, DEFAULT_META_POSTPONED_FOR_ACTIONS_KEY, \
+    STORAGE_TYPE_SETTING, DEFAULT_DAYS_TO_PROCESS, DEFAULT_META_POSTPONED_KEY, \
+    DEFAULT_META_POSTPONED_FOR_ACTIONS_KEY, \
     ENV_SERVICE_MODE, DOCKER_SERVICE_MODE
+from commons.constants import PARENT_ID_ATTR
 
 
 class EnvironmentService:
@@ -28,35 +29,27 @@ class EnvironmentService:
         return os.environ.get('AWS_BATCH_JOB_ID')
 
     @staticmethod
-    def get_scan_customer():
-        return os.environ.get('SCAN_CUSTOMER')
-
-    @staticmethod
     def get_scan_tenants():
         raw = os.environ.get('SCAN_TENANTS')
         if raw:
             return raw.split(',')
 
     @staticmethod
-    def get_scan_clouds():
-        raw = os.environ.get('SCAN_CLOUDS')
-        if not raw:
-            return CLOUDS
-        clouds = [cloud.strip().lower() for cloud in raw.split(',')
-                  if cloud.strip()]
-        clouds = [cloud for cloud in clouds if cloud in CLOUDS]
-        if not clouds:
-            return CLOUDS
-        return clouds
+    def get_scan_from_date():
+        return os.environ.get('SCAN_FROM_DATE')
 
     @staticmethod
-    def get_scan_timestamp():
-        return os.environ.get('SCAN_TIMESTAMP')
+    def get_scan_to_date():
+        return os.environ.get('SCAN_TO_DATE')
 
     @staticmethod
     def get_instance_specs_storage_type():
         return os.environ.get(INSTANCE_SPECS_STORAGE_TYPE,
                               STORAGE_TYPE_SETTING)
+
+    @staticmethod
+    def get_licensed_parent_id():
+        return os.environ.get(PARENT_ID_ATTR)
 
     @staticmethod
     def is_debug():

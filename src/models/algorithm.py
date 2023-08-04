@@ -98,7 +98,7 @@ class Algorithm(BaseModel):
     name = StringField(unique=True)
     customer = StringField(null=True)
     cloud = EnumField(CloudEnum)
-
+    licensed = BooleanField(default=False)
     metric_format = EmbeddedDocumentField(MetricFormatSettings, null=True)
     required_data_attributes = ListField(StringField(null=True))
     metric_attributes = ListField(StringField(null=True))

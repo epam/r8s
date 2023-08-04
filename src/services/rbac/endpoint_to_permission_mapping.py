@@ -69,6 +69,12 @@ ENDPOINT_PERMISSION_MAPPING = {
         PATCH_METHOD: 'r8s:parent:update_parent',
         DELETE_METHOD: 'r8s:parent:remove_parent',
     },
+    '/parents/licenses/': {
+        GET_METHOD: 'r8s:parent:describe_parent',
+        POST_METHOD: 'r8s:parent:create_parent',
+        PATCH_METHOD: 'r8s:parent:update_parent',
+        DELETE_METHOD: 'r8s:parent:remove_parent',
+    },
     '/parents/tenant-link/': {
         GET_METHOD: 'r8s:parent:describe_tenant_link',
         POST_METHOD: 'r8s:parent:link_tenant',
@@ -101,5 +107,19 @@ ENDPOINT_PERMISSION_MAPPING = {
     '/recommendations/': {
         GET_METHOD: 'r8s:recommendation:describe_recommendation',
         PATCH_METHOD: 'r8s:recommendation:update_recommendation',
+    },
+    '/licenses/': {
+        GET_METHOD: 'r8s:license:describe_license',
+        DELETE_METHOD: 'r8s:license:delete_license',
+    },
+    '/settings/license-manager/config': {
+        GET_METHOD: 'r8s:setting:describe_lm_config',
+        POST_METHOD: 'r8s:setting:create_lm_config',
+        DELETE_METHOD: 'r8s:setting:delete_lm_config',
+    },
+    '/settings/license-manager/client': {
+        GET_METHOD: 'r8s:setting:describe_lm_client',
+        POST_METHOD: 'r8s:setting:create_lm_client',
+        DELETE_METHOD: 'r8s:setting:delete_lm_client',
     }
 }

@@ -1,37 +1,17 @@
-USER_ID_ATTR = 'user_id'
-NAME_ATTR = 'name'
-SETTING_IAM_PERMISSIONS = 'IAM_PERMISSIONS'
-SETTING_MAESTRO_APPLICATION_ID = 'APPLICATION_ID'
-
 GET_METHOD = 'GET'
 POST_METHOD = 'POST'
 PATCH_METHOD = 'PATCH'
 DELETE_METHOD = 'DELETE'
 
-ID_ATTR = 'id'
-USERNAME_ATTR = 'username'
-PASSWORD_ATTR = 'password'
-ROLE_ATTR = 'role'
-
 BODY_ATTR = 'body'
 THRESHOLDS_ATTR = 'thresholds'
 ALGORITHM_ATTR = 'algorithm'
 EXPIRATION_ATTR = 'expiration'
-PERMISSIONS_ATTR = 'permissions'
-PERMISSIONS_ADMIN_ATTR = 'permissions_admin'
-PERMISSIONS_TO_ATTACH = 'permissions_to_attach'
-PERMISSIONS_TO_DETACH = 'permissions_to_detach'
-POLICIES_TO_ATTACH = 'policies_to_attach'
-POLICIES_TO_DETACH = 'policies_to_detach'
-POLICIES_ATTR = 'policies'
 TENANT_ATTR = 'tenant'
+CUSTOMER_ATTR = 'customer'
+VALUE_ATTR = 'value'
 
 SERVICE_ATTR = 'service'
-TYPE_ATTR = 'type'
-ACCESS_ATTR = 'access'
-
-BUCKET_NAME_ATTR = 'bucket_name'
-PREFIX_ATTR = 'prefix'
 
 DATA_SOURCE_ATTR = 'data_source'
 STORAGE_ATTR = 'storage'
@@ -49,8 +29,6 @@ JOB_STEP_PROCESS_METRICS = 'PROCESS_METRICS'
 JOB_STEP_GENERATE_REPORTS = 'GENERATE_REPORTS'
 
 CSV_EXTENSION = '.csv'
-JSON_EXTENSION = '.json'
-META_FILE_ENDING = '_meta.json'
 META_FILE_NAME = 'meta_info.json'
 MONGODB_CONNECTION_URI_PARAMETER = 'r8s_mongodb_connection_uri'
 
@@ -118,7 +96,6 @@ CLUSTERING_SETTINGS_ATTRS = [
 
 RECOMMENDATION_SETTINGS_ATTR = 'recommendation_settings'
 RECORD_STEP_MINUTES_ATTR = 'record_step_minutes'
-THRESHOLDS_ATTR = 'thresholds'
 MIN_ALLOWED_DAYS_ATTR = 'min_allowed_days'
 MAX_DAYS_ATTR = 'max_days'
 MIN_ALLOWED_DAYS_SCHEDULE_ATTR = 'min_allowed_days_schedule'
@@ -159,7 +136,7 @@ ALLOWED_RULE_CONDITIONS = (
 
 ALLOWED_SHAPE_FIELDS = ('name', 'family_type', 'physical_processor',
                         'architecture')
-
+PARENT_ID_ATTR = 'parent_id'
 PARENT_SCOPE_ALL_TENANTS = 'ALL_TENANTS'
 PARENT_SCOPE_SPECIFIC_TENANT = 'SPECIFIC_TENANT'
 TENANT_PARENT_MAP_RIGHTSIZER_TYPE = 'RIGHTSIZER'
@@ -185,16 +162,40 @@ ENV_VAULT_TOKEN = 'VAULT_TOKEN'
 ENV_VAULT_HOST = 'VAULT_URL'
 ENV_VAULT_PORT = 'VAULT_SERVICE_SERVICE_PORT'
 
-EXP_ATTR = 'exp'
+JOB_ID = 'job_id'
 
-# cognito
-COGNITO_USERNAME = 'cognito:username'
-CUSTOM_ROLE_ATTR = 'custom:role'
-CUSTOM_CUSTOMER_ATTR = 'custom:customer'
-CUSTOM_LATEST_LOGIN_ATTR = 'custom:latest_login'
+# License Manager
+CUSTOMERS_ATTR = 'customers'
+TENANTS_ATTR = 'tenants'
+ATTACHMENT_MODEL_ATTR = 'attachment_model'
+LICENSE_KEY_ATTR = 'license_key'
+LICENSE_KEYS_ATTR = 'license_keys'
+TENANT_LICENSE_KEY_ATTR = 'tenant_license_key'
+TENANT_LICENSE_KEYS_ATTR = 'tenant_license_keys'
+AUTHORIZATION_PARAM = 'authorization'
+STATUS_ATTR = 'status'
+ALGORITHM_ID_ATTR = 'algorithm_id'
 
-SYSTEM_CUSTOMER = 'SYSTEM'
+KID_ATTR = 'kid'
+ALG_ATTR = 'alg'
+TYP_ATTR = 'typ'
 
-ENV_MAX_NUMBER_OF_JOBS_ON_PREM = 'MAX_NUMBER_OF_JOBS'
-BATCH_ENV_SUBMITTED_AT = 'SUBMITTED_AT'
-BATCH_ENV_JOB_ID = 'AWS_BATCH_JOB_ID'
+TOKEN_DATE_ATTR = 'token_date'
+CLIENT_TOKEN_ATTR = 'client-token'
+STAGE_ATTR = 'stage'
+KEY_ID_ATTR = 'key_id'
+B64ENCODED_ATTR = 'b64_encoded'
+
+SERVICE_TYPE_ATTR = 'service_type'
+SERVICE_TYPE_RIGHTSIZER = 'RIGHTSIZER'
+ALGORITHMS_ATTR = 'algorithms'
+
+RESPONSE_BAD_REQUEST_CODE = 400
+RESPONSE_UNAUTHORIZED = 401
+RESPONSE_FORBIDDEN_CODE = 403
+RESPONSE_RESOURCE_NOT_FOUND_CODE = 404
+RESPONSE_OK_CODE = 200
+
+BODY_PARAM = 'body'
+ITEMS_PARAM = 'items'
+MESSAGE_PARAM = 'message'

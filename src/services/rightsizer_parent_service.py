@@ -2,7 +2,8 @@ from typing import List, Union
 
 from modular_sdk.commons import generate_id
 from modular_sdk.commons.constants import RIGHTSIZER_PARENT_TYPE, \
-    TENANT_PARENT_MAP_RIGHTSIZER_TYPE
+    TENANT_PARENT_MAP_RIGHTSIZER_TYPE, RIGHTSIZER_LICENSES_PARENT_TYPE, \
+    TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE
 from modular_sdk.models.parent import Parent
 from modular_sdk.models.tenant import Tenant
 from modular_sdk.services.customer_service import CustomerService
@@ -13,28 +14,36 @@ from pynamodb.attributes import MapAttribute
 from commons import ApplicationException, RESPONSE_RESOURCE_NOT_FOUND_CODE
 from commons.log_helper import get_logger
 from models.algorithm import Algorithm
-from models.parent_attributes import ParentMeta, ShapeRule
+from models.parent_attributes import ParentMeta, ShapeRule, LicensesParentMeta
+from services.environment_service import EnvironmentService
 
 _LOG = get_logger('r8s-parent-service')
 
 
 class RightSizerParentService(ParentService):
     def __init__(self, tenant_service: TenantService,
-                 customer_service: CustomerService):
+                 customer_service: CustomerService,
+                 environment_service: EnvironmentService):
         self._excess_attributes_cache = {}
+        self.parent_type_meta_mapping = {
+            RIGHTSIZER_PARENT_TYPE: ParentMeta,
+            RIGHTSIZER_LICENSES_PARENT_TYPE: LicensesParentMeta
+        }
+        self.parent_type_tenant_pid_mapping = {
+            RIGHTSIZER_PARENT_TYPE: TENANT_PARENT_MAP_RIGHTSIZER_TYPE,
+            RIGHTSIZER_LICENSES_PARENT_TYPE:
+                TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE
+        }
+        self.environment_service = environment_service
         super(RightSizerParentService, self).__init__(
             tenant_service=tenant_service,
             customer_service=customer_service
         )
 
     def create_rightsizer_parent(self, application_id, customer_id,
-                                 description, cloud: str,
-                                 algorithm: Algorithm,
-                                 scope: str):
+                                 description, clouds: list, scope: str):
         meta = ParentMeta(
-            cloud=cloud,
-            algorithm=algorithm.name,
-            shape_rules=[],
+            clouds=clouds,
             scope=scope
         )
         parent = self.create(
@@ -47,34 +56,47 @@ class RightSizerParentService(ParentService):
         )
         return parent
 
-    @staticmethod
-    def list_rightsizer_parents(only_active=True):
-        if only_active:
-            return list(Parent.scan(
-                filter_condition=(Parent.type == RIGHTSIZER_PARENT_TYPE) &
-                                 (Parent.is_deleted == False)
-            ))
-        return list(Parent.scan(
-            filter_condition=(Parent.type == RIGHTSIZER_PARENT_TYPE)
-        ))
+    def create_rightsizer_licenses_parent(self, application_id, customer_id,
+                                          description, cloud: str,
+                                          algorithm: Algorithm,
+                                          scope: str, license_key: str = None):
+        meta = LicensesParentMeta(
+            cloud=cloud,
+            algorithm=algorithm.name,
+            license_key=license_key,
+            scope=scope
+        )
+        parent = self.create(
+            application_id=application_id,
+            customer_id=customer_id,
+            description=description,
+            is_deleted=False,
+            parent_type=RIGHTSIZER_LICENSES_PARENT_TYPE,
+            meta=meta.as_dict()
+        )
+        return parent
 
     @staticmethod
-    def list_application_parents(application_id, only_active=True):
+    def list_application_parents(application_id, type_: str,
+                                 only_active=True):
         if only_active:
             return list(Parent.scan(
                 filter_condition=
-                (Parent.type == RIGHTSIZER_PARENT_TYPE) &
+                (Parent.type == type_) &
                 (Parent.application_id == application_id) &
                 (Parent.is_deleted == False)))
         return list(Parent.scan(
             filter_condition=(Parent.application_id == application_id) &
-                             (Parent.type == RIGHTSIZER_PARENT_TYPE)))
+                             (Parent.type == type_)))
 
-    def get_parent_meta(self, parent: Parent) -> ParentMeta:
+    def get_parent_meta(self, parent: Parent) -> \
+            Union[ParentMeta, LicensesParentMeta]:
         meta: MapAttribute = parent.meta
+        meta_model = self.parent_type_meta_mapping.get(parent.type,
+                                                       RIGHTSIZER_PARENT_TYPE)
         if meta:
             meta_dict = meta.as_dict()
-            allowed_keys = list(ParentMeta._attributes.keys())
+            allowed_keys = list(meta_model._attributes.keys())
             excess_attributes = {}
             meta_dict_filtered = {}
             for key, value in meta_dict.items():
@@ -85,13 +107,13 @@ class RightSizerParentService(ParentService):
             if excess_attributes:
                 self._excess_attributes_cache[parent.parent_id] = \
                     excess_attributes
-            application_meta_obj = ParentMeta(**meta_dict_filtered)
+            application_meta_obj = meta_model(**meta_dict_filtered)
         else:
-            application_meta_obj = ParentMeta()
+            application_meta_obj = meta_model()
         return application_meta_obj
 
     def set_parent_meta(self, parent: Parent,
-                        meta: ParentMeta):
+                        meta: Union[ParentMeta, LicensesParentMeta]):
         meta_dict = meta.as_dict()
 
         excess_attributes = self._excess_attributes_cache.get(
@@ -100,18 +122,6 @@ class RightSizerParentService(ParentService):
             meta_dict.update(excess_attributes)
 
         parent.meta = meta_dict
-
-    def update_cloud(self, parent: Parent, cloud: str):
-        parent_meta = self.get_parent_meta(parent=parent)
-        parent_meta.cloud = cloud
-        self.set_parent_meta(parent=parent,
-                             meta=parent_meta)
-
-    def update_algorithm(self, parent: Parent, algorithm: str):
-        parent_meta = self.get_parent_meta(parent=parent)
-        parent_meta.algorithm = algorithm
-        self.set_parent_meta(parent=parent,
-                             meta=parent_meta)
 
     @staticmethod
     def list_shape_rules(parent_meta: ParentMeta) -> \
@@ -187,25 +197,28 @@ class RightSizerParentService(ParentService):
     def get_shape_rule_dto(shape_rule: ShapeRule):
         return shape_rule.as_dict()
 
-    def list_activated_tenants(self, parent: Parent) -> List[Tenant]:
+    def list_activated_tenants(self, parent: Parent, cloud: str,
+                               rate_limit: int = None) -> List[Tenant]:
         tenants = self.tenant_service.i_get_tenant_by_customer(
             customer_id=parent.customer_id,
             active=True,
-            attributes_to_get=[Tenant.name, Tenant.parent_map]
+            attributes_to_get=[Tenant.name, Tenant.parent_map],
+            cloud=cloud,
+            rate_limit=rate_limit
         )
         linked_tenants = []
-
+        target_pid_key = self.parent_type_tenant_pid_mapping.get(
+            parent.type, RIGHTSIZER_PARENT_TYPE)
         for tenant in tenants:
             _LOG.debug(f'Processing tenant \'{tenant.name}\'')
             parent_map = tenant.parent_map.as_dict()
-            if TENANT_PARENT_MAP_RIGHTSIZER_TYPE not in parent_map:
+            if target_pid_key not in parent_map:
                 _LOG.debug(f'Tenant \'{tenant.name}\' does not have linked '
                            f'RIGHTSIZER parent, skipping.')
                 continue
-            linked_parent_id = parent_map.get(
-                TENANT_PARENT_MAP_RIGHTSIZER_TYPE)
+            linked_parent_id = parent_map.get(target_pid_key)
             if parent.parent_id == linked_parent_id:
-                _LOG.debug(f'Tenant {tenant.name} is linked to target parent '
-                           f'\'{parent.parent_id}\'')
+                _LOG.debug(f'Tenant {tenant.name} is linked to '
+                           f'parent \'{parent.parent_id}\'')
                 linked_tenants.append(tenant)
         return linked_tenants

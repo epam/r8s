@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.1] - 2023-08-04
+* fix RIGHTSIZER parent with SPECIFIC_TENANT scope deletion 
+
+## [2.12.0] - 2023-08-03
+* License Manager integration:
+  - implement RIGHTSIZER_LICENSES parent to store license-related data
+  - implement `r8s parent licenses` command group
+
+## [2.11.0] - 2023-07-25
+* License Manager integration:
+  - add `r8s setting config` command group, to manage License Manager access data;
+  - add `r8s setting client` command group, to manage License Manager client data;
+  - add `r8s license` command group, to manage r8s licences;
+  - add `tenant_license_key` parameter to `r8s parent add` command. 
+    On parent creation, licensed algorithm will be pulled from LM;
+  - implement job permission check on submitting a job with parent 
+    linked to licensed algorithm;
+  - remove `r8s-job-updater` lambda, replaced with direct job state 
+    updates in executor;
+  - implement sending job state update requests to License Manager 
+    from executor.
+
+## [2.10.5] - 2023-07-17
+* change metrics storage folder structure:
+  - replace `$timestamp` with `$date` (%Y_%m_%d)
+  - update `r8s job submit` cli command
+
 ## [2.10.4] - 2023-07-07
 * remove mentions of `mcdm` from exported module Dockerfile
 

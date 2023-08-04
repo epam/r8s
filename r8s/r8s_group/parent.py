@@ -1,9 +1,9 @@
 import click
 
-from r8s_group import cli_response, ViewCommand
+from r8s_group import cli_response, ViewCommand, cast_to_list
 from r8s_service.constants import AVAILABLE_CLOUDS, ALLOWED_PROTOCOLS, \
     PROTOCOL_HTTPS, AVAILABLE_PARENT_SCOPES, PARENT_SCOPE_SPECIFIC_TENANT
-
+from r8s_group.parent_licenses import licenses
 
 @click.group(name='parent')
 def parent():
@@ -31,10 +31,8 @@ def describe(application_id=None, parent_id=None):
               help='Maestro application id to create Parent for.')
 @click.option('--description', '-d', type=str, required=True,
               help='Parent description.')
-@click.option('--cloud', '-c', type=click.Choice(AVAILABLE_CLOUDS),
-              required=True, help='Parent cloud')
-@click.option('--algorithm', '-a', required=True, type=str,
-              help='Name of Algorithm to use in scans.')
+@click.option('--clouds', '-c', type=click.Choice(AVAILABLE_CLOUDS),
+              multiple=True, required=True, help='Parent clouds')
 @click.option('--scope', '-s', required=True,
               type=click.Choice(AVAILABLE_PARENT_SCOPES),
               help='Parent scope. If intended to use for all Tenants, '
@@ -43,39 +41,18 @@ def describe(application_id=None, parent_id=None):
               help=f'Tenant name to be linked to Parent. '
                    f'Only for {PARENT_SCOPE_SPECIFIC_TENANT} scope.')
 @cli_response()
-def add(application_id, description, cloud, algorithm, scope, tenant_name):
+def add(application_id, description, clouds, scope, tenant_name):
     """
     Creates Maestro RIGHTSIZER Parent
     """
     from r8s_service.initializer import init_configuration
-
+    clouds = cast_to_list(clouds)
     return init_configuration().parent_post(
         application_id=application_id,
         description=description,
-        cloud=cloud,
-        algorithm=algorithm,
+        clouds=clouds,
         scope=scope,
         tenant_name=tenant_name
-    )
-
-
-@parent.command(cls=ViewCommand, name='update')
-@click.option('--parent_id', '-pid', type=str, required=True,
-              help='Maestro Parent id to update.')
-@click.option('--description', '-d', type=str, required=False,
-              help='Parent description.')
-@click.option('--algorithm', '-a', required=False, type=str,
-              help='Name of Algorithm to use in scans.')
-@cli_response()
-def update(parent_id, description, algorithm):
-    """
-    Updates Maestro RIGHTSIZER Parent
-    """
-    from r8s_service.initializer import init_configuration
-    return init_configuration().parent_patch(
-        parent_id=parent_id,
-        description=description,
-        algorithm=algorithm
     )
 
 
@@ -157,3 +134,5 @@ def describe_resize_insights(parent_id, instance_type):
         parent_id=parent_id,
         instance_type=instance_type
     )
+
+parent.add_command(licenses)

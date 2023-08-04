@@ -243,18 +243,18 @@ class MetricsService:
     def merge_metric_files(self, metrics_folder_path, algorithm: Algorithm):
         metric_files = [y for x in os.walk(metrics_folder_path)
                         for y in glob.glob(os.path.join(x[0], '*.csv'))]
-        instance_id_timestamp_mapping = {}
+        instance_id_date_mapping = {}
 
         for file in metric_files:
             path_items = file.split(os.sep)[::-1]
-            instance_id, timestamp = path_items[0:2]
+            instance_id, date = path_items[0:2]
             instance_id = instance_id.replace(CSV_EXTENSION, '')
-            if instance_id in instance_id_timestamp_mapping:
-                instance_id_timestamp_mapping[instance_id].append(file)
+            if instance_id in instance_id_date_mapping:
+                instance_id_date_mapping[instance_id].append(file)
             else:
-                instance_id_timestamp_mapping[instance_id] = [file]
+                instance_id_date_mapping[instance_id] = [file]
         resulted_files = []
-        for instance_id, files in instance_id_timestamp_mapping.items():
+        for instance_id, files in instance_id_date_mapping.items():
             if len(files) == 1:
                 resulted_files.append(files[0])
                 continue
@@ -265,6 +265,7 @@ class MetricsService:
                                                 parse_index=False)
                               for f in files]
             combined_csv = pd.concat(csv_to_combine)
+            combined_csv.sort_values(algorithm.timestamp_attribute)
             combined_csv.to_csv(most_recent, index=False)
             resulted_files.append(most_recent)
 
