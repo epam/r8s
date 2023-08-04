@@ -312,6 +312,7 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             application_service=self.application_service,
             parent_service=self.parent_service,
             tenant_service=self.tenant_service,
+            environment_service=self.environment_service
         )
 
     def _instantiate_parent_licenses_processor(self):

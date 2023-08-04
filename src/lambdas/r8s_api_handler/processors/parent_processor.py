@@ -19,6 +19,7 @@ from commons.constants import GET_METHOD, POST_METHOD, DELETE_METHOD, \
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
+from services.environment_service import EnvironmentService
 from services.rightsizer_application_service import \
     RightSizerApplicationService
 from services.rightsizer_parent_service import RightSizerParentService
@@ -32,11 +33,13 @@ class ParentProcessor(AbstractCommandProcessor):
     def __init__(self, customer_service: CustomerService,
                  application_service: RightSizerApplicationService,
                  parent_service: RightSizerParentService,
-                 tenant_service: TenantService):
+                 tenant_service: TenantService,
+                 environment_service: EnvironmentService):
         self.customer_service = customer_service
         self.application_service = application_service
         self.parent_service = parent_service
         self.tenant_service = tenant_service
+        self.environment_service = environment_service
 
         self.method_to_handler = {
             GET_METHOD: self.get,
@@ -265,18 +268,25 @@ class ParentProcessor(AbstractCommandProcessor):
 
         if scope and scope != PARENT_SCOPE_ALL:
             _LOG.debug(f'Describing tenants')
-            linked_tenants = self.parent_service.list_activated_tenants(
-                parent=parent
-            )
-            if linked_tenants:
-                message = f'There\'re tenants linked to parent ' \
-                          f'\'{parent_id}\': ' \
-                          f'{", ".join([t.name for t in linked_tenants])}'
-                _LOG.error(message)
-                return build_response(
-                    code=RESPONSE_BAD_REQUEST_CODE,
-                    content=message
+            clouds = parent_meta.clouds
+            rate_limit = self.environment_service. \
+                tenants_customer_name_index_rcu()
+            for cloud in clouds:
+                _LOG.debug(f'Describing linked {cloud} tenants')
+                linked_tenants = self.parent_service.list_activated_tenants(
+                    parent=parent,
+                    cloud=cloud,
+                    rate_limit=rate_limit
                 )
+                if linked_tenants:
+                    message = f'There\'re tenants linked to parent ' \
+                              f'\'{parent_id}\': ' \
+                              f'{", ".join([t.name for t in linked_tenants])}'
+                    _LOG.error(message)
+                    return build_response(
+                        code=RESPONSE_BAD_REQUEST_CODE,
+                        content=message
+                    )
 
         _LOG.debug(f'Deleting parent \'{parent.parent_id}\'')
         self.parent_service.mark_deleted(parent=parent)
