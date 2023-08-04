@@ -11,6 +11,13 @@ Usage:
     --region $REGION
     --metric_bucket_name $BUCKET_NAME
     --prefix $PREFIX
+    --action $ACTION
+
+Depends on the action, different step of the patch will be executed:
+- DOWNLOAD - download metrics from s3 to local from the given bucket and prefix
+- PATCH - Convert metric files according to new daily metric format
+- UPLOAD - Upload patched metrics to S3
+- CLEANUP - Delete old metric files from S3
 """
 
 import argparse
@@ -23,20 +30,29 @@ import pandas as pd
 
 DATE_FORMAT = '%Y-%m-%d'
 
+ACTION_DOWNLOAD = 'DOWNLOAD'
+ACTION_PATCH = 'PATCH'
+ACTION_UPLOAD = 'UPLOAD'
+ACTION_CLEANUP = 'CLEANUP'
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-ak', '--access_key', help='AWS Access Key',
-                        required=True)
+                        required=False)
     parser.add_argument('-sk', '--secret_key', help='AWS Secret Access Key',
-                        required=True)
+                        required=False)
     parser.add_argument('-t', '--session_token', help='AWS Session Token',
-                        required=True)
+                        required=False)
     parser.add_argument('-r', '--region', help='AWS Region', required=True)
     parser.add_argument('-mbn', '--metric_bucket_name',
                         help='S3 Bucket name with r8s metrics', required=True)
     parser.add_argument('-p', '--prefix', default='',
                         help='Metrics s3 prefix')
+    parser.add_argument('--action', choices=[ACTION_DOWNLOAD, ACTION_PATCH,
+                                             ACTION_UPLOAD, ACTION_CLEANUP],
+                        required=True, action='append',
+                        help='Determines script action.')
     return vars(parser.parse_args())
 
 
@@ -198,7 +214,7 @@ def download_dir(prefix, local, bucket, client):
 
 def upload_dir(folder_file_path, bucket_name, client):
     files = list(pathlib.Path(folder_file_path).rglob("*.csv"))
-
+    folder_file_path = folder_file_path.strip('./')
     for file in files:
         key = str(file).replace(folder_file_path, '').strip('/')
         with open(file, 'rb') as f:
@@ -209,12 +225,23 @@ def upload_dir(folder_file_path, bucket_name, client):
             )
 
 
-def delete_s3_keys(client, bucket, keys: list):
-    for key in keys:
-        client.delete_object(
-            Bucket=bucket,
-            Key=str(key),
-        )
+def delete_s3_keys(client, bucket, folder_path: str):
+    keys_to_delete = []
+    folder_path = folder_path.strip('./')
+    for type_ in ('.csv', '.json'):
+        files = list(pathlib.Path(folder_path).rglob(f"*{type_}"))
+        for file in files:
+            key = str(file).replace(folder_path, '').strip('/')
+            keys_to_delete.append(key)
+
+    for key in keys_to_delete:
+        try:
+            client.delete_object(
+                Bucket=bucket,
+                Key=str(key),
+            )
+        except:
+            pass
 
 
 def main():
@@ -229,41 +256,51 @@ def main():
     print('Exporting env variables')
     export_args(**args)
 
-    print('Downloading metrics from S3')
     client = boto3.client('s3')
     bucket_name = args['metric_bucket_name']
     prefix = args['prefix']
-    s3_keys = download_dir(
-        local=local_folder,
-        bucket=bucket_name,
-        prefix=prefix,
-        client=client
-    )
-    keys_to_delete = list_files(files=[pathlib.Path(key) for key in s3_keys])
 
-    print('Patching metric files')
-    files = list(pathlib.Path(local_folder).rglob("*.csv"))
-    file_paths = list_files(files=files)
+    allowed_actions = args.get('action')
 
-    for file_path in file_paths:
-        process_file(
-            file_path=file_path,
-            output_folder_path=patched,
-            folder_prefix=prefix
+    if ACTION_DOWNLOAD in allowed_actions:
+        print('Downloading metrics from S3')
+        download_dir(
+            local=local_folder,
+            bucket=bucket_name,
+            prefix=prefix,
+            client=client
         )
+        print(f'S3 files were downloaded to {local_folder}')
 
-    print('Uploading patched metrics')
-    upload_dir(
-        folder_file_path=patched,
-        bucket_name=bucket_name,
-        client=client
-    )
-    print('Removing old metric files from s3')
-    delete_s3_keys(
-        client=client,
-        bucket=bucket_name,
-        keys=keys_to_delete
-    )
+    if ACTION_PATCH in allowed_actions:
+        print('Patching metric files')
+        files = list(pathlib.Path(local_folder).rglob("*.csv"))
+        file_paths = list_files(files=files)
+
+        for file_path in file_paths:
+            process_file(
+                file_path=file_path,
+                output_folder_path=patched,
+                folder_prefix=prefix
+            )
+        print(f'Patched metrics were saved to {patched}')
+    if ACTION_UPLOAD in allowed_actions:
+        print('Uploading patched metrics')
+        upload_dir(
+            folder_file_path=patched,
+            bucket_name=bucket_name,
+            client=client
+        )
+        print('Patched metrics have been uploaded')
+
+    if ACTION_CLEANUP in allowed_actions:
+        print('Removing old metric files from s3')
+        delete_s3_keys(
+            client=client,
+            bucket=bucket_name,
+            folder_path=local_folder
+        )
+        print('Old metrics have been removed from s3')
 
 
 if __name__ == '__main__':
