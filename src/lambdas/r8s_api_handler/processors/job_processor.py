@@ -179,7 +179,7 @@ class JobProcessor(AbstractCommandProcessor):
         rate_limit = self.environment_service.tenants_customer_name_index_rcu()
         _LOG.debug(f'Rate limiting on Tenants customer index rcu: '
                    f'{rate_limit}')
-        envs[ENV_TENANT_CUSTOMER_INDEX] = rate_limit
+        envs[ENV_TENANT_CUSTOMER_INDEX] = str(rate_limit)
 
         parent_meta = self.parent_service.get_parent_meta(parent=parent)
         input_scan_tenants = event.get(TENANTS_ATTR)
