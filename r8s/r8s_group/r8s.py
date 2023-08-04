@@ -18,7 +18,6 @@ from r8s_group.recommendation import recommendation
 from r8s_service.config import create_configuration, clean_up_configuration, \
     save_token
 from r8s_service.constants import AVAILABLE_CHECK_TYPES
-from r8s_service.local_response_processor import LocalCommandResponse
 
 
 @click.group()
@@ -117,7 +116,7 @@ r8s.add_command(storage)
 r8s.add_command(job)
 r8s.add_command(report)
 r8s.add_command(user)
-r8s.add_command(shape_rule)
+# r8s.add_command(shape_rule)
 r8s.add_command(application)
 r8s.add_command(parent)
 r8s.add_command(shape)
