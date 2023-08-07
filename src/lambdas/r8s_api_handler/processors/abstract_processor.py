@@ -14,5 +14,5 @@ class AbstractCommandProcessor:
     def handle_command(self, event):
         _LOG.debug(f'Event before processing: {secure_event(event)}')
         content = self.process(event=event)
-        _LOG.debug(f'Content after processing: {content}')
+        _LOG.debug(f'Content after processing: {secure_event(content)}')
         return content

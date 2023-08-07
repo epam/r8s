@@ -15,6 +15,8 @@ DELETE_METHOD = 'DELETE'
 ID_ATTR = 'id'
 USERNAME_ATTR = 'username'
 PASSWORD_ATTR = 'password'
+ID_TOKEN_ATTR = 'id_token'
+REFRESH_TOKEN_ATTR = 'refresh_token'
 ROLE_ATTR = 'role'
 
 ALGORITHM_ATTR = 'algorithm'

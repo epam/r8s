@@ -71,7 +71,7 @@ class AbstractApiHandlerLambda:
                                       content=errors)
             execution_result = self.handle_request(event=event,
                                                    context=context)
-            _LOG.debug(f'Response: {execution_result}')
+            _LOG.debug(f'Response: {secure_event(execution_result)}')
             return execution_result
         except ApplicationException as e:
             _LOG.error(f'Error occurred; Event: {secure_event(event)}; '
