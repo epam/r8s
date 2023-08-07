@@ -1,6 +1,6 @@
 import click
-from r8s_group.setting_lm_client import client
-from r8s_group.setting_lm_config import config
+from r8s_group.setting_client import client
+from r8s_group.setting_config import config
 
 @click.group(name='setting')
 def setting():

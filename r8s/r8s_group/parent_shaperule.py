@@ -7,7 +7,7 @@ from r8s_service.constants import ALLOWED_RULE_ACTIONS, \
 
 @click.group(name='shape_rule')
 def shape_rule():
-    """Manages Shape rule Entity"""
+    """Manages RIGHTSIZER Parent Shape rule Entity"""
 
 
 @shape_rule.command(cls=ViewCommand, name='describe')

@@ -9,7 +9,6 @@ from r8s_group.policy import policy
 from r8s_group.report import report
 from r8s_group.role import role
 from r8s_group.shape import shape
-from r8s_group.shape_rule import shape_rule
 from r8s_group.storage import storage
 from r8s_group.user import user
 from r8s_group.setting import setting
@@ -116,7 +115,6 @@ r8s.add_command(storage)
 r8s.add_command(job)
 r8s.add_command(report)
 r8s.add_command(user)
-# r8s.add_command(shape_rule)
 r8s.add_command(application)
 r8s.add_command(parent)
 r8s.add_command(shape)

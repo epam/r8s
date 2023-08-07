@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.2] - 2023-08-07
+* r8s cli - fix consistency of command group structure between 
+  standalone/modular installation:
+  - rename `shape_rule.py` to `parent_shaperule.py`, moved to `parent` subgroup
+  - rename `setting_lm_client.py` to `setting_client.py`
+  - rename `setting_lm_config.py` to `setting_config.py`
+
 ## [2.11.0] - 2023-07-25
 * License Manager integration:
   - add `r8s setting config` command group, to manage License Manager access data;

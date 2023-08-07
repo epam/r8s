@@ -4,6 +4,7 @@ from r8s_group import cli_response, ViewCommand, cast_to_list
 from r8s_service.constants import AVAILABLE_CLOUDS, ALLOWED_PROTOCOLS, \
     PROTOCOL_HTTPS, AVAILABLE_PARENT_SCOPES, PARENT_SCOPE_SPECIFIC_TENANT
 from r8s_group.parent_licenses import licenses
+from r8s_group.parent_shaperule import shape_rule
 
 @click.group(name='parent')
 def parent():
@@ -136,3 +137,4 @@ def describe_resize_insights(parent_id, instance_type):
     )
 
 parent.add_command(licenses)
+# parent.add_command(shape_rule)
