@@ -666,10 +666,11 @@ class AdapterClient:
                                    method=HTTP_GET,
                                    payload=request)
 
-    def shape_rule_post(self, parent_id, action, condition, field,
+    def shape_rule_post(self, parent_id, cloud, action, condition, field,
                         value, application_id=None):
         request = {
             PARAM_PARENT_ID: parent_id,
+            PARAM_CLOUD: cloud,
             PARAM_RULE_ACTION: action,
             PARAM_CONDITION: condition,
             PARAM_FIELD: field,
@@ -699,10 +700,12 @@ class AdapterClient:
                                    method=HTTP_PATCH,
                                    payload=request)
 
-    def shape_rule_delete(self, rule_id):
+    def shape_rule_delete(self, rule_id, parent_id=None):
         request = {
             PARAM_ID: rule_id
         }
+        if parent_id:
+            request[PARAM_PARENT_ID] = parent_id
 
         return self.__make_request(resource=API_SHAPE_RULES,
                                    method=HTTP_DELETE,

@@ -140,9 +140,9 @@ class RightSizerParentService(ParentService):
                 return rule
 
     @staticmethod
-    def create_shape_rule(action, condition, field, value) -> ShapeRule:
+    def create_shape_rule(action, cloud, condition, field, value) -> ShapeRule:
         return ShapeRule(rule_id=generate_id(),
-                         action=action, condition=condition,
+                         action=action, cloud=cloud, condition=condition,
                          field=field, value=value)
 
     def add_shape_rule_to_meta(self, parent_meta: ParentMeta,
@@ -154,9 +154,9 @@ class RightSizerParentService(ParentService):
 
         parent_meta.shape_rules.append(shape_rule)
 
-    def update_shape_rule_in_application(self,
-                                         parent_meta: ParentMeta,
-                                         shape_rule: ShapeRule):
+    def update_shape_rule_in_parent(self,
+                                    parent_meta: ParentMeta,
+                                    shape_rule: ShapeRule):
         shape_rules = self.list_shape_rules(parent_meta=parent_meta)
         if not shape_rules:
             return

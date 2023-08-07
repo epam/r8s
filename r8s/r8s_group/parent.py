@@ -137,4 +137,4 @@ def describe_resize_insights(parent_id, instance_type):
     )
 
 parent.add_command(licenses)
-# parent.add_command(shape_rule)
+parent.add_command(shape_rule)
