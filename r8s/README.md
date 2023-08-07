@@ -61,12 +61,15 @@ Available command groups:
     - add
     - describe
     - delete
-    - update
     - describe_tenant_links
     - link_tenant
     - unlink_tenant
     - describe_resize_insights
-- shape_rule:
+- parent licenses:
+    - add
+    - describe
+    - delete
+- parent shape_rule:
     - add
     - describe
     - delete
@@ -116,9 +119,11 @@ Available command groups:
 
 [`application`](#application) - Manages Application Entity
 
-[`parent`](#parent) - Manages Parent Entity
+[`parent`](#parent) - Manages RIGHTSIZER Parent Entity
 
-[`shape-rule`](#shape-rule) - Manages Parent Shape Rule Entity
+[`parent licenses`](#shape-rule) - Manages RIGHTSIZER_LICENSES Parent Entity
+
+[`parent shape-rule`](#shape-rule) - Manages Parent Shape Rule Entity
 
 [`shape`](#shape) - Manages Shape Entity
 
