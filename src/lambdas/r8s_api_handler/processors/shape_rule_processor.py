@@ -1,5 +1,6 @@
 from typing import Union, List
 
+from modular_sdk.commons.constants import RIGHTSIZER_PARENT_TYPE
 from modular_sdk.models.parent import Parent
 
 from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
@@ -9,7 +10,8 @@ from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import POST_METHOD, GET_METHOD, PATCH_METHOD, \
     DELETE_METHOD, ID_ATTR, RULE_ACTION_ATTR, CONDITION_ATTR, \
     FIELD_ATTR, VALUE_ATTR, ALLOWED_RULE_ACTIONS, \
-    ALLOWED_RULE_CONDITIONS, ALLOWED_SHAPE_FIELDS, PARENT_ID_ATTR
+    ALLOWED_RULE_CONDITIONS, ALLOWED_SHAPE_FIELDS, PARENT_ID_ATTR, \
+    CLOUD_ATTR, CLOUDS
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -67,6 +69,7 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
             parent = self.get_parent(parent_id=parent_id,
                                      application_ids=app_ids)
             if parent:
+                self._validate_parent(parent=parent)
                 parents.append(parent)
         else:
             _LOG.debug(f'Describing parents from applications: '
@@ -95,6 +98,15 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
             _LOG.debug(f'Describing only rule with id \'{rule_id}\'')
             shape_rules = [shape_rule for shape_rule in shape_rules
                            if shape_rule.rule_id == rule_id]
+        cloud = event.get(CLOUD_ATTR)
+        if cloud:
+            _LOG.debug(f'Validating cloud: {cloud}')
+            cloud = cloud.upper()
+            self._validate_cloud(cloud=cloud)
+
+            _LOG.debug(f'Describing only rules for {cloud} cloud')
+            shape_rules = [shape_rule for shape_rule in shape_rules
+                           if shape_rule.cloud == cloud]
 
         if not shape_rules:
             _LOG.warning(f'No shape rules found matching given query.')
@@ -117,12 +129,17 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
     def post(self, event):
         _LOG.debug(f'Create shape rule event: {event}')
         validate_params(event, (PARENT_ID_ATTR, RULE_ACTION_ATTR,
-                                CONDITION_ATTR, FIELD_ATTR, VALUE_ATTR))
+                                CONDITION_ATTR, CLOUD_ATTR,
+                                FIELD_ATTR, VALUE_ATTR))
+        cloud = event.get(CLOUD_ATTR).upper()
+        self._validate_cloud(cloud=cloud)
 
         parent_id = event.get(PARENT_ID_ATTR)
         parent = self.parent_service.get_parent_by_id(
             parent_id=parent_id
         )
+        _LOG.debug(f'Validating parent.')
+        self._validate_parent(parent=parent)
         applications = self.application_service.resolve_application(
             event=event)
         if not applications:
@@ -138,8 +155,22 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
                 code=RESPONSE_BAD_REQUEST_CODE,
                 content=f'No parent found matching given query.'
             )
+
+        parent_meta = self.parent_service.get_parent_meta(parent=parent)
+        if cloud not in parent_meta.clouds:
+            _LOG.error(f'Invalid shape rule cloud specified: {cloud}. '
+                       f'Allowed clouds for parent '
+                       f'\'{parent_id}\': {", ".join(parent_meta.clouds)}')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'Invalid shape rule cloud specified: {cloud}. '
+                        f'Allowed clouds for parent '
+                        f'\'{parent_id}\': {", ".join(parent_meta.clouds)}'
+            )
+
         shape_rule = self.parent_service.create_shape_rule(
             action=event.get(RULE_ACTION_ATTR, '').lower(),
+            cloud=cloud.upper(),
             condition=event.get(CONDITION_ATTR, '').lower(),
             field=event.get(FIELD_ATTR, '').lower(),
             value=event.get(VALUE_ATTR, '').lower()
@@ -191,6 +222,7 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
         parent = self.parent_service.get_parent_by_id(
             parent_id=parent_id
         )
+        self._validate_parent(parent=parent)
 
         rule_id = event.get(ID_ATTR)
         applications = self.application_service. \
@@ -242,7 +274,7 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
                 content=f'Shape rule is invalid: {", ".join(errors)}'
             )
 
-        self.parent_service.update_shape_rule_in_application(
+        self.parent_service.update_shape_rule_in_parent(
             parent_meta=parent_meta,
             shape_rule=shape_rule
         )
@@ -346,6 +378,11 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
                 f'Unknown rule field \'{rule_action}\' specified. '
                 f'Allowed fields: {", ".join(ALLOWED_SHAPE_FIELDS)}')
 
+        cloud = shape_rule.cloud
+        if not cloud or cloud.upper() not in CLOUDS:
+            errors.append(f'Unsupported rule cloud: {cloud} specified. '
+                          f'Allowed clouds: {CLOUDS}')
+
         return errors
 
     def get_parent_with_rule(self, parents: List[Parent],
@@ -379,7 +416,36 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
         for application_id in application_ids:
             app_parents = self.parent_service.list_application_parents(
                 application_id=application_id,
-                only_active=True
+                only_active=True,
+                type_=RIGHTSIZER_PARENT_TYPE
             )
             parents.extend(app_parents)
         return parents
+
+    @staticmethod
+    def _validate_parent(parent: Parent = None):
+        if not parent:
+            _LOG.error(f'No parent found matching given query.')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'No parent found matching given query.'
+            )
+        if not parent.type == RIGHTSIZER_PARENT_TYPE:
+            _LOG.error(
+                f'Parent of \'{RIGHTSIZER_PARENT_TYPE}\' type required.')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'Parent of \'{RIGHTSIZER_PARENT_TYPE}\' '
+                        f'type required.'
+            )
+
+    @staticmethod
+    def _validate_cloud(cloud: str):
+        if cloud not in CLOUDS:
+            _LOG.error(f'Unsupported cloud specified. Available clouds: '
+                       f'{", ".join(CLOUDS)}')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'Unsupported cloud specified. Available clouds: '
+                        f'{", ".join(CLOUDS)}'
+            )

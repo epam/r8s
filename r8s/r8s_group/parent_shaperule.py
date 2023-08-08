@@ -2,7 +2,7 @@ import click
 
 from r8s_group import cli_response, ViewCommand
 from r8s_service.constants import ALLOWED_RULE_ACTIONS, \
-    ALLOWED_SHAPE_FIELDS, ALLOWED_RULE_CONDITIONS
+    ALLOWED_SHAPE_FIELDS, ALLOWED_RULE_CONDITIONS, AVAILABLE_CLOUDS
 
 
 @click.group(name='shape_rule')
@@ -28,6 +28,8 @@ def describe(parent_id=None, rule_id=None):
 @shape_rule.command(cls=ViewCommand, name='add')
 @click.option('--parent_id', '-pid', type=str,
               help='Parent id to create shape rule in.')
+@click.option('--cloud', '-c', type=click.Choice(AVAILABLE_CLOUDS),
+              required=True, help='Shape rule cloud')
 @click.option('--action', '-a', required=True,
               type=click.Choice(ALLOWED_RULE_ACTIONS),
               help="Shape rule action.")
@@ -41,7 +43,7 @@ def describe(parent_id=None, rule_id=None):
               type=str,
               help="Shape rule filter value.")
 @cli_response()
-def add(parent_id, action, condition, field, value):
+def add(parent_id, cloud, action, condition, field, value):
     """
     Creates a R8s Shape rule.
     """
@@ -49,6 +51,7 @@ def add(parent_id, action, condition, field, value):
 
     return init_configuration().shape_rule_post(
         parent_id=parent_id,
+        cloud=cloud,
         action=action,
         condition=condition,
         field=field,
@@ -93,13 +96,16 @@ def update(rule_id, parent_id, action, condition, field, value):
 @shape_rule.command(cls=ViewCommand, name='delete')
 @click.option('--rule_id', '-rid', type=str, required=True,
               help='Shape rule id to delete')
+@click.option('--parent_id', '-pid', type=str,
+              help='Parent id to delete shape rule from.')
 @cli_response()
-def delete(rule_id):
+def delete(rule_id, parent_id):
     """
     Deletes r8s shape rule.
     """
     from r8s_service.initializer import init_configuration
-    return init_configuration().shape_rule_delete(rule_id=rule_id)
+    return init_configuration().shape_rule_delete(rule_id=rule_id,
+                                                  parent_id=parent_id)
 
 
 @shape_rule.command(cls=ViewCommand, name='dry_run')

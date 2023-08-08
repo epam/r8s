@@ -4,6 +4,7 @@ from pynamodb.attributes import MapAttribute, UnicodeAttribute, \
 
 class ShapeRule(MapAttribute):
     rule_id = UnicodeAttribute(null=True)
+    cloud = UnicodeAttribute(null=True)
     action = UnicodeAttribute(null=True)
     condition = UnicodeAttribute(null=True)
     field = UnicodeAttribute(null=True)
@@ -13,6 +14,7 @@ class ShapeRule(MapAttribute):
 class ParentMeta(MapAttribute):
     clouds = ListAttribute(null=True, default=list)
     scope = UnicodeAttribute(null=True)
+    shape_rules = ListAttribute(of=ShapeRule, default=list)
 
 
 class LicensesParentMeta(MapAttribute):

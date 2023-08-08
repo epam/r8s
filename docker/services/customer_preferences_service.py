@@ -2,6 +2,7 @@ import re
 from typing import List
 
 from commons.log_helper import get_logger
+from commons.constants import CLOUD_ATTR
 from models.parent_attributes import ParentMeta
 from models.shape import Shape
 
@@ -35,7 +36,10 @@ class CustomerPreferencesService:
                                    parent_meta: ParentMeta,
                                    instances_data: List[Shape]):
         shape_rules = parent_meta.shape_rules
-
+        _LOG.debug(f'Filtering shape rules for cloud: {cloud}')
+        shape_rules = [rule for rule in shape_rules
+                       if rule.get(CLOUD_ATTR) == cloud]
+        _LOG.debug(f'Rule to apply: {shape_rules}')
         allow_filters = self.filter_by_action(
             shape_rules=shape_rules,
             action=ALLOW

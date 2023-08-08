@@ -27,7 +27,7 @@ setup(
         'tabulate==0.8.9',
         'requests==2.27.1',
         'prettytable==3.2.0',
-        'modular-cli-sdk==1.1.0'
+        'modular-cli-sdk==1.1.2'
     ],
     entry_points='''
         [console_scripts]

@@ -1,7 +1,8 @@
 from math import inf
 from typing import List
 
-from commons.constants import JOB_STEP_GENERATE_REPORTS, ACTION_SPLIT
+from commons.constants import JOB_STEP_GENERATE_REPORTS, ACTION_SPLIT, \
+    CLOUD_ATTR
 from commons.exception import ExecutorException
 from commons.log_helper import get_logger
 from models.algorithm import ShapeSorting
@@ -354,6 +355,10 @@ class ResizeService:
         prioritised = []
         if parent_meta:
             shape_rules = parent_meta.shape_rules
+            _LOG.debug(f'Filtering shape rules for cloud: {cloud}')
+            shape_rules = [rule for rule in shape_rules
+                           if rule.get(CLOUD_ATTR) == cloud]
+            _LOG.debug(f'Rule to apply: {shape_rules}')
             if shape_rules:
                 prioritised = self.customer_preferences_service. \
                     process_priority_filters(
