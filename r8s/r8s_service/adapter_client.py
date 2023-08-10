@@ -711,9 +711,10 @@ class AdapterClient:
                                    method=HTTP_DELETE,
                                    payload=request)
 
-    def shape_rule_dry_run_get(self, parent_id):
+    def shape_rule_dry_run_get(self, parent_id, cloud):
         request = {
-            PARAM_PARENT_ID: parent_id
+            PARAM_PARENT_ID: parent_id,
+            PARAM_CLOUD: cloud
         }
 
         return self.__make_request(resource=API_SHAPE_RULES_DRY_RUN,

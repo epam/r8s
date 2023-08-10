@@ -2,7 +2,7 @@ from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
     build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
     validate_params
 from commons.abstract_lambda import PARAM_HTTP_METHOD
-from commons.constants import GET_METHOD, PARENT_ID_ATTR
+from commons.constants import GET_METHOD, PARENT_ID_ATTR, CLOUD_ATTR
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -41,8 +41,8 @@ class ShapeRuleDryRunProcessor(AbstractCommandProcessor):
         return command_handler(event=event)
 
     def get(self, event):
-        _LOG.debug(f'Describe shape rule event: {event}')
-        validate_params(event, (PARENT_ID_ATTR,))
+        _LOG.debug(f'Dry run shape rule event: {event}')
+        validate_params(event, (PARENT_ID_ATTR, CLOUD_ATTR))
 
         parent, application = self.resolve_parent_application(
             event=event
@@ -54,7 +54,17 @@ class ShapeRuleDryRunProcessor(AbstractCommandProcessor):
             parent=parent)
         shape_rules = self.parent_service.list_shape_rules(
             parent_meta=parent_meta)
-        cloud = parent_meta.cloud
+        cloud = event.get(CLOUD_ATTR)
+        if cloud not in parent_meta.clouds:
+            _LOG.error(f'Cloud \'{cloud}\' is not allowed for parent: '
+                       f'{parent.parent_id}. Allowed options: '
+                       f'{", ".join(parent_meta.clouds)}')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'Cloud \'{cloud}\' is not allowed for parent: '
+                        f'{parent.parent_id}. Allowed options: '
+                        f'{", ".join(parent_meta.clouds)}'
+            )
 
         if not shape_rules:
             _LOG.warning(f'Parent \'{parent.parent_id}\' does not '
@@ -65,11 +75,11 @@ class ShapeRuleDryRunProcessor(AbstractCommandProcessor):
                         f'have shape rules.'
             )
         if not cloud:
-            _LOG.error(f'Parent \'{parent.parent_id}\' does not have cloud '
+            _LOG.error(f'Parent \'{parent.parent_id}\' does not have clouds '
                        f'specified.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Parent \'{parent.parent_id}\' does not have cloud '
+                content=f'Parent \'{parent.parent_id}\' does not have clouds '
                         f'specified.'
             )
 
@@ -82,12 +92,12 @@ class ShapeRuleDryRunProcessor(AbstractCommandProcessor):
             )
         _LOG.debug(f'Applying shape rules to {len(shapes)} shapes')
 
-        filtered_shapes = self.shape_rules_filter_service.\
+        filtered_shapes = self.shape_rules_filter_service. \
             get_allowed_instance_types(
-                cloud=cloud,
-                parent_meta=parent_meta,
-                instances_data=shapes
-            )
+            cloud=cloud,
+            parent_meta=parent_meta,
+            instances_data=shapes
+        )
         _LOG.debug(f'Got {len(filtered_shapes)} filtered shapes')
 
         _LOG.debug(f'Describing shapes dto')
