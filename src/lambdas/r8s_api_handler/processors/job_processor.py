@@ -447,8 +447,9 @@ class JobProcessor(AbstractCommandProcessor):
                 invalid_tenants.append(tenant_name)
                 continue
 
+            tenant_parent_map = tenant_obj.parent_map.as_dict()
             if parent_meta.scope == PARENT_SCOPE_SPECIFIC_TENANT and \
-                    tenant_obj.parent_map.get(
+                    tenant_parent_map.get(
                         RIGHTSIZER_LICENSES_PARENT_TYPE) != parent.parent_id:
                 _LOG.warning(f'Using parent \'{parent.parent_id}\' '
                              f'is forbidden for tenant \'{tenant_name}\'')
