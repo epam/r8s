@@ -137,7 +137,7 @@ class StorageService:
             )
 
     def upload_job_results(self, job_id, storage: Storage,
-                           results_folder_path):
+                           results_folder_path, tenant=None):
         type_uploader_mapping = {
             S3Storage: self._upload_job_results_s3
         }
@@ -149,9 +149,10 @@ class StorageService:
                 reason=f'No downloader available for storage class '
                        f'\'{storage.__class__}\''
             )
-        return downloader(job_id, storage, results_folder_path)
+        return downloader(job_id, storage, results_folder_path, tenant)
 
-    def _upload_job_results_s3(self, job_id, storage, results_folder_path):
+    def _upload_job_results_s3(self, job_id, storage, results_folder_path,
+                               tenant=None):
         access = storage.access
         prefix = access.prefix
         bucket_name = access.bucket_name
@@ -166,6 +167,8 @@ class StorageService:
 
         files = [y for x in os.walk(results_folder_path)
                  for y in glob(os.path.join(x[0], '*.jsonl'))]
+        if tenant:
+            files = [file for file in files if file.split('/')[-4] == tenant]
 
         for file in files:
             file_key = file.replace(results_folder_path, '').strip('/')
