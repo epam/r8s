@@ -81,16 +81,16 @@ def submit_licensed_job(parent: Parent, tenant_name: str,
     algorithm_map = {
         tenant_license_key: algorithm_name
     }
-
-    licensed_job = license_manager_service.instantiate_licensed_job_dto(
-        job_id=f'{JOB_ID}:{tenant_name}',
-        customer=customer,
-        tenant=tenant_name,
-        algorithm_map=algorithm_map
-    )
-    if not licensed_job:
+    try:
+        licensed_job = license_manager_service.instantiate_licensed_job_dto(
+            job_id=f'{JOB_ID}:{tenant_name}',
+            customer=customer,
+            tenant=tenant_name,
+            algorithm_map=algorithm_map
+        )
+    except Exception as e:
         _LOG.warning(f'Job execution could not be granted '
-                     f'for tenant {tenant_name}.')
+                     f'for tenant {tenant_name}: {e}.')
         raise LicenseForbiddenException(
             tenant_name=tenant_name
         )

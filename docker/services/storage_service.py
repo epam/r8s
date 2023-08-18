@@ -168,7 +168,7 @@ class StorageService:
         files = [y for x in os.walk(results_folder_path)
                  for y in glob(os.path.join(x[0], '*.jsonl'))]
         if tenant:
-            files = [file for file in files if file.split('/')[-4] == tenant]
+            files = [file for file in files if file.split('/')[-2] == tenant]
 
         for file in files:
             file_key = file.replace(results_folder_path, '').strip('/')
