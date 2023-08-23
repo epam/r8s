@@ -29,12 +29,6 @@ class EnvironmentService:
         return os.environ.get('AWS_BATCH_JOB_ID')
 
     @staticmethod
-    def get_scan_tenants():
-        raw = os.environ.get('SCAN_TENANTS')
-        if raw:
-            return raw.split(',')
-
-    @staticmethod
     def get_scan_from_date():
         return os.environ.get('SCAN_FROM_DATE')
 

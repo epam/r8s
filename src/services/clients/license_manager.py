@@ -8,8 +8,9 @@ from requests.exceptions import RequestException
 from functools import cached_property
 
 from commons.constants import POST_METHOD, PATCH_METHOD, \
-    LICENSE_KEY_ATTR, STATUS_ATTR, TENANT_ATTR, TENANT_LICENSE_KEY_ATTR,\
-    AUTHORIZATION_PARAM, CUSTOMER_ATTR, TENANT_LICENSE_KEYS_ATTR
+    LICENSE_KEY_ATTR, STATUS_ATTR, TENANT_ATTR, TENANT_LICENSE_KEY_ATTR, \
+    AUTHORIZATION_PARAM, CUSTOMER_ATTR, TENANT_LICENSE_KEYS_ATTR, TENANTS_ATTR
+from commons import RESPONSE_OK_CODE
 from commons.log_helper import get_logger
 from services.setting_service import SettingsService
 
@@ -76,8 +77,8 @@ class LicenseManagerClient:
             url=url, method=POST_METHOD, payload=payload, headers=headers
         )
 
-    def job_check_permission(
-        self, customer: str, tenant: str,
+    def job_get_allowance_map(
+        self, customer: str, tenants: List[str],
         tenant_license_keys: List[str], auth: str
     ):
         """
@@ -85,7 +86,7 @@ class LicenseManagerClient:
         bound to a tenant within a customer, exhausting balance derived by
         given tenant-license-keys.
         :parameter customer: str
-        :parameter tenant: str
+        :parameter tenants: List[str]
         :parameter auth: str, authorization token
         :parameter tenant_license_keys: List[str]
         :return: Union[Response, Type[None]]
@@ -101,7 +102,7 @@ class LicenseManagerClient:
 
         payload = {
             CUSTOMER_ATTR: customer,
-            TENANT_ATTR: tenant,
+            TENANTS_ATTR: tenants,
             TENANT_LICENSE_KEYS_ATTR: tenant_license_keys
         }
 

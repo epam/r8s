@@ -301,3 +301,7 @@ CLIENT_TOKEN_ATTR = 'client-token'
 STAGE_ATTR = 'stage'
 KEY_ID_ATTR = 'key_id'
 B64ENCODED_ATTR = 'b64_encoded'
+
+ALLOWED_ATTR = 'allowed'
+FORBIDDEN_ATTR = 'forbidden'
+REMAINING_BALANCE_ATTR = 'remaining_balance'

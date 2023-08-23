@@ -62,21 +62,25 @@ class LicenseManagerService:
 
         return response
 
-    def is_allowed_to_license_a_job(
-        self, customer: str, tenant: str, tenant_license_keys: List[str],
-        expires: dict = None
+    def get_allowance_map(
+        self, customer: str, tenants: List[str],
+            tenant_license_keys: List[str], expires: dict = None
     ):
         auth = self._get_client_token(expires or dict(hours=1))
         if not auth:
             _LOG.warning('Client authorization token could be established.')
             return None
 
-        response = self.license_manager_client.job_check_permission(
-            customer=customer, tenant=tenant,
+        response = self.license_manager_client.job_get_allowance_map(
+            customer=customer, tenants=tenants,
             tenant_license_keys=tenant_license_keys, auth=auth
         )
-        # Given 200 - returns True, otherwise False.
-        return bool(response)
+        if not response.status_code == RESPONSE_OK_CODE:
+            return
+        _json = self.license_manager_client.retrieve_json(response=response)
+        _json = _json or dict()
+        response = _json.get('items') or []
+        return response[0] if len(response) == 1 else {}
 
     def update_job_in_license_manager(
         self, job_id, created_at, started_at,

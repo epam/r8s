@@ -1,6 +1,6 @@
 import datetime
 
-from mongoengine import StringField, ReferenceField, DateTimeField, EnumField
+from mongoengine import StringField, DateTimeField, EnumField, DictField
 
 from commons.enum import ListEnum
 from models.base_model import BaseModel
@@ -12,6 +12,13 @@ class JobStatusEnum(ListEnum):
     JOB_RUNNING_STATUS = 'RUNNING'
     JOB_SUCCEEDED_STATUS = 'SUCCEEDED'
     JOB_FAILED_STATUS = 'FAILED'
+
+
+class JobTenantStatusEnum(ListEnum):
+    TENANT_FORBIDDEN_STATUS = 'FORBIDDEN'
+    TENANT_RUNNABLE_STATUS = 'RUNNABLE'
+    TENANT_SUCCEEDED_STATUS = 'SUCCEEDED'
+    TENANT_FAILED_STATUS = 'FAILED'
 
 
 class Job(BaseModel):
@@ -26,6 +33,7 @@ class Job(BaseModel):
     submitted_at = DateTimeField(null=True)
     status = EnumField(JobStatusEnum,
                        default=JobStatusEnum.JOB_RUNNABLE_STATUS)
+    tenant_status_map = DictField(null=True)
     fail_reason = StringField(null=True)
 
     def get_dto(self):

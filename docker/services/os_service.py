@@ -95,3 +95,10 @@ class OSService:
     @staticmethod
     def path_to_tenant(file_path):
         return file_path.split(os.sep)[-4]
+
+    def group_by_tenant(self, file_paths: list):
+        tenant_metrics_map = {}
+        for file_path in file_paths:
+            tenant = self.path_to_tenant(file_path=file_path)
+            tenant_metrics_map[tenant] = file_path
+        return tenant_metrics_map

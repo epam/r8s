@@ -12,7 +12,8 @@ from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
     validate_params, RESPONSE_FORBIDDEN_CODE, RESPONSE_SERVICE_UNAVAILABLE_CODE
 from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import CLOUD_AWS, TENANTS_ATTR, \
-    ENV_TENANT_CUSTOMER_INDEX
+    ENV_TENANT_CUSTOMER_INDEX, FORBIDDEN_ATTR, ALLOWED_ATTR, \
+    REMAINING_BALANCE_ATTR
 from commons.constants import POST_METHOD, GET_METHOD, DELETE_METHOD, ID_ATTR, \
     NAME_ATTR, USER_ID_ATTR, PARENT_ID_ATTR, SCAN_FROM_DATE_ATTR, \
     SCAN_TO_DATE_ATTR, TENANT_LICENSE_KEY_ATTR, PARENT_SCOPE_SPECIFIC_TENANT
@@ -227,7 +228,7 @@ class JobProcessor(AbstractCommandProcessor):
         _LOG.debug(f'Checking permission to submit job on license '
                    f'\'{parent_meta.license_key}\' '
                    f'for tenants: {scan_tenants}')
-        self._validate_licensed_job(
+        tenant_status_map = self._validate_licensed_job(
             parent=parent,
             license_key=parent_meta.license_key,
             scan_tenants=scan_tenants
@@ -250,7 +251,8 @@ class JobProcessor(AbstractCommandProcessor):
         response = self.job_service.submit_job(
             job_owner=user_id,
             parent_id=parent.parent_id,
-            envs=envs
+            envs=envs,
+            tenant_status_map=tenant_status_map
         )
         _LOG.debug(f'Response: {response}')
         return build_response(
@@ -372,36 +374,55 @@ class JobProcessor(AbstractCommandProcessor):
         tenant_license_key = _license.customers.get(
             parent.customer_id, {}).get(TENANT_LICENSE_KEY_ATTR)
         _LOG.debug(f'Validating permission to submit licensed job.')
-        self._ensure_job_is_allowed(
+        return self._ensure_job_is_allowed(
             customer=parent.customer_id,
             tenant_names=scan_tenants,
             tlk=tenant_license_key
         )
 
-    def _ensure_job_is_allowed(self, customer, tenant_names: list, tlk: str):
+    def _ensure_job_is_allowed(self, customer, tenant_names: list, tlk: str,
+                               allow_partial=True):
         _LOG.info(f'Going to check for permission to exhaust'
                   f'{tlk} TenantLicense(s).')
-        forbidden = []
-        for tenant_name in tenant_names:
-            if not self.license_manager_service.is_allowed_to_license_a_job(
-                    customer=customer, tenant=tenant_name,
-                    tenant_license_keys=[tlk]):
-                forbidden.append(tenant_name)
-                message = f'Tenant:\'{tenant_name}\' could not be granted ' \
-                          f'to start a licensed job.'
-                return build_response(
-                    content=message, code=RESPONSE_FORBIDDEN_CODE
-                )
-        if forbidden:
-            _LOG.error(f'Licensed job is forbidden for tenants: '
-                       f'{", ".join(forbidden)}')
+        allowance_map = self.license_manager_service.get_allowance_map(
+            customer=customer, tenants=tenant_names,
+            tenant_license_keys=[tlk])
+        if not allowance_map:
+            message = f'Tenants:\'{", ".join(tenant_names)}\' ' \
+                      f'could not be granted ' \
+                      f'to start a licensed job.'
             return build_response(
-                code=RESPONSE_FORBIDDEN_CODE,
-                content=f'Licensed job is forbidden for tenants: '
-                        f'{", ".join(forbidden)}'
+                content=message, code=RESPONSE_FORBIDDEN_CODE
             )
+        tlk_allowance_map = allowance_map.get(tlk, {})
+
+        forbidden = tlk_allowance_map.get(FORBIDDEN_ATTR)
+        allowed = tlk_allowance_map.get(ALLOWED_ATTR)
+        remaining_balance = tlk_allowance_map.get(REMAINING_BALANCE_ATTR)
+        if not allow_partial:
+            if forbidden:
+                _LOG.error(f'Licensed job is forbidden for tenants: '
+                           f'{", ".join(forbidden)}')
+                return build_response(
+                    code=RESPONSE_FORBIDDEN_CODE,
+                    content=f'Licensed job is forbidden for tenants: '
+                            f'{", ".join(forbidden)}'
+                )
+            if remaining_balance and len(allowed) > remaining_balance:
+                error = f'Remaining job balance \'{remaining_balance}\' ' \
+                        f'is greater than requested number of tenants: ' \
+                        f'{", ".join(allowed)}'
+                _LOG.error(error)
+                return build_response(
+                    code=RESPONSE_FORBIDDEN_CODE,
+                    content=error
+                )
+
         _LOG.info(f'Permission to submit job has been granted for tenants: '
                   f'{tenant_names}.')
+        return self.job_service.build_job_tenant_map(forbidden=forbidden,
+                                                     allowed=allowed,
+                                                     limit=remaining_balance)
 
     @staticmethod
     def _validate_scan_date(date_str):
