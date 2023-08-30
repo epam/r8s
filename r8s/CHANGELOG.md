@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - rename `shape_rule.py` to `parent_shaperule.py`, moved to `parent` subgroup
   - rename `setting_lm_client.py` to `setting_client.py`
   - rename `setting_lm_config.py` to `setting_config.py`
+* hide sensitive logs
 
 ## [2.11.0] - 2023-07-25
 * License Manager integration:

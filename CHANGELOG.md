@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.13.0] - 2023-08-10
 * update `r8s parent shape_rule dry_run` command: add required `--cloud` parameter.
 * update `r8s parent shape_rule update` command: make `--rule_id` parameter required.
+* hide sensitive logs
 
 ## [2.12.5] - 2023-08-10
 * fix invalid Tenant `pid` attribute extraction on job submit
