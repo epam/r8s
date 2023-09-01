@@ -1,4 +1,4 @@
-modular-sdk==2.2.0
+modular-sdk>=2.2.0,<=3.0.0
 boto3==1.26.80
 botocore==1.29.80
 dnspython==2.2.1
