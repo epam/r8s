@@ -551,14 +551,16 @@ class ReportGenerator(AbstractLambda):
         return target_timezone_name
 
 
+HANDLER = ReportGenerator(
+    job_service=SERVICE_PROVIDER.job_service(),
+    customer_service=SERVICE_PROVIDER.customer_service(),
+    tenant_service=SERVICE_PROVIDER.tenant_service(),
+    recommendation_service=SERVICE_PROVIDER.recommendation_history_service(),
+    maestro_rabbitmq_service=SERVICE_PROVIDER.maestro_rabbitmq_service(),
+    parent_service=SERVICE_PROVIDER.rightsizer_parent_service(),
+    algorithm_service=SERVICE_PROVIDER.algorithm_service(),
+    environment_service=SERVICE_PROVIDER.environment_service())
+
+
 def lambda_handler(event, context):
-    return ReportGenerator(
-        job_service=SERVICE_PROVIDER.job_service(),
-        customer_service=SERVICE_PROVIDER.customer_service(),
-        tenant_service=SERVICE_PROVIDER.tenant_service(),
-        recommendation_service=SERVICE_PROVIDER.recommendation_history_service(),
-        maestro_rabbitmq_service=SERVICE_PROVIDER.maestro_rabbitmq_service(),
-        parent_service=SERVICE_PROVIDER.rightsizer_parent_service(),
-        algorithm_service=SERVICE_PROVIDER.algorithm_service(),
-        environment_service=SERVICE_PROVIDER.environment_service()
-    ).lambda_handler(event=event, context=context)
+    return HANDLER.lambda_handler(event=event, context=context)
