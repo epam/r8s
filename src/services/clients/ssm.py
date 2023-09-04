@@ -131,7 +131,9 @@ class VaultSSMClient(AbstractSSMClient):
         try:
             response = self.client.secrets.kv.v2.read_secret_version(
                 path=secret_name, mount_point=self.mount_point) or {}
-        except Exception:  # hvac.InvalidPath
+        except Exception as e:  # hvac.InvalidPath
+            _LOG.warning(f'Failed to read secret {secret_name} from '
+                         f'mount point {self.mount_point}: {e}')
             return
         return response.get('data', {}).get('data', {}).get(self.key)
 
