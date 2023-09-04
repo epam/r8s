@@ -6,7 +6,7 @@ from modular_sdk.services.tenant_service import TenantService
 from commons import build_response, RESPONSE_SERVICE_UNAVAILABLE_CODE, \
     ApplicationException
 from connections.batch_extension.base_job_client import BaseBatchClient
-from main import get_logger
+from commons.log_helper import get_logger
 from services.algorithm_service import AlgorithmService
 from services.clients.api_gateway_client import ApiGatewayClient
 from services.clients.cognito import CognitoClient
