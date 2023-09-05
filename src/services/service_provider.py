@@ -3,14 +3,15 @@ import os
 from modular_sdk.services.customer_service import CustomerService
 from modular_sdk.services.tenant_service import TenantService
 
-from commons import build_response, RESPONSE_SERVICE_UNAVAILABLE_CODE
+from commons import build_response, RESPONSE_SERVICE_UNAVAILABLE_CODE, \
+    ApplicationException
 from connections.batch_extension.base_job_client import BaseBatchClient
+from commons.log_helper import get_logger
 from services.algorithm_service import AlgorithmService
 from services.clients.api_gateway_client import ApiGatewayClient
 from services.clients.cognito import CognitoClient
 from services.clients.lambda_func import LambdaClient
 from services.clients.s3 import S3Client
-from services.clients.ssm import SSMClient
 from services.customer_preferences_service import CustomerPreferencesService
 from services.environment_service import EnvironmentService
 from services.job_service import JobService
@@ -29,6 +30,8 @@ from services.user_service import CognitoUserService
 
 SERVICE_MODE = os.getenv('service_mode')
 is_docker = SERVICE_MODE == 'docker'
+
+_LOG = get_logger('service-provider')
 
 
 class ServiceProvider:
@@ -292,7 +295,13 @@ class ServiceProvider:
                 creds: RabbitMQCredentials = credentials_service.\
                     get_by_application(application)
                 if not creds:
-                    return
+                    _LOG.error(f'Failed to get RabbitMQ credentials from '
+                               f'application {application.application_id}.')
+                    raise ApplicationException(
+                        code=RESPONSE_SERVICE_UNAVAILABLE_CODE,
+                        content=f'Failed to get RabbitMQ credentials from '
+                                f'application {application.application_id}.'
+                    )
                 maestro_config = MaestroRabbitConfig(
                     request_queue=creds.request_queue,
                     response_queue=creds.response_queue,
