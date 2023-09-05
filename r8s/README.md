@@ -148,7 +148,7 @@ the password can be entered in an interactive mode_
 
 **Usage:**
 
-    r8s register --username USERNAME --password PASSWORD --customer $CUSTOMER --role_name $ROLE_NAME
+    r8s register --username USERNAME --password PASSWORD --customer_id $CUSTOMER --role_name $ROLE_NAME
 
 _Registers a user. Pay attention that,
 the password can be entered in an interactive mode_
@@ -157,7 +157,7 @@ the password can be entered in an interactive mode_
 
 `-p,--password` `TEXT` R8s user password. [Required]
 
-`-c,--customer` `TEXT` R8s user customer. [Required]
+`-cid,--customer_id` `TEXT` R8s user customer. [Required]
 `-rn,--role_name` `TEXT` R8s user role name. [Required]
 
 ### configure
