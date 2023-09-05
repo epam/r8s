@@ -1,0 +1,51 @@
+{
+  "r8s-api-handler-role": {
+    "predefined_policies": [],
+    "principal_service": "lambda",
+    "custom_policies": [
+      "r8s-api-handler-policy",
+      "lambda-basic-execution"
+    ],
+    "resource_type": "iam_role"
+  },
+   "r8s-api-handler-policy": {
+    "policy_content": {
+      "Statement": [
+        {
+          "Action": [
+            "s3:*",
+            "ssm:DescribeParameters",
+            "ssm:GetParameters",
+            "ssm:PutParameter",
+            "ssm:DeleteParameter",
+            "dynamodb:GetItem",
+            "dynamodb:Query",
+            "dynamodb:Batch*",
+            "dynamodb:DescribeTable",
+            "dynamodb:Scan",
+            "dynamodb:UpdateItem",
+            "cognito-idp:AdminInitiateAuth",
+            "cognito-idp:SignUp",
+            "cognito-idp:AdminCreateUser",
+            "cognito-idp:AdminSetUserPassword",
+            "cognito-idp:ListUserPools",
+            "cognito-idp:AdminRespondToAuthChallenge",
+            "cognito-idp:AdminUpdateUserAttributes",
+            "cognito-idp:ListUserPoolClients",
+            "cognito-idp:ListUsers",
+            "cognito-idp:AdminUpdateUserAttributes",
+            "cognito-idp:AdminDeleteUser",
+            "batch:SubmitJob",
+            "batch:TerminateJob",
+            "apigateway:GET",
+            "lambda:InvokeFunction"
+          ],
+          "Effect": "Allow",
+          "Resource": "*"
+        }
+      ],
+      "Version": "2012-10-17"
+    },
+    "resource_type": "iam_policy"
+  }
+}
