@@ -213,7 +213,6 @@ class JobProcessor(AbstractCommandProcessor):
                 active=True,
                 attributes_to_get=[Tenant.name],
                 cloud=parent_meta.cloud,
-                limit=1,
                 rate_limit=rate_limit
             ))
             scan_tenants = [t.name for t in scan_tenants]
