@@ -23,11 +23,11 @@ setup(
     include_package_data=True,
     install_requires=[
         'click==7.1.2',
-        'PyYAML==6.0',
-        'tabulate==0.8.9',
-        'requests==2.27.1',
-        'prettytable==3.2.0',
-        'modular-cli-sdk>=1.1.2,<=2.0.0'
+        'PyYAML==6.0.1',
+        'tabulate==0.9.0',
+        'requests==2.31.0',
+        'prettytable==3.9.0',
+        'modular-cli-sdk>=2.0.0,<3.0.0'
     ],
     entry_points='''
         [console_scripts]
