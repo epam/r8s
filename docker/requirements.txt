@@ -16,7 +16,7 @@ scipy==1.9.0
 six==1.16.0
 sklearn==0.0
 threadpoolctl==3.1.0
-urllib3==1.26.15
+urllib3==1.26.17
 xgboost==1.6.1
 cron-converter==1.0.1
 kneed==0.8.2
