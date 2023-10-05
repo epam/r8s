@@ -10,6 +10,7 @@ from commons.constants import SERVICE_ATTR, \
     JOB_STEP_DOWNLOAD_METRICS, CSV_EXTENSION, META_FILE_NAME, ALL
 from commons.exception import ExecutorException
 from commons.log_helper import get_logger
+from commons.profiler import profiler
 from models.storage import Storage, StorageServiceEnum, S3Storage
 from services.clients.s3 import S3Client
 
@@ -69,6 +70,7 @@ class StorageService:
     def delete(storage: Storage):
         storage.delete()
 
+    @profiler(execution_step=f's3_download_tenant_metrics')
     def download_metrics(self, data_source: Storage, output_path: str,
                          scan_customer, scan_clouds, scan_tenants,
                          scan_from_date, scan_to_date):
@@ -136,6 +138,7 @@ class StorageService:
                 output_folder_path=output_folder_path
             )
 
+    @profiler(execution_step=f's3_upload_job_results')
     def upload_job_results(self, job_id, storage: Storage,
                            results_folder_path, tenant=None):
         type_uploader_mapping = {
@@ -232,3 +235,23 @@ class StorageService:
     def __date_range(start_date, end_date):
         return [start_date + timedelta(n)
                 for n in range(int((end_date - start_date).days) + 1)]
+
+    def upload_profile_log(self, job_id, storage: Storage, file_path):
+        access = storage.access
+        prefix = access.prefix
+        bucket_name = access.bucket_name
+
+        if prefix:
+            s3_folder_path = os.path.join(prefix, job_id)
+        else:
+            s3_folder_path = job_id
+
+        s3_file_key = os.path.join(s3_folder_path, file_path.split('/')[-1])
+        with open(file_path, 'r') as f:
+            body = f.read()
+
+        self.s3_client.put_object(
+            bucket_name=bucket_name,
+            object_name=s3_file_key,
+            body=body
+        )
