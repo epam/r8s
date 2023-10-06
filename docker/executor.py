@@ -1,5 +1,6 @@
+import multiprocessing
 import os.path
-import concurrent.futures
+from multiprocessing import Pool
 
 from modular_sdk.models.parent import Parent
 
@@ -212,6 +213,10 @@ def process_tenant_instances(metrics_dir, reports_dir,
     )
 
 
+def task_wrapper(args):
+    return handle_tenant_instances_processing(**args)
+
+
 def handle_tenant_instances_processing(
         tenant, metrics_dir, reports_dir, input_storage, output_storage,
         parent_meta, parent, licensed_parent, algorithm, license_, job):
@@ -245,6 +250,8 @@ def handle_tenant_instances_processing(
             tenant=tenant,
             status=JobTenantStatusEnum.TENANT_FAILED_STATUS
         )
+    finally:
+        return tenant
 
 
 def main():
@@ -344,27 +351,22 @@ def main():
     _LOG.debug(f'Describing License \'{license_key}\'')
     license_: License = license_service.get_license(license_id=license_key)
 
-    with concurrent.futures.ThreadPoolExecutor(
-            max_workers=CONCURRENT_WORKERS) as executor:
-        futures = []
-        for tenant in scan_tenants:
-            future_ = executor.submit(
-                handle_tenant_instances_processing,
-                tenant=tenant,
-                metrics_dir=metrics_dir,
-                reports_dir=reports_dir,
-                input_storage=input_storage,
-                output_storage=output_storage,
-                parent=parent,
-                parent_meta=parent_meta,
-                licensed_parent=licensed_parent,
-                algorithm=algorithm,
-                license_=license_,
-                job=job
-            )
-            futures.append(future_)
-        for future in concurrent.futures.as_completed(futures):
-            _LOG.debug(f'Thread execution result: {future.result()}')
+    default_kwargs = dict(metrics_dir=metrics_dir,
+                          reports_dir=reports_dir,
+                          input_storage=input_storage,
+                          output_storage=output_storage,
+                          parent_meta=parent_meta,
+                          parent=parent,
+                          licensed_parent=licensed_parent,
+                          algorithm=algorithm,
+                          license_=license_,
+                          job=job)
+    kwargs_list = [{**dict(tenant=tenant), **default_kwargs} for tenant in
+                   scan_tenants]
+
+    _LOG.debug(f'Cores Available: {multiprocessing.cpu_count()}')
+    with Pool(multiprocessing.cpu_count()) as pool:
+        pool.map(task_wrapper, kwargs_list)
 
     _LOG.debug(f'Job {JOB_ID} has finished successfully')
     _LOG.debug(f'Setting job state to SUCCEEDED')
