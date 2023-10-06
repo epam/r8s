@@ -11,6 +11,7 @@ from commons.constants import STATUS_ERROR, STATUS_OK, OK_MESSAGE, \
     STATUS_POSTPONED
 from commons.exception import ExecutorException, ProcessingPostponedException
 from commons.log_helper import get_logger
+from commons.profiler import profiler
 from models.algorithm import Algorithm
 from models.base_model import CloudEnum
 from models.parent_attributes import ParentMeta
@@ -48,6 +49,7 @@ class RecommendationService:
         self.meta_service = meta_service
         self.recommendation_history_service = recommendation_history_service
 
+    @profiler(execution_step=f'instance_recommendation_generation')
     def process_instance(self, metric_file_path, algorithm: Algorithm,
                          reports_dir, instance_meta_mapping=None,
                          parent_meta: Union[None, ParentMeta] = None):

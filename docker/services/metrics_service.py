@@ -16,6 +16,7 @@ from commons.constants import JOB_STEP_PROCESS_METRICS, META_FILE_NAME, \
     CSV_EXTENSION
 from commons.exception import ExecutorException
 from commons.log_helper import get_logger
+from commons.profiler import profiler
 from models.algorithm import Algorithm
 from models.recommendation_history import RecommendationHistory
 from services.clustering_service import ClusteringService
@@ -274,6 +275,7 @@ class MetricsService:
                 os.remove(file)
         return resulted_files
 
+    @profiler(execution_step=f'instance_clustering')
     def divide_on_periods(self, df, algorithm: Algorithm):
         df = self.divide_by_days(
             df, skip_incomplete_corner_days=True,

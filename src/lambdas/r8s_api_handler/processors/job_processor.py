@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List
-
+import os
 from modular_sdk.commons.constants import RIGHTSIZER_LICENSES_PARENT_TYPE
 from modular_sdk.models.parent import Parent
 from modular_sdk.models.tenant import Tenant
@@ -169,7 +169,7 @@ class JobProcessor(AbstractCommandProcessor):
 
         envs = {
             "AWS_REGION": self.environment_service.aws_region(),
-            "log_level": "DEBUG",
+            "log_level": os.environ.get('log_level', 'ERROR'),
             "parent_id": parent.parent_id,
             "DEBUG": str(self.environment_service.is_debug())
         }
