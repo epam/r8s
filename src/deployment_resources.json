@@ -119,6 +119,7 @@
       "desiredv_cpus": 0,
       "maxv_cpus": 8,
       "instance_types": [
+        "c4.large",
         "c4.xlarge"
       ],
       "security_group_ids": [
@@ -147,8 +148,8 @@
     "job_definition_type": "container",
     "container_properties": {
       "image": "${docker-image-url}",
-      "vcpus": 4,
-      "memory": 4096,
+      "vcpus": 1,
+      "memory": 1024,
       "command": [
         "python",
         "/home/custodian/docker/executor.py"

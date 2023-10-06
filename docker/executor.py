@@ -57,7 +57,6 @@ JOB_ID = environment_service.get_batch_job_id()
 SCAN_FROM_DATE = environment_service.get_scan_from_date()
 SCAN_TO_DATE = environment_service.get_scan_to_date()
 PARENT_ID = environment_service.get_licensed_parent_id()
-CONCURRENT_WORKERS = 3
 
 
 def set_job_fail_reason(exception: Exception):
