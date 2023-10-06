@@ -200,3 +200,5 @@ RESPONSE_OK_CODE = 200
 BODY_PARAM = 'body'
 ITEMS_PARAM = 'items'
 MESSAGE_PARAM = 'message'
+
+PROFILE_LOG_PATH = f'/tmp/execution_log.txt'

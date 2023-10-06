@@ -1,8 +1,10 @@
 import os.path
+import concurrent.futures
 
 from modular_sdk.models.parent import Parent
 
-from commons.constants import JOB_STEP_INITIALIZATION, TENANT_LICENSE_KEY_ATTR
+from commons.constants import (JOB_STEP_INITIALIZATION,
+                               TENANT_LICENSE_KEY_ATTR, PROFILE_LOG_PATH)
 from commons.exception import ExecutorException, LicenseForbiddenException
 from commons.log_helper import get_logger
 from commons.profiler import profiler
@@ -56,6 +58,7 @@ JOB_ID = environment_service.get_batch_job_id()
 SCAN_FROM_DATE = environment_service.get_scan_from_date()
 SCAN_TO_DATE = environment_service.get_scan_to_date()
 PARENT_ID = environment_service.get_licensed_parent_id()
+CONCURRENT_WORKERS = 3
 
 
 def set_job_fail_reason(exception: Exception):
@@ -209,6 +212,41 @@ def process_tenant_instances(metrics_dir, reports_dir,
     )
 
 
+def handle_tenant_instances_processing(
+        tenant, metrics_dir, reports_dir, input_storage, output_storage,
+        parent_meta, parent, licensed_parent, algorithm, license_, job):
+    try:
+        _LOG.info(f'Processing tenant {tenant}')
+        process_tenant_instances(
+            metrics_dir=metrics_dir,
+            reports_dir=reports_dir,
+            input_storage=input_storage,
+            output_storage=output_storage,
+            parent_meta=parent_meta,
+            licensed_parent=licensed_parent,
+            algorithm=algorithm,
+            license_=license_,
+            customer=parent.customer_id,
+            tenant=tenant,
+            job=job
+        )
+    except LicenseForbiddenException as e:
+        _LOG.error(e)
+        job_service.set_licensed_job_status(
+            job=job,
+            tenant=tenant,
+            status=JobTenantStatusEnum.TENANT_FAILED_STATUS
+        )
+    except Exception as e:
+        _LOG.error(f'Unexpected error occurred while processing '
+                   f'tenant {tenant}: {e}')
+        job_service.set_licensed_job_status(
+            job=job,
+            tenant=tenant,
+            status=JobTenantStatusEnum.TENANT_FAILED_STATUS
+        )
+
+
 def main():
     _LOG.debug(f'Creating directories')
     work_dir, metrics_dir, reports_dir = \
@@ -306,49 +344,40 @@ def main():
     _LOG.debug(f'Describing License \'{license_key}\'')
     license_: License = license_service.get_license(license_id=license_key)
 
-    for tenant in scan_tenants:
-        try:
-            _LOG.info(f'Processing tenant {tenant}')
-            process_tenant_instances(
+    with concurrent.futures.ThreadPoolExecutor(
+            max_workers=CONCURRENT_WORKERS) as executor:
+        futures = []
+        for tenant in scan_tenants:
+            future_ = executor.submit(
+                handle_tenant_instances_processing,
+                tenant=tenant,
                 metrics_dir=metrics_dir,
                 reports_dir=reports_dir,
                 input_storage=input_storage,
                 output_storage=output_storage,
+                parent=parent,
                 parent_meta=parent_meta,
                 licensed_parent=licensed_parent,
                 algorithm=algorithm,
                 license_=license_,
-                customer=parent.customer_id,
-                tenant=tenant,
                 job=job
             )
-        except LicenseForbiddenException as e:
-            _LOG.error(e)
-            job_service.set_licensed_job_status(
-                job=job,
-                tenant=tenant,
-                status=JobTenantStatusEnum.TENANT_FAILED_STATUS
-            )
-        except Exception as e:
-            _LOG.error(f'Unexpected error occurred while processing '
-                       f'tenant {tenant}: {e}')
-            job_service.set_licensed_job_status(
-                job=job,
-                tenant=tenant,
-                status=JobTenantStatusEnum.TENANT_FAILED_STATUS
-            )
+            futures.append(future_)
+        for future in concurrent.futures.as_completed(futures):
+            _LOG.debug(f'Thread execution result: {future.result()}')
 
     _LOG.debug(f'Job {JOB_ID} has finished successfully')
     _LOG.debug(f'Setting job state to SUCCEEDED')
     job_service.set_status(job=job,
                            status=JobStatusEnum.JOB_SUCCEEDED_STATUS.value)
 
-    _LOG.debug(f'Uploading profile log')
-    storage_service.upload_profile_log(
-        storage=output_storage,
-        job_id=JOB_ID,
-        file_path=f'/tmp/execution_log.txt'
-    )
+    if os.path.exists(PROFILE_LOG_PATH):
+        _LOG.debug(f'Uploading profile log')
+        storage_service.upload_profile_log(
+            storage=output_storage,
+            job_id=JOB_ID,
+            file_path=PROFILE_LOG_PATH
+        )
     _LOG.debug(f'Cleaning workdir')
     os_service.clean_workdir(work_dir=work_dir)
 
