@@ -1,6 +1,4 @@
-import multiprocessing
 import os.path
-from multiprocessing import Pool
 
 from modular_sdk.models.parent import Parent
 
@@ -213,47 +211,6 @@ def process_tenant_instances(metrics_dir, reports_dir,
     )
 
 
-def task_wrapper(args):
-    return handle_tenant_instances_processing(**args)
-
-
-def handle_tenant_instances_processing(
-        tenant, metrics_dir, reports_dir, input_storage, output_storage,
-        parent_meta, parent, licensed_parent, algorithm, license_, job):
-    try:
-        _LOG.info(f'Processing tenant {tenant}')
-        process_tenant_instances(
-            metrics_dir=metrics_dir,
-            reports_dir=reports_dir,
-            input_storage=input_storage,
-            output_storage=output_storage,
-            parent_meta=parent_meta,
-            licensed_parent=licensed_parent,
-            algorithm=algorithm,
-            license_=license_,
-            customer=parent.customer_id,
-            tenant=tenant,
-            job=job
-        )
-    except LicenseForbiddenException as e:
-        _LOG.error(e)
-        job_service.set_licensed_job_status(
-            job=job,
-            tenant=tenant,
-            status=JobTenantStatusEnum.TENANT_FAILED_STATUS
-        )
-    except Exception as e:
-        _LOG.error(f'Unexpected error occurred while processing '
-                   f'tenant {tenant}: {e}')
-        job_service.set_licensed_job_status(
-            job=job,
-            tenant=tenant,
-            status=JobTenantStatusEnum.TENANT_FAILED_STATUS
-        )
-    finally:
-        return tenant
-
-
 def main():
     _LOG.debug(f'Creating directories')
     work_dir, metrics_dir, reports_dir = \
@@ -351,22 +308,37 @@ def main():
     _LOG.debug(f'Describing License \'{license_key}\'')
     license_: License = license_service.get_license(license_id=license_key)
 
-    default_kwargs = dict(metrics_dir=metrics_dir,
-                          reports_dir=reports_dir,
-                          input_storage=input_storage,
-                          output_storage=output_storage,
-                          parent_meta=parent_meta,
-                          parent=parent,
-                          licensed_parent=licensed_parent,
-                          algorithm=algorithm,
-                          license_=license_,
-                          job=job)
-    kwargs_list = [{**dict(tenant=tenant), **default_kwargs} for tenant in
-                   scan_tenants]
-
-    _LOG.debug(f'Cores Available: {multiprocessing.cpu_count()}')
-    with Pool(multiprocessing.cpu_count()) as pool:
-        pool.map(task_wrapper, kwargs_list)
+    for tenant in scan_tenants:
+        try:
+            _LOG.info(f'Processing tenant {tenant}')
+            process_tenant_instances(
+                metrics_dir=metrics_dir,
+                reports_dir=reports_dir,
+                input_storage=input_storage,
+                output_storage=output_storage,
+                parent_meta=parent_meta,
+                licensed_parent=licensed_parent,
+                algorithm=algorithm,
+                license_=license_,
+                customer=parent.customer_id,
+                tenant=tenant,
+                job=job
+            )
+        except LicenseForbiddenException as e:
+            _LOG.error(e)
+            job_service.set_licensed_job_status(
+                job=job,
+                tenant=tenant,
+                status=JobTenantStatusEnum.TENANT_FAILED_STATUS
+            )
+        except Exception as e:
+            _LOG.error(f'Unexpected error occurred while processing '
+                       f'tenant {tenant}: {e}')
+            job_service.set_licensed_job_status(
+                job=job,
+                tenant=tenant,
+                status=JobTenantStatusEnum.TENANT_FAILED_STATUS
+            )
 
     _LOG.debug(f'Job {JOB_ID} has finished successfully')
     _LOG.debug(f'Setting job state to SUCCEEDED')
