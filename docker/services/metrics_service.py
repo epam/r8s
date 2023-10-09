@@ -384,16 +384,16 @@ class MetricsService:
         periods = []
         period_start = None
         period_end = None
-        for index, row in df.iterrows():
-            cpu_load = row[COLUMN_CPU_LOAD]
+        for row in df.itertuples():
+            cpu_load = getattr(row, COLUMN_CPU_LOAD)
             if period_start and period_end and np.isnan(cpu_load):
                 periods.append((period_start, period_end))
                 period_start = None
                 period_end = None
             elif not period_start and not np.isnan(cpu_load):
-                period_start = index.time()
+                period_start = row.Index.time()
             elif period_start and not np.isnan(cpu_load):
-                period_end = index.time()
+                period_end = row.Index.time()
         if period_start and period_end:
             periods.append((period_start, period_end))
 
@@ -442,15 +442,15 @@ class MetricsService:
     @staticmethod
     def read_metrics(metric_file_path, algorithm: Algorithm = None,
                      parse_index=True):
-        read_configuration = algorithm.get_read_configuration()
         try:
             if not parse_index:
-                return pd.read_csv(metric_file_path, **read_configuration)
+                return pd.read_csv(metric_file_path,
+                                   **algorithm.read_configuration)
             return pd.read_csv(
                 metric_file_path, parse_dates=True,
                 date_parser=dateparse,
                 index_col=algorithm.timestamp_attribute,
-                **read_configuration)
+                **algorithm.read_configuration)
         except Exception as e:
             _LOG.error(f'Error occurred while reading metrics file: {str(e)}')
             raise ExecutorException(

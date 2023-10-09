@@ -120,7 +120,8 @@ def process_tenant_instances(metrics_dir, reports_dir,
         scan_clouds=[cloud],
         scan_tenants=[tenant],
         scan_from_date=SCAN_FROM_DATE,
-        scan_to_date=SCAN_TO_DATE)
+        scan_to_date=SCAN_TO_DATE,
+        max_days=algorithm.recommendation_settings.max_days)
 
     tenant_folder_path = os.path.join(
         metrics_dir,
