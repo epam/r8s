@@ -187,10 +187,10 @@ class JobProcessor(AbstractCommandProcessor):
         if input_scan_tenants:
             _LOG.debug(f'Validating user-provided scan tenants: '
                        f'{input_scan_tenants}')
-            self._validate_input_tenants(
-                parent=parent,
-                input_scan_tenants=input_scan_tenants
-            )
+            # self._validate_input_tenants(
+            #     parent=parent,
+            #     input_scan_tenants=input_scan_tenants
+            # )
             scan_tenants = input_scan_tenants
             _LOG.debug(f'Setting scan_tenants env to '
                        f'\'{scan_tenants}\'')
