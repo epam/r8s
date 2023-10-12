@@ -2,7 +2,8 @@ from typing import List
 
 from modular_sdk.commons import ModularException
 from modular_sdk.commons.constants import AWS_CLOUD, AZURE_CLOUD, GOOGLE_CLOUD, \
-    RIGHTSIZER_LICENSES_PARENT_TYPE, TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE
+    RIGHTSIZER_LICENSES_PARENT_TYPE, \
+    TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE, ParentScope
 from modular_sdk.models.parent import Parent
 from modular_sdk.services.customer_service import CustomerService
 from modular_sdk.services.tenant_service import TenantService
@@ -21,6 +22,7 @@ from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
 from models.algorithm import Algorithm
 from models.license import License
+from models.parent_attributes import LicensesParentMeta
 from services.algorithm_service import AlgorithmService
 from services.license_manager_service import LicenseManagerService
 from services.license_service import LicenseService
@@ -213,34 +215,54 @@ class ParentLicensesProcessor(AbstractCommandProcessor):
                         f'\'{application.customer_id}\''
             )
 
-        scope = PARENT_SCOPE_SPECIFIC_TENANT if tenants \
-            else PARENT_SCOPE_ALL
-
-        _LOG.debug(f'Creating parent')
-        parent = self.parent_service.create_rightsizer_licenses_parent(
-            application_id=application.application_id,
-            customer_id=customer,
-            description=description,
+        meta = LicensesParentMeta(
             cloud=cloud,
-            algorithm=algorithm_obj,
-            scope=scope,
-            license_key=license_key
+            algorithm=algorithm.name,
+            license_key=license_key,
         )
+        parents = []
+        for index, tenant in enumerate(tenants, start=1):
+            _LOG.debug(f'{index}/{len(tenants)} Creating RIGHTSIZER_LICENSES '
+                       f'parent for tenant {tenant}')
+            parent = self.parent_service.create_tenant_scope(
+                application_id=application.application_id,
+                customer_id=customer,
+                type_=RIGHTSIZER_LICENSES_PARENT_TYPE,
+                description=description,
+                meta=meta.as_dict(),
+                tenant_name=tenant
+            )
+            parents.append(parent)
+        else:
+            _LOG.debug(f'Creating RIGHTSIZER_LICENSES parent for all tenants '
+                       f'in cloud: {cloud}')
+            parent = self.parent_service.create_all_scope(
+                application_id=application.application_id,
+                customer_id=customer,
+                type_=RIGHTSIZER_LICENSES_PARENT_TYPE,
+                description=description,
+                meta=meta.as_dict(),
+                cloud=cloud
+            )
+            parents.append(parent)
 
-        parent_dto = self.parent_service.get_dto(parent=parent)
-        _LOG.debug(f'Created parent \'{parent_dto}\'')
+        _LOG.debug(f'Going to save {len(parents)} parent(s).')
+        for parent in parents:
+            self.parent_service.save(parent=parent)
 
-        self.parent_service.save(parent=parent)
-        _LOG.debug(f'Parent \'{parent.parent_id}\' has been saved')
+        parent_dtos = [self.parent_service.get_dto(parent=parent)
+                       for parent in parents]
+        _LOG.debug(f'Created parents: \'{parent_dtos}\'')
 
-        if tenants:
+        for parent in parents:
+            if not parent.tenant_name:
+                continue
             try:
                 _LOG.debug(f'Going to activate tenants {tenants} for parent '
                            f'\'{parent.parent_id}\'')
-                self.activate_tenants(
-                    tenant_names=tenants,
-                    parent=parent,
-                    cloud=cloud
+                self.activate_tenant(
+                    tenant_name=parent.tenant_name,
+                    parent=parent
                 )
             except ModularException as e:
                 _LOG.error(e.content)
@@ -251,7 +273,7 @@ class ParentLicensesProcessor(AbstractCommandProcessor):
 
         return build_response(
             code=RESPONSE_OK_CODE,
-            content=parent_dto
+            content=parent_dtos
         )
 
     def delete(self, event):
@@ -284,29 +306,22 @@ class ParentLicensesProcessor(AbstractCommandProcessor):
                         f'already deleted.'
             )
 
-        parent_meta = self.parent_service.get_parent_meta(parent=parent)
-        scope = parent_meta.scope
-
-        if scope and scope != PARENT_SCOPE_ALL:
-            _LOG.debug(f'Describing tenants')
-            linked_tenants = self.parent_service.list_activated_tenants(
-                parent=parent
-            )
-            if linked_tenants:
-                message = f'There\'re tenants linked to parent ' \
-                          f'\'{parent_id}\': ' \
-                          f'{", ".join([t.name for t in linked_tenants])}'
-                _LOG.error(message)
-                return build_response(
-                    code=RESPONSE_BAD_REQUEST_CODE,
-                    content=message
+        if parent.tenant_name:
+            _LOG.debug(f'Describing tenant {parent.tenant_name}')
+            tenant = self.tenant_service.get(tenant_name=parent.tenant_name)
+            if not tenant:
+                _LOG.warning(f'Linked tenant {parent.tenant_name} '
+                             f'does not exist.')
+            else:
+                _LOG.debug(f'Going to unlink tenant {parent.tenant_name} '
+                           f'from parent {parent.parent_id}')
+                self.tenant_service.remove_from_parent_map(
+                    tenant=tenant,
+                    type_=RIGHTSIZER_LICENSES_PARENT_TYPE
                 )
 
         _LOG.debug(f'Deleting parent \'{parent.parent_id}\'')
         self.parent_service.mark_deleted(parent=parent)
-
-        _LOG.debug(f'Saving parent: \'{parent.parent_id}\'')
-        self.parent_service.save(parent=parent)
 
         return build_response(
             code=RESPONSE_OK_CODE,
@@ -363,26 +378,17 @@ class ParentLicensesProcessor(AbstractCommandProcessor):
         )
         return license_obj
 
-    def activate_tenants(self, tenant_names: list, parent: Parent, cloud: str):
-        for tenant_name in tenant_names:
-            _LOG.debug(f'Describing tenant \'{tenant_name}\'')
-            tenant_obj = self.tenant_service.get(tenant_name=tenant_name)
-            if not tenant_obj:
-                _LOG.error(f'Tenant \'{tenant_name}\' does not exist.')
-                return build_response(
-                    code=RESPONSE_BAD_REQUEST_CODE,
-                    content=f'Tenant \'{tenant_name}\' does not exist.'
-                )
-            if cloud != tenant_obj.cloud:
-                _LOG.error(f'{tenant_obj.cloud} tenant {tenant_obj.name} '
-                           f'cannot be linked to {cloud} parent')
-                return build_response(
-                    code=RESPONSE_BAD_REQUEST_CODE,
-                    content=f'{tenant_obj.cloud} tenant {tenant_obj.name} '
-                            f'cannot be linked to {cloud} parent'
-                )
-            self.tenant_service.add_to_parent_map(
-                tenant=tenant_obj,
-                parent=parent,
-                type_=TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE
+    def activate_tenant(self, tenant_name: str, parent: Parent):
+        _LOG.debug(f'Describing tenant \'{tenant_name}\'')
+        tenant_obj = self.tenant_service.get(tenant_name=tenant_name)
+        if not tenant_obj:
+            _LOG.error(f'Tenant \'{tenant_name}\' does not exist.')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'Tenant \'{tenant_name}\' does not exist.'
             )
+        self.tenant_service.add_to_parent_map(
+            tenant=tenant_obj,
+            parent=parent,
+            type_=TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE
+        )

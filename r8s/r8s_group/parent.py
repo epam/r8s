@@ -1,8 +1,9 @@
 import click
 
 from r8s_group import cli_response, ViewCommand, cast_to_list
-from r8s_service.constants import AVAILABLE_CLOUDS, ALLOWED_PROTOCOLS, \
-    PROTOCOL_HTTPS, AVAILABLE_PARENT_SCOPES, PARENT_SCOPE_SPECIFIC_TENANT
+from r8s_service.constants import (AVAILABLE_CLOUDS, ALLOWED_PROTOCOLS, \
+    PROTOCOL_HTTPS, AVAILABLE_PARENT_SCOPES, PARENT_SCOPE_ALL,
+                                   PARENT_SCOPE_SPECIFIC, PARENT_SCOPE_DISABLED)
 from r8s_group.parent_licenses import licenses
 from r8s_group.parent_shaperule import shape_rule
 
@@ -32,26 +33,28 @@ def describe(application_id=None, parent_id=None):
               help='Maestro application id to create Parent for.')
 @click.option('--description', '-d', type=str, required=True,
               help='Parent description.')
-@click.option('--clouds', '-c', type=click.Choice(AVAILABLE_CLOUDS),
-              multiple=True, required=True, help='Parent clouds')
+@click.option('--cloud', '-c', type=click.Choice(AVAILABLE_CLOUDS),
+              required=False, help='Parent cloud. Only applied to ALL scope')
 @click.option('--scope', '-s', required=True,
               type=click.Choice(AVAILABLE_PARENT_SCOPES),
-              help='Parent scope. If intended to use for all Tenants, '
-                   'use \'ALL_TENANTS\'.')
+              help=f'Parent scope. {PARENT_SCOPE_ALL} to enable all '
+                   f'tenants/all tenants of specific cloud. '
+                   f'{PARENT_SCOPE_SPECIFIC}/{PARENT_SCOPE_DISABLED} '
+                   f'to enable/disable specific tenant')
 @click.option('--tenant_name', '-tn', required=False, type=str,
               help=f'Tenant name to be linked to Parent. '
-                   f'Only for {PARENT_SCOPE_SPECIFIC_TENANT} scope.')
+                   f'Only for {PARENT_SCOPE_DISABLED}/{PARENT_SCOPE_SPECIFIC} '
+                   f'scopes.')
 @cli_response()
-def add(application_id, description, clouds, scope, tenant_name):
+def add(application_id, description, cloud, scope, tenant_name):
     """
     Creates Maestro RIGHTSIZER Parent
     """
     from r8s_service.initializer import init_configuration
-    clouds = cast_to_list(clouds)
     return init_configuration().parent_post(
         application_id=application_id,
         description=description,
-        clouds=clouds,
+        clouds=cloud,
         scope=scope,
         tenant_name=tenant_name
     )
@@ -84,39 +87,6 @@ def describe_tenant_links(parent_id):
 
     return init_configuration().parent_tenant_link_get(
         parent_id=parent_id
-    )
-
-
-@parent.command(cls=ViewCommand, name='link_tenant')
-@click.option('--parent_id', '-pid', type=str, required=True,
-              help='Maestro Parent id to link to tenant.')
-@click.option('--tenant_name', '-tn', type=str, required=True,
-              help='Maestro tenant name.')
-@cli_response()
-def link_tenant(parent_id, tenant_name):
-    """
-    Links Maestro tenant to RIGHTSIZER parent
-    """
-    from r8s_service.initializer import init_configuration
-
-    return init_configuration().parent_tenant_link_post(
-        parent_id=parent_id,
-        tenant_name=tenant_name
-    )
-
-
-@parent.command(cls=ViewCommand, name='unlink_tenant')
-@click.option('--tenant_name', '-tn', type=str, required=True,
-              help='Maestro tenant name to unlink RIGHTSIZER parent.')
-@cli_response()
-def unlink_tenant(tenant_name):
-    """
-    Unlinks RIGHTSIZER parent from tenant
-    """
-    from r8s_service.initializer import init_configuration
-
-    return init_configuration().parent_tenant_link_delete(
-        tenant_name=tenant_name
     )
 
 @parent.command(cls=ViewCommand, name='describe_resize_insights')
