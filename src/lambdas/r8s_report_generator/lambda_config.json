@@ -25,5 +25,8 @@
     "${lambda_security_group}"
   ],
   "ephemeral_storage": 512,
-  "url_config": {}
+  "url_config": {},
+  "platforms": [
+    "manylinux2014_x86_64"
+  ]
 }
