@@ -290,7 +290,8 @@ class R8sApiHandler(AbstractApiHandlerLambda):
     def _instantiate_shape_rule_processor(self):
         return ShapeRuleProcessor(
             application_service=self.application_service,
-            parent_service=self.parent_service
+            parent_service=self.parent_service,
+            tenant_service=self.tenant_service
         )
 
     def _instantiate_shape_rule_dry_run_processor(self):
