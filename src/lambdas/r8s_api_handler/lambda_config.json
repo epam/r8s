@@ -27,5 +27,8 @@
   ],
   "security_group_ids": [
     "${lambda_security_group}"
+  ],
+  "platforms": [
+    "manylinux2014_x86_64"
   ]
 }
