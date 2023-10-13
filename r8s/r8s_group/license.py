@@ -1,8 +1,6 @@
 import click
 
 from r8s_group import cli_response, ViewCommand
-from r8s_service.constants import AVAILABLE_CLOUDS, ALLOWED_PROTOCOLS, \
-    PROTOCOL_HTTPS, AVAILABLE_PARENT_SCOPES, PARENT_SCOPE_SPECIFIC_TENANT
 
 
 @click.group(name='license')

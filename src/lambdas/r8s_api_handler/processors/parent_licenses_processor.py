@@ -217,22 +217,23 @@ class ParentLicensesProcessor(AbstractCommandProcessor):
 
         meta = LicensesParentMeta(
             cloud=cloud,
-            algorithm=algorithm.name,
+            algorithm=algorithm_obj.name,
             license_key=license_key,
         )
         parents = []
-        for index, tenant in enumerate(tenants, start=1):
-            _LOG.debug(f'{index}/{len(tenants)} Creating RIGHTSIZER_LICENSES '
-                       f'parent for tenant {tenant}')
-            parent = self.parent_service.create_tenant_scope(
-                application_id=application.application_id,
-                customer_id=customer,
-                type_=RIGHTSIZER_LICENSES_PARENT_TYPE,
-                description=description,
-                meta=meta.as_dict(),
-                tenant_name=tenant
-            )
-            parents.append(parent)
+        if tenants:
+            for index, tenant in enumerate(tenants, start=1):
+                _LOG.debug(f'{index}/{len(tenants)} Creating RIGHTSIZER_LICENSES '
+                           f'parent for tenant {tenant}')
+                parent = self.parent_service.create_tenant_scope(
+                    application_id=application.application_id,
+                    customer_id=customer,
+                    type_=RIGHTSIZER_LICENSES_PARENT_TYPE,
+                    description=description,
+                    meta=meta.as_dict(),
+                    tenant_name=tenant
+                )
+                parents.append(parent)
         else:
             _LOG.debug(f'Creating RIGHTSIZER_LICENSES parent for all tenants '
                        f'in cloud: {cloud}')

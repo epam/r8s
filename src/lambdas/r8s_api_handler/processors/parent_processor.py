@@ -232,7 +232,7 @@ class ParentProcessor(AbstractCommandProcessor):
                     content=e.content
                 )
 
-        # self.parent_service.save(parent=parent)
+        self.parent_service.save(parent=parent)
         _LOG.debug(f'Parent \'{parent.parent_id}\' has been saved')
 
         return build_response(

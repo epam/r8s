@@ -177,8 +177,6 @@ class R8sApiHandler(AbstractApiHandlerLambda):
                 self._instantiate_shape_rule_dry_run_processor,
             PARENT_ACTION: self._instantiate_parent_processor,
             PARENT_LICENSES_ACTION: self._instantiate_parent_licenses_processor,
-            PARENT_TENANT_LINK_ACTION:
-                self._instantiate_parent_tenant_linkage_processor,
             USER_ACTION: self._instantiate_user_processor,
             SHAPE_ACTION: self._instantiate_shape_processor,
             SHAPE_PRICE_ACTION: self._instantiate_shape_price_processor,
@@ -300,7 +298,8 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             application_service=self.application_service,
             parent_service=self.parent_service,
             shape_service=self.shape_service,
-            shape_rules_filter_service=self.shape_rules_filter_service
+            shape_rules_filter_service=self.shape_rules_filter_service,
+            tenant_service=self.tenant_service
         )
 
     def _instantiate_parent_processor(self):

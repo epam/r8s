@@ -2,6 +2,7 @@ from typing import Union, List
 
 from modular_sdk.commons.constants import RIGHTSIZER_PARENT_TYPE
 from modular_sdk.models.parent import Parent
+from modular_sdk.services.tenant_service import TenantService
 
 from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
     build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
@@ -25,9 +26,11 @@ _LOG = get_logger('r8s-shape-rule-processor')
 
 class ShapeRuleProcessor(AbstractCommandProcessor):
     def __init__(self, application_service: RightSizerApplicationService,
-                 parent_service: RightSizerParentService):
+                 parent_service: RightSizerParentService,
+                 tenant_service: TenantService):
         self.application_service = application_service
         self.parent_service = parent_service
+        self.tenant_service = tenant_service
 
         self.method_to_handler = {
             GET_METHOD: self.get,
@@ -98,15 +101,6 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
             _LOG.debug(f'Describing only rule with id \'{rule_id}\'')
             shape_rules = [shape_rule for shape_rule in shape_rules
                            if shape_rule.rule_id == rule_id]
-        cloud = event.get(CLOUD_ATTR)
-        if cloud:
-            _LOG.debug(f'Validating cloud: {cloud}')
-            cloud = cloud.upper()
-            self._validate_cloud(cloud=cloud)
-
-            _LOG.debug(f'Describing only rules for {cloud} cloud')
-            shape_rules = [shape_rule for shape_rule in shape_rules
-                           if shape_rule.cloud == cloud]
 
         if not shape_rules:
             _LOG.warning(f'No shape rules found matching given query.')
@@ -129,10 +123,8 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
     def post(self, event):
         _LOG.debug(f'Create shape rule event: {event}')
         validate_params(event, (PARENT_ID_ATTR, RULE_ACTION_ATTR,
-                                CONDITION_ATTR, CLOUD_ATTR,
+                                CONDITION_ATTR,
                                 FIELD_ATTR, VALUE_ATTR))
-        cloud = event.get(CLOUD_ATTR).upper()
-        self._validate_cloud(cloud=cloud)
 
         parent_id = event.get(PARENT_ID_ATTR)
         parent = self.parent_service.get_parent_by_id(
@@ -156,21 +148,33 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
                 content=f'No parent found matching given query.'
             )
 
-        parent_meta = self.parent_service.get_parent_meta(parent=parent)
-        if cloud not in parent_meta.clouds:
-            _LOG.error(f'Invalid shape rule cloud specified: {cloud}. '
-                       f'Allowed clouds for parent '
-                       f'\'{parent_id}\': {", ".join(parent_meta.clouds)}')
+        cloud = None
+        if parent.cloud:
+            cloud = parent.cloud
+        elif parent.tenant_name:
+            tenant = self.tenant_service.get(tenant_name=parent.tenant_name)
+            if not tenant:
+                _LOG.debug(f'Tenant {parent.tenant_name} linked to '
+                           f'parent {parent.parent_id} does not exist.')
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content=f'Tenant {parent.tenant_name} linked to '
+                            f'parent {parent.parent_id} does not exist.'
+                )
+            cloud = tenant.cloud
+
+        if not cloud:
+            _LOG.error(f'Parent {parent.parent_id} must have either '
+                       f'SPECIFIC of ALL#CLOUD scope')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Invalid shape rule cloud specified: {cloud}. '
-                        f'Allowed clouds for parent '
-                        f'\'{parent_id}\': {", ".join(parent_meta.clouds)}'
+                content=f'Parent {parent.parent_id} must have either '
+                        f'SPECIFIC of ALL#CLOUD scope'
             )
 
         shape_rule = self.parent_service.create_shape_rule(
             action=event.get(RULE_ACTION_ATTR, '').lower(),
-            cloud=cloud.upper(),
+            cloud=parent.cloud.upper(),
             condition=event.get(CONDITION_ATTR, '').lower(),
             field=event.get(FIELD_ATTR, '').lower(),
             value=event.get(VALUE_ATTR, '').lower()

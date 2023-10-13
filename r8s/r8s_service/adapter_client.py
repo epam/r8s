@@ -648,11 +648,10 @@ class AdapterClient:
                                    method=HTTP_GET,
                                    payload=request)
 
-    def shape_rule_post(self, parent_id, cloud, action, condition, field,
+    def shape_rule_post(self, parent_id, action, condition, field,
                         value, application_id=None):
         request = {
             PARAM_PARENT_ID: parent_id,
-            PARAM_CLOUD: cloud,
             PARAM_RULE_ACTION: action,
             PARAM_CONDITION: condition,
             PARAM_FIELD: field,
@@ -695,8 +694,7 @@ class AdapterClient:
 
     def shape_rule_dry_run_get(self, parent_id, cloud):
         request = {
-            PARAM_PARENT_ID: parent_id,
-            PARAM_CLOUD: cloud
+            PARAM_PARENT_ID: parent_id
         }
 
         return self.__make_request(resource=API_SHAPE_RULES_DRY_RUN,

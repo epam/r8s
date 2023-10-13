@@ -1,7 +1,8 @@
 from typing import List, Union
 
 from modular_sdk.commons.constants import RIGHTSIZER_PARENT_TYPE, \
-    RIGHTSIZER_LICENSES_PARENT_TYPE, TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE
+    RIGHTSIZER_LICENSES_PARENT_TYPE, \
+    TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE, ParentScope, ParentType
 from modular_sdk.models.parent import Parent
 from modular_sdk.models.tenant import Tenant
 from modular_sdk.services.customer_service import CustomerService
@@ -63,43 +64,40 @@ class RightSizerParentService(ParentService):
                    f'\'{licensed_parent.parent_id}\'')
         licensed_parent_meta = self.get_parent_meta(parent=licensed_parent)
 
-        if licensed_parent_meta.scope == PARENT_SCOPE_ALL_TENANTS:
-            _LOG.debug(f'Licensed scope: {PARENT_SCOPE_ALL_TENANTS}. '
+        if licensed_parent.scope == ParentScope.ALL.value:
+            _LOG.debug(f'Licensed scope: {ParentScope.ALL.value}. '
                        f'Going to search for Parent directly')
             parents = self.list_application_parents(
                 application_id=licensed_parent.application_id,
                 only_active=True,
-                type_=RIGHTSIZER_PARENT_TYPE
+                type_=ParentType.RIGHTSIZER_PARENT.value
             )
 
             for parent in parents:
-                parent_meta = self.get_parent_meta(parent=parent)
-                if parent_meta.scope == PARENT_SCOPE_ALL_TENANTS and \
-                        licensed_parent_meta.cloud in parent.meta.clouds:
+                if parent.scope == ParentScope.ALL.value and \
+                        licensed_parent.cloud == parent.cloud:
                     return parent
-        elif licensed_parent_meta.scope == PARENT_SCOPE_SPECIFIC_TENANT \
+        elif licensed_parent.scope == ParentScope.SPECIFIC.value \
                 and scan_tenants:
-            _LOG.debug(f'Licensed scope: {PARENT_SCOPE_SPECIFIC_TENANT}. '
-                       f'Going to search for Parent from tenants: '
-                       f'{scan_tenants}')
-            for tenant_name in scan_tenants:
-                _LOG.debug(f'Processing tenant \'{tenant_name}\'')
-                tenant = self.tenant_service.get(tenant_name=tenant_name)
+            _LOG.debug(f'Licensed scope: {ParentScope.SPECIFIC.value}. '
+                       f'Validating tenant {licensed_parent.tenant_name}')
+            tenant = self.tenant_service.get(
+                tenant_name=licensed_parent.tenant_name)
 
-                parent_map = tenant.parent_map.as_dict()
+            parent_map = tenant.parent_map.as_dict()
 
-                linked_parent_id = parent_map.get(
-                    TENANT_PARENT_MAP_RIGHTSIZER_TYPE)
-                linked_licensed_parent_id = parent_map.get(
-                    TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE
-                )
-                if linked_licensed_parent_id != licensed_parent.parent_id:
-                    continue
-                if not linked_parent_id:
-                    _LOG.warning(f'Tenant \'{tenant_name}\' don\'t have '
-                                 f'RIGHTSIZER type linkage.')
-                    continue
-                return self.get_parent_by_id(parent_id=linked_parent_id)
+            linked_parent_id = parent_map.get(
+                TENANT_PARENT_MAP_RIGHTSIZER_TYPE)
+            linked_licensed_parent_id = parent_map.get(
+                TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE
+            )
+            if linked_licensed_parent_id != licensed_parent.parent_id:
+                return
+            if not linked_parent_id:
+                _LOG.warning(f'Tenant \'{licensed_parent.tenant_name}\' '
+                             f'don\'t have RIGHTSIZER type linkage.')
+                return
+            return self.get_parent_by_id(parent_id=linked_parent_id)
 
     @staticmethod
     def list_application_parents(application_id, type_: str,
