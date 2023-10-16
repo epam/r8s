@@ -36,7 +36,7 @@ class ScheduleService:
         _LOG.debug(f'Checking if schedule is disabled by user adjustments')
         if self._is_schedule_disabled(recommendations=past_recommendations):
             _LOG.debug(f'Schedule action is disabled for instance.')
-            return self._get_always_run_schedule()
+            return self.get_always_run_schedule()
 
         _LOG.debug(f'Generating schedule for instance \'{instance_id}\'')
 
@@ -46,7 +46,7 @@ class ScheduleService:
         if covered_days < recommendation_settings.min_allowed_days_schedule:
             _LOG.warning(f'Minimum {MINIMUM_DAYS_REQUIRED} days of '
                          f'telemetry required for schedule recommendation')
-            return self._get_always_run_schedule()
+            return self.get_always_run_schedule()
 
         _LOG.debug(f'Extracting active periods')
         active_schedule_periods = self._get_active_schedule_periods(
@@ -218,7 +218,7 @@ class ScheduleService:
         return points
 
     @staticmethod
-    def _get_always_run_schedule():
+    def get_always_run_schedule():
         return [{
             'start': '00:00',
             'stop': '00:00',
