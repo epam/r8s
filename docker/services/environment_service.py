@@ -3,7 +3,7 @@ import os
 from commons.constants import INSTANCE_SPECS_STORAGE_TYPE, \
     STORAGE_TYPE_SETTING, DEFAULT_DAYS_TO_PROCESS, DEFAULT_META_POSTPONED_KEY, \
     DEFAULT_META_POSTPONED_FOR_ACTIONS_KEY, \
-    ENV_SERVICE_MODE, DOCKER_SERVICE_MODE
+    ENV_SERVICE_MODE, DOCKER_SERVICE_MODE, ENV_FORCE_RESCAN
 from commons.constants import PARENT_ID_ATTR
 
 
@@ -71,3 +71,8 @@ class EnvironmentService:
     @staticmethod
     def is_docker() -> bool:
         return os.environ.get(ENV_SERVICE_MODE) == DOCKER_SERVICE_MODE
+
+    @staticmethod
+    def force_rescan() -> bool:
+        force_rescan = os.environ.get(ENV_FORCE_RESCAN, False)
+        return force_rescan and force_rescan.lower() in ('y', 't', 'true')

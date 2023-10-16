@@ -334,8 +334,8 @@ class RecommendationService:
             general_action=STATUS_ERROR
         )
 
-    @staticmethod
-    def scan_required(past_recommendations: List[RecommendationHistory],
+    def scan_required(self,
+                      past_recommendations: List[RecommendationHistory],
                       df: pd.DataFrame) -> bool:
         """
         Indicate if instance scan is required.
@@ -347,7 +347,7 @@ class RecommendationService:
         :param df: metrics dataframe
         :return: bool
         """
-        if not past_recommendations:
+        if self.environment_service.force_rescan() or not past_recommendations:
             return True
         latest_r = past_recommendations[0]
         if not latest_r.last_metric_capture_date:
