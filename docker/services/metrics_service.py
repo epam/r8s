@@ -390,7 +390,7 @@ class MetricsService:
         good_util = pd.concat(good_util) if good_util else None
         over_util = pd.concat(over_util) if over_util else None
 
-        step_minutes_options = [r_settings.step_minutes]
+        step_minutes_options = [r_settings.record_step_minutes]
         if (r_settings.optimized_aggregation_threshold_days
                 and r_settings.optimized_aggregation_step_minutes):
             step_minutes_options.append(
@@ -421,50 +421,37 @@ class MetricsService:
     def get_time_ranges(self, df, step_minutes_options: List[int]):
         if not isinstance(df, pd.DataFrame) or len(df) == 0:
             return []
-        periods = []
-        period_start = None
-        period_end = None
+
+        period_start_row_index = None
+        period_end_row_index = None
+        dfs_ = []
         last_row = None
         for row in df.itertuples():
-            if not period_start:
-                period_start = row.Index.time()
+            if not period_start_row_index:
+                period_start_row_index = row.Index
             else:
                 diff_minutes = self.get_diff_minutes(
                     row.Index, last_row.Index
                 )
-                if (period_start and period_end and
+                if (period_start_row_index and period_end_row_index and
                         diff_minutes not in step_minutes_options):
-                    periods.append((period_start, period_end))
-                    period_start = None
-                    period_end = None
-                else:
-                    period_end = row.Index.time()
-            last_row = row
-        if period_start and period_end:
-            periods.append((period_start, period_end))
+                    dfs_.append(df[(df.index >= period_start_row_index) &
+                                   (df.index <= period_end_row_index)])
 
-        return self.build_df_from_periods(
-            df=df,
-            periods=periods
-        )
+                    period_start_row_index = None
+                    period_end_row_index = None
+                else:
+                    period_end_row_index = row.Index
+            last_row = row
+        if period_start_row_index and period_end_row_index:
+            dfs_.append(df[(df.index >= period_start_row_index) & (
+                    df.index <= period_end_row_index)])
+
+        return dfs_
 
     @staticmethod
     def get_diff_minutes(t1: pd.Timestamp, t2: pd.Timestamp):
         return int((t1 - t2).total_seconds() // 60)
-
-    def build_df_from_periods(self, df, periods: list):
-        dfs = []
-
-        for period in periods:
-            df_ = df.copy().apply(self.filter_by_ranges, axis=1,
-                                  periods=[period],
-                                  result_type='broadcast')
-            if not isinstance(df_, pd.DataFrame):
-                df_ = df_.to_frame()
-            df_ = df_.dropna(thresh=1)
-            if not df.empty:
-                dfs.append(df_)
-        return dfs
 
     @staticmethod
     def filter_short_periods(periods, min_length_sec=1800):
