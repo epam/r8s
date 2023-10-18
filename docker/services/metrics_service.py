@@ -438,7 +438,7 @@ class MetricsService:
                     dfs_.append(df[(df.index >= period_start_row_index) &
                                    (df.index <= period_end_row_index)])
 
-                    period_start_row_index = None
+                    period_start_row_index = row.Index
                     period_end_row_index = None
                 else:
                     period_end_row_index = row.Index
@@ -447,6 +447,12 @@ class MetricsService:
             dfs_.append(df[(df.index >= period_start_row_index) & (
                     df.index <= period_end_row_index)])
 
+        for index, df_ in enumerate(dfs_):
+            step_minutes = (df_.index[1] - df_.index[0]).seconds // 60
+            if step_minutes != min(step_minutes_options):
+                dfs_[index] = df_.asfreq(
+                    freq=f'{min(step_minutes_options)}Min',
+                    method='ffill')
         return dfs_
 
     @staticmethod
