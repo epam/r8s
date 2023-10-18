@@ -109,7 +109,7 @@ def delete(rule_id, parent_id):
 @click.option('--parent_id', '-pid', type=str, required=True,
               help='Parent id to perform dry run on shape rules')
 @cli_response()
-def dry_run(parent_id, cloud):
+def dry_run(parent_id):
     """
     Describes shapes that satisfy all of the specified Parent rules.
     """
