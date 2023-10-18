@@ -54,7 +54,7 @@ def add(application_id, description, cloud, scope, tenant_name):
     return init_configuration().parent_post(
         application_id=application_id,
         description=description,
-        clouds=cloud,
+        cloud=cloud,
         scope=scope,
         tenant_name=tenant_name
     )
