@@ -37,6 +37,7 @@ class RecommendationTypeEnum(ListEnum):
     ACTION_SCALE_DOWN = 'SCALE_DOWN'
     ACTION_CHANGE_SHAPE = 'CHANGE_SHAPE'
     ACTION_SPLIT = 'SPLIT'
+    ACTION_EMPTY = 'NO_ACTION'
 
     @classmethod
     def resize(cls):
