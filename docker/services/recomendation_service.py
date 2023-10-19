@@ -400,6 +400,8 @@ class RecommendationService:
                 schedule = recommendation_item.recommendation
             elif recommendation_type == RecommendationTypeEnum.ACTION_SHUTDOWN:
                 schedule = []
+            elif recommendation_type == RecommendationTypeEnum.ACTION_EMPTY:
+                recommended_sizes = recommendation_item.recommendation
             elif recommendation_type in RecommendationTypeEnum.resize():
                 recommended_sizes = recommendation_item.recommendation
             actions.append(recommendation_item.recommendation_type.value)
@@ -415,9 +417,6 @@ class RecommendationService:
         }
         if schedule is None:
             schedule = self.schedule_service.get_always_run_schedule()
-
-        if not actions:
-            actions = [ACTION_EMPTY]
 
         return self.dump_reports(
             reports_dir=reports_dir,

@@ -22,7 +22,7 @@ class RecommendationHistoryService:
                instance_meta: dict,
                last_metric_capture_date: datetime.date
                ) -> List[RecommendationHistory]:
-        if ACTION_EMPTY in actions or ACTION_ERROR in actions:
+        if ACTION_ERROR in actions:
             _LOG.debug(f'Skipping saving result to history collection. '
                        f'Actions: \'{actions}\'')
             return []
@@ -31,25 +31,18 @@ class RecommendationHistoryService:
             savings=savings
         )
         saving_options = savings.get(SAVING_OPTIONS_ATTR, [])
-        if ACTION_SCHEDULE in actions:
-            recommendation_item = self._create_or_update_recent(
-                instance_id=instance_id,
-                job_id=job_id,
-                customer=customer,
-                tenant=tenant,
-                region=region,
-                current_instance_type=current_instance_type,
-                current_month_price_usd=current_month_price_usd,
-                recommendation_type=ACTION_SCHEDULE,
-                recommendation=schedule,
-                savings=saving_options,
-                instance_meta=instance_meta,
-                last_metric_capture_date=last_metric_capture_date
-            )
-            result.append(recommendation_item)
 
-        resize_action = self._get_resize_action(actions=actions)
-        if resize_action:
+        for action in actions:
+            recommendation = None
+            if action in [*RESIZE_ACTIONS, ACTION_EMPTY, ACTION_SHUTDOWN]:
+                recommendation = recommended_shapes
+            elif action == ACTION_SCHEDULE:
+                recommendation = schedule
+
+            if recommendation is None:
+                _LOG.warning(f'Unknown recommendation type detected: '
+                             f'{action}')
+                continue
             recommendation_item = self._create_or_update_recent(
                 instance_id=instance_id,
                 job_id=job_id,
@@ -58,24 +51,8 @@ class RecommendationHistoryService:
                 region=region,
                 current_instance_type=current_instance_type,
                 current_month_price_usd=current_month_price_usd,
-                recommendation_type=resize_action,
-                recommendation=recommended_shapes,
-                savings=saving_options,
-                instance_meta=instance_meta,
-                last_metric_capture_date=last_metric_capture_date
-            )
-            result.append(recommendation_item)
-        if ACTION_SHUTDOWN in actions:
-            recommendation_item = self._create_or_update_recent(
-                instance_id=instance_id,
-                job_id=job_id,
-                customer=customer,
-                tenant=tenant,
-                region=region,
-                current_instance_type=current_instance_type,
-                current_month_price_usd=current_month_price_usd,
-                recommendation_type=ACTION_SHUTDOWN,
-                recommendation=None,
+                recommendation_type=action,
+                recommendation=recommendation,
                 savings=saving_options,
                 instance_meta=instance_meta,
                 last_metric_capture_date=last_metric_capture_date
@@ -211,12 +188,6 @@ class RecommendationHistoryService:
     @staticmethod
     def delete(recommendation: RecommendationHistory):
         recommendation.delete()
-
-    @staticmethod
-    def _get_resize_action(actions):
-        for action in actions:
-            if action in RESIZE_ACTIONS:
-                return action
 
     @staticmethod
     def _get_current_month_price(savings: dict):
