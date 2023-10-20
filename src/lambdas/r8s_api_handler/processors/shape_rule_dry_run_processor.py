@@ -1,3 +1,5 @@
+from modular_sdk.services.tenant_service import TenantService
+
 from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
     build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
     validate_params
@@ -19,11 +21,13 @@ class ShapeRuleDryRunProcessor(AbstractCommandProcessor):
     def __init__(self, application_service: RightSizerApplicationService,
                  parent_service: RightSizerParentService,
                  shape_service: ShapeService,
-                 shape_rules_filter_service: ShapeRulesFilterService):
+                 shape_rules_filter_service: ShapeRulesFilterService,
+                 tenant_service: TenantService):
         self.application_service = application_service
         self.parent_service = parent_service
         self.shape_service = shape_service
         self.shape_rules_filter_service = shape_rules_filter_service
+        self.tenant_service = tenant_service
 
         self.method_to_handler = {
             GET_METHOD: self.get
@@ -42,7 +46,7 @@ class ShapeRuleDryRunProcessor(AbstractCommandProcessor):
 
     def get(self, event):
         _LOG.debug(f'Dry run shape rule event: {event}')
-        validate_params(event, (PARENT_ID_ATTR, CLOUD_ATTR))
+        validate_params(event, (PARENT_ID_ATTR,))
 
         parent, application = self.resolve_parent_application(
             event=event
@@ -54,17 +58,6 @@ class ShapeRuleDryRunProcessor(AbstractCommandProcessor):
             parent=parent)
         shape_rules = self.parent_service.list_shape_rules(
             parent_meta=parent_meta)
-        cloud = event.get(CLOUD_ATTR)
-        if cloud not in parent_meta.clouds:
-            _LOG.error(f'Cloud \'{cloud}\' is not allowed for parent: '
-                       f'{parent.parent_id}. Allowed options: '
-                       f'{", ".join(parent_meta.clouds)}')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Cloud \'{cloud}\' is not allowed for parent: '
-                        f'{parent.parent_id}. Allowed options: '
-                        f'{", ".join(parent_meta.clouds)}'
-            )
 
         if not shape_rules:
             _LOG.warning(f'Parent \'{parent.parent_id}\' does not '
@@ -74,13 +67,29 @@ class ShapeRuleDryRunProcessor(AbstractCommandProcessor):
                 content=f'Parent \'{parent.parent_id}\' does not '
                         f'have shape rules.'
             )
+        cloud = None
+        if parent.tenant_name:
+            _LOG.debug(f'Describing tenant {parent.tenant_name}')
+            tenant = self.tenant_service.get(tenant_name=parent.tenant_name)
+            if not tenant:
+                _LOG.debug(f'Tenant {parent.tenant_name} linked to parent '
+                           f'{parent.parent_id} does not exist.')
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content=f'Tenant {parent.tenant_name} linked to parent '
+                            f'{parent.parent_id} does not exist.'
+                )
+            cloud = tenant.cloud
+        elif parent.cloud:
+            cloud = parent.cloud
+
         if not cloud:
-            _LOG.error(f'Parent \'{parent.parent_id}\' does not have clouds '
-                       f'specified.')
+            _LOG.error(f'Parent {parent.parent_id} must have either ALL#CLOUD '
+                       f'or SPECIFIC scope.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Parent \'{parent.parent_id}\' does not have clouds '
-                        f'specified.'
+                content=f'Parent {parent.parent_id} must have either ALL#CLOUD '
+                        f'or SPECIFIC scope.'
             )
 
         shapes = self.shape_service.list(cloud=cloud)

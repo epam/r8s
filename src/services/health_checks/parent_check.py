@@ -2,8 +2,9 @@ from typing import Optional, Union, List
 
 from modular_sdk.models.parent import Parent
 from modular_sdk.services.tenant_service import TenantService
+from modular_sdk.commons.constants import RIGHTSIZER_PARENT_TYPE
 
-from commons.constants import PARENT_SCOPE_ALL, ALLOWED_RULE_ACTIONS, \
+from commons.constants import ALLOWED_RULE_ACTIONS, \
     ALLOWED_RULE_CONDITIONS, ALLOWED_SHAPE_FIELDS, CHECK_TYPE_PARENT
 from commons.log_helper import get_logger
 from models.parent_attributes import ShapeRule
@@ -22,83 +23,6 @@ ERROR_NO_PARENT_FOUND = 'NO_PARENT'
 CHECK_ID_ALGORITHM_CHECK = 'ALGORITHM_CHECK'
 CHECK_ID_TENANT_SCOPE_CHECK = 'TENANT_SCOPE_CHECK'
 CHECK_ID_SHAPE_RULE_CHECK = 'SHAPE_RULE_CHECK'
-
-
-class AlgorithmExistCheck(AbstractHealthCheck):
-
-    def __init__(self, algorithm_service: AlgorithmService,
-                 parent_service: RightSizerParentService):
-        self.algorithm_service = algorithm_service
-        self.parent_service = parent_service
-
-    def identifier(self) -> str:
-        return CHECK_ID_ALGORITHM_CHECK
-
-    def remediation(self) -> Optional[str]:
-        return f'Update your parent meta with valid r8s Algorithm'
-
-    def impact(self) -> Optional[str]:
-        return f'You won\'t be able to submit scans through this parent'
-
-    def check(self, parent: Parent) -> Union[List[CheckResult], CheckResult]:
-        parent_meta = self.parent_service.get_parent_meta(parent=parent)
-        algorithm_name = getattr(parent_meta, 'algorithm', None)
-        if not algorithm_name:
-            return self.not_ok_result(
-                {'error': "\'algorithm\' does not exist"}
-            )
-
-        if not self.algorithm_service.get_by_name(name=algorithm_name):
-            _LOG.warning(f'Algorithm \'{algorithm_name}\' does not exist')
-            return self.not_ok_result(
-                details={'error': f'Algorithm \'{algorithm_name}\' '
-                                  f'does not exist.'}
-            )
-
-        return self.ok_result()
-
-
-class ParentScopeCheck(AbstractHealthCheck):
-
-    def __init__(self, tenant_service: TenantService,
-                 parent_service: RightSizerParentService):
-        self.tenant_service = tenant_service
-        self.parent_service = parent_service
-
-    def identifier(self) -> str:
-        return CHECK_ID_TENANT_SCOPE_CHECK
-
-    def remediation(self) -> Optional[str]:
-        return f'Set your parent \'scope\' with \'ALL_TENANTS\' or ' \
-               f'link some tenants to parent'
-
-    def impact(self) -> Optional[str]:
-        return f'You won\'t be able to submit scans through this parent'
-
-    def check(self, parent: Parent) -> Union[List[CheckResult], CheckResult]:
-        parent_meta = self.parent_service.get_parent_meta(parent=parent)
-        scope = getattr(parent_meta, 'scope', None)
-        if not scope:
-            return self.not_ok_result(
-                {'error': "\'scope\' attribute does not exist"}
-            )
-
-        if scope == PARENT_SCOPE_ALL:
-            return self.ok_result(
-                details={'message': 'activated for all customer tenants'})
-        _LOG.debug(f'Listing activated tenants for parent '
-                   f'\'{parent.parent_id}\'')
-        linked_tenants = self.parent_service.list_activated_tenants(
-            parent=parent
-        )
-        if not linked_tenants:
-            return self.not_ok_result(
-                details={'message': 'No linked tenants found'}
-            )
-        linked_tenant_names = [tenant.name for tenant in linked_tenants]
-        return self.ok_result(
-            details={'message': f'Linked to tenants: '
-                                f'{", ".join(linked_tenant_names)}'})
 
 
 class ParentShapeRuleCheck(AbstractHealthCheck):
@@ -168,16 +92,21 @@ class ParentCheckHandler:
         self.algorithm_service = algorithm_service
 
         self.checks = [
-            AlgorithmExistCheck(algorithm_service=self.algorithm_service,
-                                parent_service=self.parent_service),
-            ParentScopeCheck(tenant_service=self.tenant_service,
-                             parent_service=self.parent_service),
             ParentShapeRuleCheck(parent_service=self.parent_service)
         ]
 
     def check(self):
         _LOG.debug(f'Listing parents')
-        parents = self.parent_service.list_rightsizer_parents()
+        applications = self.application_service.list(
+            _type=RIGHTSIZER_PARENT_TYPE)
+        parents = []
+        for application in applications:
+            application_parents = self.parent_service.list_application_parents(
+                application_id=application.application_id,
+                type_=RIGHTSIZER_PARENT_TYPE,
+                only_active=True
+            )
+            parents.extend(application_parents)
         if not parents:
             _LOG.warning(f'No active RIGHTSIZER parents found')
             result = CheckCollectionResult(

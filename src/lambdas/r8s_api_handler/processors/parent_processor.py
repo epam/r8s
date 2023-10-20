@@ -1,8 +1,8 @@
 from typing import List
 
 from modular_sdk.commons import ModularException
-from modular_sdk.commons.constants import AWS_CLOUD, AZURE_CLOUD, GOOGLE_CLOUD, \
-    TENANT_PARENT_MAP_RIGHTSIZER_TYPE, RIGHTSIZER_PARENT_TYPE
+from modular_sdk.commons.constants import (TENANT_PARENT_MAP_RIGHTSIZER_TYPE,
+                                           RIGHTSIZER_PARENT_TYPE, ParentScope)
 from modular_sdk.models.parent import Parent
 from modular_sdk.services.customer_service import CustomerService
 from modular_sdk.services.tenant_service import TenantService
@@ -13,9 +13,7 @@ from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
 from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import GET_METHOD, POST_METHOD, DELETE_METHOD, \
     PARENT_ID_ATTR, APPLICATION_ID_ATTR, DESCRIPTION_ATTR, \
-    SCOPE_ATTR, \
-    CLOUD_ALL, ALLOWED_PARENT_SCOPES, \
-    PARENT_SCOPE_SPECIFIC_TENANT, TENANT_ATTR, CLOUDS_ATTR, PARENT_SCOPE_ALL
+    SCOPE_ATTR, TENANT_ATTR, CLOUD_ATTR, CLOUDS
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -25,8 +23,6 @@ from services.rightsizer_application_service import \
 from services.rightsizer_parent_service import RightSizerParentService
 
 _LOG = get_logger('r8s-parent-processor')
-
-CLOUDS = [AWS_CLOUD, AZURE_CLOUD, GOOGLE_CLOUD, CLOUD_ALL]
 
 
 class ParentProcessor(AbstractCommandProcessor):
@@ -106,7 +102,7 @@ class ParentProcessor(AbstractCommandProcessor):
     def post(self, event):
         _LOG.debug(f'Create parent event: {event}')
         validate_params(event, (APPLICATION_ID_ATTR, DESCRIPTION_ATTR,
-                                CLOUDS_ATTR, SCOPE_ATTR))
+                                SCOPE_ATTR))
         _LOG.debug(f'Resolving applications')
         applications = self.application_service.resolve_application(
             event=event)
@@ -136,41 +132,29 @@ class ParentProcessor(AbstractCommandProcessor):
                 content=f'Customer \'{customer}\' does not exist'
             )
 
-        clouds = event.get(CLOUDS_ATTR)
-        clouds = list(set([cloud.upper() for cloud in clouds]))
-        _LOG.debug(f'Validation clouds: {clouds}')
-        if any([cloud not in CLOUDS for cloud in clouds]):
-            _LOG.error(f'Some of the specified clouds are invalid. '
-                       f'Available clouds: {", ".join(CLOUDS)}')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Some of the specified clouds are invalid. '
-                        f'Available clouds: {", ".join(CLOUDS)}'
-            )
-
         scope = event.get(SCOPE_ATTR).upper()
 
-        if scope not in ALLOWED_PARENT_SCOPES:
+        if scope not in list(ParentScope):
             _LOG.error(f'Invalid value specified for \'{SCOPE_ATTR}\'. '
-                       f'Allowed options: {", ".join(ALLOWED_PARENT_SCOPES)}')
+                       f'Allowed options: {", ".join(list(ParentScope))}')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
                 content=f'Invalid value specified for \'{SCOPE_ATTR}\'. '
-                        f'Allowed options: {", ".join(ALLOWED_PARENT_SCOPES)}'
+                        f'Allowed options: {", ".join(list(ParentScope))}'
             )
 
         tenant_obj = None
-        if scope == PARENT_SCOPE_SPECIFIC_TENANT:
-            tenant_name = event.get(TENANT_ATTR)
+        tenant_name = event.get(TENANT_ATTR)
+        if scope != ParentScope.ALL.value:
             if not tenant_name:
                 _LOG.error(f'Attribute \'{TENANT_ATTR}\' must be specified if '
                            f'\'{SCOPE_ATTR}\' attribute is set to '
-                           f'\'{PARENT_SCOPE_SPECIFIC_TENANT}\'')
+                           f'\'{ParentScope.ALL.value}\'')
                 return build_response(
                     code=RESPONSE_BAD_REQUEST_CODE,
                     content=f'Attribute \'{TENANT_ATTR}\' must be specified '
                             f'if \'{SCOPE_ATTR}\' attribute is set to '
-                            f'\'{PARENT_SCOPE_SPECIFIC_TENANT}\''
+                            f'\'{ParentScope.ALL.value}\''
                 )
             _LOG.debug(f'Describing tenant \'{tenant_name}\'')
             tenant_obj = self.tenant_service.get(tenant_name=tenant_name)
@@ -180,14 +164,34 @@ class ParentProcessor(AbstractCommandProcessor):
                     code=RESPONSE_BAD_REQUEST_CODE,
                     content=f'Tenant \'{tenant_name}\' does not exist.'
                 )
-            if tenant_obj.cloud not in clouds:
-                _LOG.error(f'{tenant_obj.cloud} tenant {tenant_obj.name} '
-                           f'cannot be linked to {clouds} parent')
+        elif tenant_name:
+            _LOG.error(f'\'{TENANT_ATTR}\' attribute must not be used with '
+                       f'{ParentScope.ALL.value} scope')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'\'{TENANT_ATTR}\' attribute must not be used with '
+                        f'{ParentScope.ALL.value} scope'
+            )
+
+        cloud = event.get(CLOUD_ATTR)
+        if cloud:
+            _LOG.debug(f'Validation cloud: {cloud}')
+            if cloud not in CLOUDS:
+                _LOG.error(f'Some of the specified clouds are invalid. '
+                           f'Available clouds: {", ".join(CLOUDS)}')
                 return build_response(
                     code=RESPONSE_BAD_REQUEST_CODE,
-                    content=f'{tenant_obj.cloud} tenant {tenant_obj.name} '
-                            f'cannot be linked to {clouds} parent'
+                    content=f'Some of the specified clouds are invalid. '
+                            f'Available clouds: {", ".join(CLOUDS)}'
                 )
+        if cloud and scope != ParentScope.ALL.value:
+            _LOG.error(f'Parent cloud can only be used with '
+                       f'{ParentScope.ALL.value} Parent scope')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'Parent cloud can only be used with '
+                        f'{ParentScope.ALL.value} Parent scope'
+            )
 
         description = event.get(DESCRIPTION_ATTR)
         if not description:
@@ -198,12 +202,15 @@ class ParentProcessor(AbstractCommandProcessor):
             )
 
         _LOG.debug(f'Creating parent')
-        parent = self.parent_service.create_rightsizer_parent(
+        parent = self.parent_service.create(
             application_id=application.application_id,
             customer_id=customer,
+            parent_type=RIGHTSIZER_PARENT_TYPE,
             description=description,
+            meta={},
             scope=scope,
-            clouds=clouds
+            cloud=cloud,
+            tenant_name=tenant_obj.name if tenant_obj else None
         )
 
         parent_dto = self.parent_service.get_dto(parent=parent)
@@ -263,36 +270,25 @@ class ParentProcessor(AbstractCommandProcessor):
                         f'already deleted.'
             )
 
-        parent_meta = self.parent_service.get_parent_meta(parent=parent)
-        scope = parent_meta.scope
+        if parent.scope and parent.scope != ParentScope.ALL.value:
+            _LOG.debug(f'Describing linked tenants')
 
-        if scope and scope != PARENT_SCOPE_ALL:
-            _LOG.debug(f'Describing tenants')
-            clouds = parent_meta.clouds
-            rate_limit = self.environment_service. \
-                tenants_customer_name_index_rcu()
-            for cloud in clouds:
-                _LOG.debug(f'Describing linked {cloud} tenants')
-                linked_tenants = self.parent_service.list_activated_tenants(
-                    parent=parent,
-                    cloud=cloud,
-                    rate_limit=rate_limit
+            _LOG.debug(f'Describing linked tenant {parent.tenant_name}')
+            tenant = self.tenant_service.get(
+                tenant_name=parent.tenant_name)
+            if not tenant:
+                _LOG.warning(f'Linked tenant {parent.tenant_name} '
+                             f'does not exist.')
+            else:
+                _LOG.debug(f'Unlinking tenant {tenant.name} from parent '
+                           f'{parent.parent_id}')
+                self.tenant_service.remove_from_parent_map(
+                    tenant=tenant,
+                    type_=RIGHTSIZER_PARENT_TYPE
                 )
-                if linked_tenants:
-                    message = f'There\'re tenants linked to parent ' \
-                              f'\'{parent_id}\': ' \
-                              f'{", ".join([t.name for t in linked_tenants])}'
-                    _LOG.error(message)
-                    return build_response(
-                        code=RESPONSE_BAD_REQUEST_CODE,
-                        content=message
-                    )
 
         _LOG.debug(f'Deleting parent \'{parent.parent_id}\'')
         self.parent_service.mark_deleted(parent=parent)
-
-        _LOG.debug(f'Saving parent: \'{parent.parent_id}\'')
-        self.parent_service.save(parent=parent)
 
         return build_response(
             code=RESPONSE_OK_CODE,

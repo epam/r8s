@@ -28,8 +28,6 @@ def describe(parent_id=None, rule_id=None):
 @shape_rule.command(cls=ViewCommand, name='add')
 @click.option('--parent_id', '-pid', type=str,
               help='Parent id to create shape rule in.')
-@click.option('--cloud', '-c', type=click.Choice(AVAILABLE_CLOUDS),
-              required=True, help='Shape rule cloud')
 @click.option('--action', '-a', required=True,
               type=click.Choice(ALLOWED_RULE_ACTIONS),
               help="Shape rule action.")
@@ -43,7 +41,7 @@ def describe(parent_id=None, rule_id=None):
               type=str,
               help="Shape rule filter value.")
 @cli_response()
-def add(parent_id, cloud, action, condition, field, value):
+def add(parent_id, action, condition, field, value):
     """
     Creates a R8s Shape rule.
     """
@@ -51,7 +49,6 @@ def add(parent_id, cloud, action, condition, field, value):
 
     return init_configuration().shape_rule_post(
         parent_id=parent_id,
-        cloud=cloud,
         action=action,
         condition=condition,
         field=field,
@@ -111,13 +108,11 @@ def delete(rule_id, parent_id):
 @shape_rule.command(cls=ViewCommand, name='dry_run')
 @click.option('--parent_id', '-pid', type=str, required=True,
               help='Parent id to perform dry run on shape rules')
-@click.option('--cloud', '-c', type=click.Choice(AVAILABLE_CLOUDS),
-              required=True, help='Cloud to perform dry run.')
 @cli_response()
-def dry_run(parent_id, cloud):
+def dry_run(parent_id):
     """
-    Describes shapes that satisfy all of the specified Parent rules for cloud.
+    Describes shapes that satisfy all of the specified Parent rules.
     """
     from r8s_service.initializer import init_configuration
     return init_configuration().shape_rule_dry_run_get(
-        parent_id=parent_id, cloud=cloud)
+        parent_id=parent_id)
