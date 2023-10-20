@@ -75,7 +75,7 @@ class TestExcludeGraviton(BaseExecutorTest):
             "field": "physical_processor",
             "value": "Graviton"
         }
-        parent_meta = ParentMeta(cloud='AWS', shape_rules=[shape_rule])
+        parent_meta = ParentMeta(shape_rules=[shape_rule])
         result = self.recommendation_service.process_instance(
             metric_file_path=self.metrics_file_path,
             algorithm=self.algorithm,
@@ -84,23 +84,14 @@ class TestExcludeGraviton(BaseExecutorTest):
             parent_meta=parent_meta
         )
 
-        self.assertEqual(result.get('instance_id'), self.instance_id)
+        self.assertEqual(result.get('resource_id'), self.instance_id)
 
-        schedule = result.get('schedule')
+        recommendation = result.get("recommendation", {})
+        schedule = recommendation.get('schedule')
 
-        self.assertEqual(len(schedule), 1)
-        schedule_item = schedule[0]
+        self.assert_always_run_schedule(schedule=schedule)
 
-        start = schedule_item.get('start')
-        stop = schedule_item.get('stop')
-
-        self.assertEqual(start, '00:00')
-        self.assertEqual(stop, '23:50')
-
-        weekdays = schedule_item.get('weekdays')
-        self.assertEqual(set(weekdays), set(WEEK_DAYS))
-
-        recommended_shapes = result.get('recommended_shapes')
+        recommended_shapes = recommendation.get('recommended_shapes')
         instance_types = [i['name'] for i in recommended_shapes]
 
         graviton_instance_types = []

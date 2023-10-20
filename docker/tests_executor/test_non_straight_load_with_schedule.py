@@ -90,29 +90,46 @@ class TestNonStraightLoadWIthSchedule(BaseExecutorTest):
             reports_dir=self.reports_path
         )
 
-        self.assertEqual(result.get('instance_id'), self.instance_id)
+        self.assertEqual(result.get('resource_id'), self.instance_id)
 
-        schedule = result.get('schedule')
+        recommendation = result.get('recommendation', {})
+        schedule = recommendation.get('schedule')
         self.assertEqual(len(schedule), 2)
 
         # first schedule part [Thursday - Sunday]
         schedule_item = schedule[0]
         weekdays = schedule_item.get('weekdays')
 
-        self.assertIn(schedule_item.get('start'), ('11:50', '12:00', '12:10'))
-        self.assertEqual(schedule_item.get('stop'), '23:50')
+        self.assert_time_between(
+            time_str=schedule_item.get('start'),
+            from_time_str='11:45',
+            to_time_str='12:15'
+        )
+        self.assert_time_between(
+            time_str=schedule_item.get('stop'),
+            from_time_str='23:45',
+            to_time_str='00:00'
+        )
         self.assertEqual(set(weekdays), {'Friday', 'Saturday', 'Sunday'})
 
         # second schedule part [Thursday]
         schedule_item = schedule[1]
         weekdays = schedule_item.get('weekdays')
 
-        self.assertEqual(schedule_item.get('start'), '00:00')
-        self.assertIn(schedule_item.get('stop'), ('11:50', '12:00', '12:10'))
+        self.assert_time_between(
+            time_str=schedule_item.get('start'),
+            from_time_str='00:00',
+            to_time_str='00:15'
+        )
+        self.assert_time_between(
+            time_str=schedule_item.get('stop'),
+            from_time_str='11:45',
+            to_time_str='12:15'
+        )
         self.assertEqual(set(weekdays), {'Monday', 'Tuesday', 'Wednesday',
                                          'Thursday'})
 
-        recommended_shapes = result.get('recommended_shapes')
+        recommended_shapes = recommendation.get('recommended_shapes')
         self.assertEqual(len(recommended_shapes), 2)
 
         probabilities = [shape.get('probability') for shape in

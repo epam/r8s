@@ -97,17 +97,27 @@ class TestOverlappingSchedule(BaseExecutorTest):
             reports_dir=self.reports_path
         )
 
-        self.assertEqual(result.get('instance_id'), self.instance_id)
+        self.assertEqual(result.get('resource_id'), self.instance_id)
 
-        schedule = result.get('schedule')
+        recommendation = result.get('recommendation', {})
+        schedule = recommendation.get('schedule')
+
         self.assertEqual(len(schedule), 2)
 
         # first schedule part [Thursday - Sunday]
         schedule_item = schedule[0]
         weekdays = schedule_item.get('weekdays')
 
-        self.assertIn(schedule_item.get('start'), ('14:50', '15:00', '15:10'))
-        self.assertIn(schedule_item.get('stop'), ('18:50','19:00', '19:10'))
+        self.assert_time_between(
+            time_str=schedule_item.get('start'),
+            from_time_str='14:45',
+            to_time_str='15:15'
+        )
+        self.assert_time_between(
+            time_str=schedule_item.get('stop'),
+            from_time_str='18:45',
+            to_time_str='19:15'
+        )
         self.assertEqual(set(weekdays), {'Thursday', 'Friday', 'Saturday',
                                          'Sunday'})
 
@@ -115,8 +125,16 @@ class TestOverlappingSchedule(BaseExecutorTest):
         schedule_item = schedule[1]
         weekdays = schedule_item.get('weekdays')
 
-        self.assertIn(schedule_item.get('start'), ('07:50', '08:00', '08:10'))
-        self.assertIn(schedule_item.get('stop'), ('11:50', '12:00', '12:10'))
+        self.assert_time_between(
+            time_str=schedule_item.get('start'),
+            from_time_str='07:45',
+            to_time_str='08:15'
+        )
+        self.assert_time_between(
+            time_str=schedule_item.get('stop'),
+            from_time_str='11:45',
+            to_time_str='12:15'
+        )
         self.assertEqual(set(weekdays), {'Monday', 'Tuesday', 'Wednesday',
                                          'Thursday', 'Friday'})
 

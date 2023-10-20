@@ -16,7 +16,7 @@ class TestRegularWorkhoursSchedule(BaseExecutorTest):
 
         self.instance_id = 'schedule_workhours'
 
-        length = POINTS_IN_DAY * 14
+        length = POINTS_IN_DAY * 28
         instance_id_series = constant_to_series(
             value=self.instance_id,
             length=length
@@ -78,9 +78,9 @@ class TestRegularWorkhoursSchedule(BaseExecutorTest):
             reports_dir=self.reports_path
         )
 
-        self.assertEqual(result.get('instance_id'), self.instance_id)
+        self.assertEqual(result.get('resource_id'), self.instance_id)
 
-        schedule = result.get('schedule')
+        schedule = result.get('recommendation', {}).get('schedule')
         self.assertEqual(len(schedule), 1)
 
         schedule_item = schedule[0]
@@ -89,9 +89,16 @@ class TestRegularWorkhoursSchedule(BaseExecutorTest):
         stop = schedule_item.get('stop')
         weekdays = schedule_item.get('weekdays')
 
-        self.assertTrue(start in ('08:50', '09:00', '09:10'))
-        self.assertTrue(stop in ('17:50', '18:00', '18:10'))
-
+        self.assert_time_between(
+            time_str=start,
+            from_time_str='08:45',
+            to_time_str='09:15'
+        )
+        self.assert_time_between(
+            time_str=stop,
+            from_time_str='17:45',
+            to_time_str='18:15'
+        )
         self.assertEqual(set(weekdays), set(WORK_DAYS))
 
         self.assert_stats(result=result)

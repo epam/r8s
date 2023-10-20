@@ -78,7 +78,7 @@ class TestScaleUpIOPSNoData(BaseExecutorTest):
             reports_dir=self.reports_path
         )
 
-        self.assertEqual(result.get('instance_id'), self.instance_id)
+        self.assertEqual(result.get('resource_id'), self.instance_id)
 
         self.assert_stats(result=result)
         self.assert_action(result=result, expected_actions=[ACTION_CHANGE_SHAPE])

@@ -16,7 +16,7 @@ class TestComplexSchedule(BaseExecutorTest):
 
         self.instance_id = 'schedule_complex'
 
-        length = POINTS_IN_DAY * 14
+        length = POINTS_IN_DAY * 28
         instance_id_series = constant_to_series(
             value=self.instance_id,
             length=length
@@ -114,10 +114,10 @@ class TestComplexSchedule(BaseExecutorTest):
             algorithm=self.algorithm,
             reports_dir=self.reports_path
         )
+        self.assertEqual(result.get('resource_id'), self.instance_id)
 
-        self.assertEqual(result.get('instance_id'), self.instance_id)
-
-        schedule = result.get('schedule')
+        recommendation = result.get('recommendation', {})
+        schedule = recommendation.get('schedule')
         self.assertEqual(len(schedule), 3)
 
         # first schedule part [Friday - Sunday]

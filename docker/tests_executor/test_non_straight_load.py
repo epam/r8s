@@ -75,27 +75,17 @@ class TestNonStraightLoad(BaseExecutorTest):
         result = self.recommendation_service.process_instance(
             metric_file_path=self.metrics_file_path,
             algorithm=self.algorithm,
-
             reports_dir=self.reports_path
         )
 
-        self.assertEqual(result.get('instance_id'), self.instance_id)
+        self.assertEqual(result.get('resource_id'), self.instance_id)
 
-        schedule = result.get('schedule')
-        self.assertEqual(len(schedule), 1)
+        recommendation = result.get('recommendation', {})
 
-        schedule_item = schedule[0]
+        schedule = recommendation.get('schedule')
+        self.assert_always_run_schedule(schedule=schedule)
 
-        start = schedule_item.get('start')
-        stop = schedule_item.get('stop')
-        weekdays = schedule_item.get('weekdays')
-
-        self.assertEqual(start, '00:00')
-        self.assertEqual(stop, '23:50')
-
-        self.assertEqual(set(weekdays), set(WEEK_DAYS))
-
-        recommended_shapes = result.get('recommended_shapes')
+        recommended_shapes = recommendation.get('recommended_shapes')
         self.assertEqual(len(recommended_shapes), 2)
 
         probabilities = [shape.get('probability') for shape in

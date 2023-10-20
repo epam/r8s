@@ -87,20 +87,25 @@ class TestScheduleWorkhoursExpanded(BaseExecutorTest):
             reports_dir=self.reports_path
         )
 
-        self.assertEqual(result.get('instance_id'), self.instance_id)
+        self.assertEqual(result.get('resource_id'), self.instance_id)
 
-        schedule = result.get('schedule')
+        recommendation = result.get('recommendation', {})
+        schedule = recommendation.get('schedule')
         self.assertEqual(len(schedule), 1)
 
         schedule_item = schedule[0]
 
-        start = schedule_item.get('start')
-        stop = schedule_item.get('stop')
+        self.assert_time_between(
+            time_str=schedule_item.get('start'),
+            from_time_str='08:45',
+            to_time_str='09:15'
+        )
+        self.assert_time_between(
+            time_str=schedule_item.get('stop'),
+            from_time_str='17:45',
+            to_time_str='18:15'
+        )
         weekdays = schedule_item.get('weekdays')
-
-        self.assertIn(start, ('09:00', '09:10', '08:50'))
-        self.assertIn(stop, ('17:50', '18:00', '18:10'))
-
         self.assertEqual(set(weekdays), set(WORK_DAYS))
 
         self.assert_stats(result=result)

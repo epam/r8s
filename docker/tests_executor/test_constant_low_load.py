@@ -72,8 +72,10 @@ class TestConstantLowLoad(BaseExecutorTest):
             reports_dir=self.reports_path
         )
 
-        self.assertEqual(result.get('instance_id'), self.instance_id)
-        self.assertEqual(result.get('schedule'), list())  # no schedule
+        self.assertEqual(result.get('resource_id'), self.instance_id)
+
+        recommendation = result.get('recommendation', {})
+        self.assertEqual(recommendation.get('schedule'), list())  # no schedule
 
         self.assert_stats(result=result)
         self.assert_action(result=result, expected_actions=[ACTION_SHUTDOWN])

@@ -25,7 +25,7 @@ class TestComplexCustomerPreferences(BaseExecutorTest):
             value='t2.medium',
             length=length
         )
-        
+
         timestamp_series = generate_timestamp_series(length=length)
         cpu_load_series = generate_constant_metric_series(
             distribution='normal',
@@ -71,51 +71,44 @@ class TestComplexCustomerPreferences(BaseExecutorTest):
         from models.parent_attributes import ParentMeta
         allowed_series = ['c5', 'c6a']
         allowed_shapes = ['c5a.xlarge']
-        meta = {
-            "algorithm": self.algorithm.name,
-            "cloud": "AWS",
-            "scope": "ALL_TENANTS",
-            "shape_rules": [
-                {
-                    "rule_id": "any_c6a",
-                    "action": "allow",
-                    "condition": "match",
-                    "field": "name",
-                    "value": "c6a.+"
-                },
-                {
-                    "rule_id": "any_c5",
-                    "action": "allow",
-                    "condition": "match",
-                    "field": "name",
-                    "value": "c5\..+"
-                },
-                {
-                    "rule_id": "c5a.xlarge",
-                    "action": "allow",
-                    "condition": "equal",
-                    "field": "name",
-                    "value": "c5a.xlarge"
-                },
-                {
-                    "rule_id": "non_graviton",
-                    "action": "deny",
-                    "condition": "contains",
-                    "field": "physical_processor",
-                    "value": "Graviton"
-                },
-                {
-                    "rule_id": "c6a.2xlarge",
-                    "action": "prioritize",
-                    "condition": "equal",
-                    "field": "name",
-                    "value": "c6a.2xlarge"
-                }
-            ]
-
-
-        }
-        parent_meta = ParentMeta(**meta)
+        shape_rules = [
+            {
+                "rule_id": "any_c6a",
+                "action": "allow",
+                "condition": "match",
+                "field": "name",
+                "value": "c6a.+"
+            },
+            {
+                "rule_id": "any_c5",
+                "action": "allow",
+                "condition": "match",
+                "field": "name",
+                "value": "c5\..+"
+            },
+            {
+                "rule_id": "c5a.xlarge",
+                "action": "allow",
+                "condition": "equal",
+                "field": "name",
+                "value": "c5a.xlarge"
+            },
+            {
+                "rule_id": "non_graviton",
+                "action": "deny",
+                "condition": "contains",
+                "field": "physical_processor",
+                "value": "Graviton"
+            },
+            {
+                "rule_id": "c6a.2xlarge",
+                "action": "prioritize",
+                "condition": "equal",
+                "field": "name",
+                "value": "c6a.2xlarge"
+            }
+        ]
+        parent_meta = ParentMeta(shape_rules=shape_rules)
         result = self.recommendation_service.process_instance(
             metric_file_path=self.metrics_file_path,
             algorithm=self.algorithm,
@@ -124,23 +117,14 @@ class TestComplexCustomerPreferences(BaseExecutorTest):
             parent_meta=parent_meta
         )
 
-        self.assertEqual(result.get('instance_id'), self.instance_id)
+        self.assertEqual(result.get('resource_id'), self.instance_id)
 
-        schedule = result.get('schedule')
+        recommendation = result.get('recommendation', {})
 
-        self.assertEqual(len(schedule), 1)
-        schedule_item = schedule[0]
+        schedule = recommendation.get('schedule')
+        self.assert_always_run_schedule(schedule=schedule)
 
-        start = schedule_item.get('start')
-        stop = schedule_item.get('stop')
-
-        self.assertEqual(start, '00:00')
-        self.assertEqual(stop, '23:50')
-
-        weekdays = schedule_item.get('weekdays')
-        self.assertEqual(set(weekdays), set(WEEK_DAYS))
-
-        recommended_shapes = result.get('recommended_shapes')
+        recommended_shapes = recommendation.get('recommended_shapes')
         instance_types = [i['name'] for i in recommended_shapes]
 
         self.assertTrue('c5a.xlarge' in instance_types)

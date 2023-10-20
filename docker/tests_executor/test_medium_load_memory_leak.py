@@ -87,21 +87,11 @@ class TestConstantMediumLoadMemoryLeak(BaseExecutorTest):
             reports_dir=self.reports_path
         )
 
-        self.assertEqual(result.get('instance_id'), self.instance_id)
+        self.assertEqual(result.get('resource_id'), self.instance_id)
 
-        schedule = result.get('schedule')
+        schedule = result.get('recommendation', {}).get('schedule')
 
-        self.assertEqual(len(schedule), 1)
-        schedule_item = schedule[0]
-
-        start = schedule_item.get('start')
-        stop = schedule_item.get('stop')
-
-        self.assertEqual(start, '00:00')
-        self.assertEqual(stop, '23:50')
-
-        weekdays = schedule_item.get('weekdays')
-        self.assertEqual(set(weekdays), set(WEEK_DAYS))
+        self.assert_always_run_schedule(schedule=schedule)
 
         self.assert_stats(result=result)
         self.assert_action(result=result, expected_actions=[ACTION_SCALE_UP])
