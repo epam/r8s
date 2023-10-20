@@ -1,4 +1,4 @@
-git+https://github.com/epam/modular-sdk@add-tenant-attr-to-parent
+modular-sdk>=3.3.2,<4.0.0
 boto3==1.26.80
 botocore==1.29.80
 certifi==2023.7.22
