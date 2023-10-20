@@ -5,9 +5,11 @@ import pandas as pd
 
 from commons.constants import ACTION_SCALE_UP
 from tests_executor.base_executor_test import BaseExecutorTest
-from tests_executor.constants import POINTS_IN_DAY, WEEK_DAYS
-from tests_executor.utils import constant_to_series, \
-    generate_timestamp_series, generate_constant_metric_series, dateparse
+from tests_executor.constants import (POINTS_IN_DAY, RECOMMENDATION_KEY,
+                                      SCHEDULE_KEY, RECOMMENDED_SHAPES_KEY)
+from tests_executor.utils import (generate_constant_metric_series,
+                                  constant_to_series,
+                                  generate_timestamp_series, dateparse)
 
 
 class TestComplexCustomerPreferences(BaseExecutorTest):
@@ -84,7 +86,7 @@ class TestComplexCustomerPreferences(BaseExecutorTest):
                 "action": "allow",
                 "condition": "match",
                 "field": "name",
-                "value": "c5\..+"
+                "value": r"c5\..+"
             },
             {
                 "rule_id": "c5a.xlarge",
@@ -117,14 +119,17 @@ class TestComplexCustomerPreferences(BaseExecutorTest):
             parent_meta=parent_meta
         )
 
-        self.assertEqual(result.get('resource_id'), self.instance_id)
+        self.assert_resource_id(
+            result=result,
+            resource_id=self.instance_id
+        )
 
-        recommendation = result.get('recommendation', {})
+        recommendation = result.get(RECOMMENDATION_KEY, {})
 
-        schedule = recommendation.get('schedule')
+        schedule = recommendation.get(SCHEDULE_KEY)
         self.assert_always_run_schedule(schedule=schedule)
 
-        recommended_shapes = recommendation.get('recommended_shapes')
+        recommended_shapes = recommendation.get(RECOMMENDED_SHAPES_KEY)
         instance_types = [i['name'] for i in recommended_shapes]
 
         self.assertTrue('c5a.xlarge' in instance_types)

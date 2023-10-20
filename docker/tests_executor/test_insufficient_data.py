@@ -72,7 +72,10 @@ class TestInsufficientData(BaseExecutorTest):
             reports_dir=self.reports_path
         )
 
-        self.assertEqual(result.get('resource_id'), self.instance_id)
+        self.assert_resource_id(
+            result=result,
+            resource_id=self.instance_id
+        )
 
         self.assert_stats(result=result, status=STATUS_ERROR,
                           message_contains='Insufficient data')

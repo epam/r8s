@@ -5,9 +5,11 @@ import pandas as pd
 
 from commons.constants import ACTION_CHANGE_SHAPE
 from tests_executor.base_executor_test import BaseExecutorTest
-from tests_executor.constants import POINTS_IN_DAY, WEEK_DAYS
-from tests_executor.utils import constant_to_series, \
-    generate_timestamp_series, generate_constant_metric_series, dateparse
+from tests_executor.constants import (POINTS_IN_DAY, RECOMMENDATION_KEY,
+                                      SCHEDULE_KEY)
+from tests_executor.utils import (generate_constant_metric_series,
+                                  constant_to_series,
+                                  generate_timestamp_series, dateparse)
 
 
 class TestResize(BaseExecutorTest):
@@ -72,12 +74,16 @@ class TestResize(BaseExecutorTest):
             reports_dir=self.reports_path
         )
 
-        self.assertEqual(result.get('resource_id'), self.instance_id)
+        self.assert_resource_id(
+            result=result,
+            resource_id=self.instance_id
+        )
 
-        recommendation = result.get('recommendation', {})
-        schedule = recommendation.get('schedule')
+        recommendation = result.get(RECOMMENDATION_KEY, {})
+        schedule = recommendation.get(SCHEDULE_KEY)
 
         self.assert_always_run_schedule(schedule=schedule)
 
         self.assert_stats(result=result)
-        self.assert_action(result=result, expected_actions=[ACTION_CHANGE_SHAPE])
+        self.assert_action(result=result,
+                           expected_actions=[ACTION_CHANGE_SHAPE])

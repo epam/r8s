@@ -5,9 +5,11 @@ import pandas as pd
 
 from commons.constants import ACTION_SHUTDOWN
 from tests_executor.base_executor_test import BaseExecutorTest
-from tests_executor.constants import POINTS_IN_DAY
-from tests_executor.utils import constant_to_series, \
-    generate_timestamp_series, generate_constant_metric_series, dateparse
+from tests_executor.constants import (POINTS_IN_DAY, RECOMMENDATION_KEY,
+                                      SCHEDULE_KEY)
+from tests_executor.utils import (generate_constant_metric_series,
+                                  constant_to_series, dateparse,
+                                  generate_timestamp_series)
 
 
 class TestConstantLowLoad(BaseExecutorTest):
@@ -72,10 +74,13 @@ class TestConstantLowLoad(BaseExecutorTest):
             reports_dir=self.reports_path
         )
 
-        self.assertEqual(result.get('resource_id'), self.instance_id)
+        self.assert_resource_id(
+            result=result,
+            resource_id=self.instance_id
+        )
 
-        recommendation = result.get('recommendation', {})
-        self.assertEqual(recommendation.get('schedule'), list())  # no schedule
+        recommendation = result.get(RECOMMENDATION_KEY, {})
+        self.assertEqual(recommendation.get(SCHEDULE_KEY), list())
 
         self.assert_stats(result=result)
         self.assert_action(result=result, expected_actions=[ACTION_SHUTDOWN])

@@ -5,9 +5,12 @@ import pandas as pd
 
 from commons.constants import ACTION_SCHEDULE
 from tests_executor.base_executor_test import BaseExecutorTest
-from tests_executor.constants import POINTS_IN_DAY
-from tests_executor.utils import constant_to_series, \
-    generate_timestamp_series, generate_scheduled_metric_series, dateparse
+from tests_executor.constants import (POINTS_IN_DAY, RECOMMENDATION_KEY,
+                                      SCHEDULE_KEY, WEEKDAYS_KEY,
+                                      START_KEY, STOP_KEY)
+from tests_executor.utils import (generate_scheduled_metric_series,
+                                  constant_to_series,
+                                  generate_timestamp_series, dateparse)
 
 
 class TestOverlappingSchedule(BaseExecutorTest):
@@ -97,24 +100,26 @@ class TestOverlappingSchedule(BaseExecutorTest):
             reports_dir=self.reports_path
         )
 
-        self.assertEqual(result.get('resource_id'), self.instance_id)
-
-        recommendation = result.get('recommendation', {})
-        schedule = recommendation.get('schedule')
+        self.assert_resource_id(
+            result=result,
+            resource_id=self.instance_id
+        )
+        recommendation = result.get(RECOMMENDATION_KEY, {})
+        schedule = recommendation.get(SCHEDULE_KEY)
 
         self.assertEqual(len(schedule), 2)
 
         # first schedule part [Thursday - Sunday]
         schedule_item = schedule[0]
-        weekdays = schedule_item.get('weekdays')
+        weekdays = schedule_item.get(WEEKDAYS_KEY)
 
         self.assert_time_between(
-            time_str=schedule_item.get('start'),
+            time_str=schedule_item.get(START_KEY),
             from_time_str='14:45',
             to_time_str='15:15'
         )
         self.assert_time_between(
-            time_str=schedule_item.get('stop'),
+            time_str=schedule_item.get(STOP_KEY),
             from_time_str='18:45',
             to_time_str='19:15'
         )
@@ -123,15 +128,15 @@ class TestOverlappingSchedule(BaseExecutorTest):
 
         # second schedule part [Monday - Friday]
         schedule_item = schedule[1]
-        weekdays = schedule_item.get('weekdays')
+        weekdays = schedule_item.get(WEEKDAYS_KEY)
 
         self.assert_time_between(
-            time_str=schedule_item.get('start'),
+            time_str=schedule_item.get(START_KEY),
             from_time_str='07:45',
             to_time_str='08:15'
         )
         self.assert_time_between(
-            time_str=schedule_item.get('stop'),
+            time_str=schedule_item.get(STOP_KEY),
             from_time_str='11:45',
             to_time_str='12:15'
         )

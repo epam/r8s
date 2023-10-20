@@ -1,14 +1,17 @@
 import os
+from datetime import time
 from unittest.mock import patch
 
 import pandas as pd
 
 from commons.constants import ACTION_SCHEDULE
 from tests_executor.base_executor_test import BaseExecutorTest
-from tests_executor.constants import POINTS_IN_DAY, WORK_DAYS
+from tests_executor.constants import (POINTS_IN_DAY, WORK_DAYS,
+                                      RECOMMENDATION_KEY, SCHEDULE_KEY)
 from tests_executor.decorators.expand_schedule import expand_schedule
-from tests_executor.utils import constant_to_series, \
-    generate_timestamp_series, generate_scheduled_metric_series, dateparse
+from tests_executor.utils import (generate_scheduled_metric_series,
+                                  constant_to_series,
+                                  generate_timestamp_series, dateparse)
 
 
 class TestScheduleWorkhoursExpanded(BaseExecutorTest):
@@ -87,26 +90,20 @@ class TestScheduleWorkhoursExpanded(BaseExecutorTest):
             reports_dir=self.reports_path
         )
 
-        self.assertEqual(result.get('resource_id'), self.instance_id)
-
-        recommendation = result.get('recommendation', {})
-        schedule = recommendation.get('schedule')
-        self.assertEqual(len(schedule), 1)
-
-        schedule_item = schedule[0]
-
-        self.assert_time_between(
-            time_str=schedule_item.get('start'),
-            from_time_str='08:45',
-            to_time_str='09:15'
+        self.assert_resource_id(
+            result=result,
+            resource_id=self.instance_id
         )
-        self.assert_time_between(
-            time_str=schedule_item.get('stop'),
-            from_time_str='17:45',
-            to_time_str='18:15'
+
+        recommendation = result.get(RECOMMENDATION_KEY, {})
+        schedule = recommendation.get(SCHEDULE_KEY)
+
+        self.assert_schedule(
+            schedule_item=schedule,
+            expected_start=time(9, 0),
+            expected_stop=time(18, 0),
+            weekdays=WORK_DAYS
         )
-        weekdays = schedule_item.get('weekdays')
-        self.assertEqual(set(weekdays), set(WORK_DAYS))
 
         self.assert_stats(result=result)
         self.assert_action(result=result,

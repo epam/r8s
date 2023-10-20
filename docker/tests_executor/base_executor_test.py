@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date, time
 import json
 import os
 import shutil
@@ -10,9 +10,11 @@ from unittest.mock import patch, MagicMock
 import matplotlib.pyplot as plt
 import pandas as pd
 
-os.environ['r8s_mongodb_connection_uri'] = "mongomock://localhost/testdb"
-
+from tests_executor.constants import STATS_KEY, STATUS_KEY, MESSAGE_KEY, \
+    ACTIONS_KEY, START_KEY, STOP_KEY, WEEKDAYS_KEY, RESOURCE_ID_KEY
 from commons.constants import STATUS_OK, OK_MESSAGE, WEEK_DAYS
+
+os.environ['r8s_mongodb_connection_uri'] = "mongomock://localhost/testdb"
 
 
 class BaseExecutorTest(TestCase, ABC):
@@ -92,8 +94,8 @@ class BaseExecutorTest(TestCase, ABC):
         from services.shape_price_service import ShapePriceService
         self.shape_price_service = ShapePriceService()
 
-        aws_isntances_data_path = self._get_aws_instance_data_path()
-        with open(aws_isntances_data_path, 'r') as f:
+        aws_instances_data_path = self._get_aws_instance_data_path()
+        with open(aws_instances_data_path, 'r') as f:
             aws_instances_data = json.load(f)
 
         self.populate_shapes(
@@ -140,16 +142,16 @@ class BaseExecutorTest(TestCase, ABC):
 
     def assert_stats(self, result, status=STATUS_OK,
                      message_contains=OK_MESSAGE):
-        stats = result.get('stats', {})
-        status_ = stats.get('status')
-        message_ = stats.get('message')
+        stats = result.get(STATS_KEY, {})
+        status_ = stats.get(STATUS_KEY)
+        message_ = stats.get(MESSAGE_KEY)
 
         self.assertEqual(status_, status)
         self.assertTrue(message_contains in message_)
 
     def assert_action(self, result, expected_actions):
         self.assertEqual(set(expected_actions),
-                         set(result['general_actions']))
+                         set(result[ACTIONS_KEY]))
 
     def create_plots(self):
         if self.df is None:
@@ -224,13 +226,13 @@ class BaseExecutorTest(TestCase, ABC):
         self.assertEqual(len(schedule), 1)
         schedule_item = schedule[0]
 
-        start = schedule_item.get('start')
-        stop = schedule_item.get('stop')
+        start = schedule_item.get(START_KEY)
+        stop = schedule_item.get(STOP_KEY)
 
         self.assertEqual(start, '00:00')
         self.assertIn(stop, ['23:50', '00:00'])
 
-        weekdays = schedule_item.get('weekdays')
+        weekdays = schedule_item.get(WEEKDAYS_KEY)
         self.assertEqual(set(weekdays), set(WEEK_DAYS))
 
     def assert_time_between(self, time_str: str, from_time_str: str,
@@ -242,3 +244,46 @@ class BaseExecutorTest(TestCase, ABC):
         to_time = datetime.strptime(to_time_str, '%H:%M').time()
 
         self.assertTrue(from_time <= target_time <= to_time)
+
+    def assert_time_equals(self, time_: time, expected_time: time,
+                           deviation_minutes: int = 0):
+        expected_dt = datetime.combine(date.today(), expected_time)
+
+        expected_time_from = (expected_dt -
+                              timedelta(minutes=deviation_minutes)).time()
+        if expected_time_from > expected_dt.time():
+            expected_time_from = time(0, 0)
+
+        expected_time_to = (expected_dt +
+                            timedelta(minutes=deviation_minutes)).time()
+        if expected_time_to < expected_dt.time():
+            expected_time_to = time(23, 59)
+        self.assertTrue(expected_time_from <= time_ <= expected_time_to)
+
+    def assert_schedule(self, schedule_item, expected_start: time,
+                        expected_stop: time, allowed_deviation_min=15,
+                        weekdays=WEEK_DAYS):
+        if isinstance(schedule_item, list):
+            self.assertEqual(len(schedule_item), 1)
+            schedule_item = schedule_item[0]
+        schedule_start = datetime.strptime(
+            schedule_item.get(START_KEY), '%H:%M').time()
+        schedule_stop = datetime.strptime(
+            schedule_item.get(STOP_KEY), '%H:%M').time()
+        schedule_weekdays = schedule_item.get(WEEKDAYS_KEY)
+
+        self.assertEqual(set(schedule_weekdays), set(weekdays))
+
+        self.assert_time_equals(
+            time_=schedule_start,
+            expected_time=expected_start,
+            deviation_minutes=allowed_deviation_min
+        )
+        self.assert_time_equals(
+            time_=schedule_stop,
+            expected_time=expected_stop,
+            deviation_minutes=allowed_deviation_min
+        )
+
+    def assert_resource_id(self, result: dict, resource_id: str):
+        self.assertEqual(result.get(RESOURCE_ID_KEY), resource_id)

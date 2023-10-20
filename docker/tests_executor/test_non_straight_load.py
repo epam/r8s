@@ -3,11 +3,13 @@ from unittest.mock import patch
 
 import pandas as pd
 
-from commons.constants import ACTION_SPLIT, WEEK_DAYS
+from commons.constants import ACTION_SPLIT
 from tests_executor.base_executor_test import BaseExecutorTest
-from tests_executor.constants import POINTS_IN_DAY, WORK_DAYS
-from tests_executor.utils import constant_to_series, \
-    generate_timestamp_series, generate_scheduled_metric_series, dateparse
+from tests_executor.constants import (POINTS_IN_DAY, RECOMMENDATION_KEY,
+                                      SCHEDULE_KEY, RECOMMENDED_SHAPES_KEY)
+from tests_executor.utils import (constant_to_series,
+                                  generate_timestamp_series,
+                                  generate_scheduled_metric_series, dateparse)
 
 
 class TestNonStraightLoad(BaseExecutorTest):
@@ -78,14 +80,17 @@ class TestNonStraightLoad(BaseExecutorTest):
             reports_dir=self.reports_path
         )
 
-        self.assertEqual(result.get('resource_id'), self.instance_id)
+        self.assert_resource_id(
+            result=result,
+            resource_id=self.instance_id
+        )
 
-        recommendation = result.get('recommendation', {})
+        recommendation = result.get(RECOMMENDATION_KEY, {})
 
-        schedule = recommendation.get('schedule')
+        schedule = recommendation.get(SCHEDULE_KEY)
         self.assert_always_run_schedule(schedule=schedule)
 
-        recommended_shapes = recommendation.get('recommended_shapes')
+        recommended_shapes = recommendation.get(RECOMMENDED_SHAPES_KEY)
         self.assertEqual(len(recommended_shapes), 2)
 
         probabilities = [shape.get('probability') for shape in
