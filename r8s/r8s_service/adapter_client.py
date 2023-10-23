@@ -584,16 +584,6 @@ class AdapterClient:
                                    method=HTTP_DELETE,
                                    payload=request)
 
-    def parent_tenant_link_get(self, parent_id):
-        request = {
-            PARAM_PARENT_ID: parent_id
-        }
-
-        return self.__make_request(resource=API_PARENT_TENANT_LINK,
-                                   method=HTTP_GET,
-                                   payload=request)
-
-
     def parent_insights_resize(self, parent_id, instance_type):
         request = {
             PARAM_PARENT_ID: parent_id,
@@ -692,7 +682,7 @@ class AdapterClient:
                                    method=HTTP_DELETE,
                                    payload=request)
 
-    def shape_rule_dry_run_get(self, parent_id, cloud):
+    def shape_rule_dry_run_get(self, parent_id):
         request = {
             PARAM_PARENT_ID: parent_id
         }

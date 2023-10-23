@@ -7,6 +7,7 @@ from r8s_service.constants import (AVAILABLE_CLOUDS, ALLOWED_PROTOCOLS, \
 from r8s_group.parent_licenses import licenses
 from r8s_group.parent_shaperule import shape_rule
 
+
 @click.group(name='parent')
 def parent():
     """Manages RIGHTSIZER Parent Entity"""
@@ -54,7 +55,7 @@ def add(application_id, description, cloud, scope, tenant_name):
     return init_configuration().parent_post(
         application_id=application_id,
         description=description,
-        clouds=cloud,
+        cloud=cloud,
         scope=scope,
         tenant_name=tenant_name
     )
@@ -74,20 +75,6 @@ def delete(parent_id):
         parent_id=parent_id
     )
 
-
-@parent.command(cls=ViewCommand, name='describe_tenant_links')
-@click.option('--parent_id', '-pid', type=str, required=True,
-              help='Maestro Parent id to describe linked tenants.')
-@cli_response()
-def describe_tenant_links(parent_id):
-    """
-    Describes Maestro tenant names linked to Parent with the given id
-    """
-    from r8s_service.initializer import init_configuration
-
-    return init_configuration().parent_tenant_link_get(
-        parent_id=parent_id
-    )
 
 @parent.command(cls=ViewCommand, name='describe_resize_insights')
 @click.option('--parent_id', '-pid', type=str, required=True,

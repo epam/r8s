@@ -1,4 +1,4 @@
-### Maestro Rightsizer Service
+### Rightsizer Service
 
 The application provides ability to provide resize/schedule recommendation for
 cloud instances based on their activity metrics.
@@ -10,19 +10,19 @@ version, or a range of versions of the software.
 
 ### Actual for version: 2.10
 
-## Maestro Rightsizer Service diagram
+## Rightsizer Service diagram
 
 ### Serverless Deployment Model
 
-![Maestro Rightsizer Service SaaS diagram](./docs/images/r8s_saas.png)
+![Rightsizer Service SaaS diagram](./docs/images/r8s_saas.png)
 
 ### On-Premises Deployment Model
 
-![Maestro Rightsizer Service SaaS diagram](./docs/images/r8s_onprem.png)
+![Rightsizer Service SaaS diagram](./docs/images/r8s_onprem.png)
 
 ### Maestro - RightSizer Workflow
 
-![Maestro Rightsizer Service SaaS diagram](./docs/images/r8s-maestro-workflow.png)
+![Rightsizer Service SaaS diagram](./docs/images/r8s-maestro-workflow.png)
 
 ## Lambdas description
 
@@ -40,8 +40,8 @@ This lambda is designed as a handler for all API resources:
 * `/storages/data GET` - To discover current metric files in storage;
 * `/jobs/ CRUD` - Manage Job entity;
 * `/reports/ POST` - Manage r8s reports;
-* `/applications CRUD` - Manage Maestro RIGHTSIZER Application entity;
-* `/parents CRUD` - Manage Maestro RIGHTSIZER Parent entity;
+* `/applications CRUD` - Manage Modular RIGHTSIZER Application entity;
+* `/parents CRUD` - Manage Modular RIGHTSIZER Parent entity;
 * `/parents/shape-rules CRUD` - Manage Parent shape rules filters;
 * `/reports/mail/tenant POST` - Initiate tenant mail report sending flow;
 * `/parents/insights/resize GET` - Manage Parent shape rules resize insights;

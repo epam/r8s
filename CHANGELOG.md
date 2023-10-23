@@ -214,7 +214,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Azure scan support improvements
 
 ## [2.7.0] - 2023-06-05
-* Implement r8s-report-generator lambda to send Tenant reports to Maestro.
+* Implement r8s-report-generator lambda to send Tenant reports via 3rd party application.
 
 ## [2.6.17] - 2023-06-01
 * Update postpone mechanism to read from separate meta key instead of instance tags
@@ -235,7 +235,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Increase max schedule difference for grouping to 1 hour
 
 ## [2.6.12] - 2023-05-10
-* Sync with new mcdm sdk version with restricted access to Maestro Dynamodb tables
+* Sync with new mcdm sdk version with restricted access to modular Dynamodb tables
 * Update AWS Batch compenv configuration
 
 ## [2.6.11] - 2023-05-05
@@ -292,11 +292,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Remove obsolete ml model usage
   - Extend Algorithm model with parameters that can influence scan workflow
   - Implement Algorithm API/cli commands
-* Remove Job Definition Entity (replaced with Maestro Application/Parent meta)
-* Maestro Application:
+* Remove Job Definition Entity (replaced with modular Application/Parent meta)
+* Modular Application:
   - Implement API/cli commands for management
   - Extend meta with `connection`, `input_storage` and `output_storage` attributes
-* Maestro Parent:
+* Modular Parent:
   - Implement API/cli commands for management
   - Extend meta with:
     1) cloud - define allowed cloud to scan
@@ -382,5 +382,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fix compatibility of r8s cli with m3modular
 
 ## [1.0.0] - 2022-08-30
-* Initial release of Maestro RightSizer Service.
+* Initial release of RightSizer Service.
 

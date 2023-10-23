@@ -220,11 +220,11 @@ class ParentProcessor(AbstractCommandProcessor):
             try:
                 _LOG.debug(f'Adding parent \'{parent.parent_id}\' to tenant '
                            f'\'{tenant_obj.name}\' parent map')
-                # self.tenant_service.add_to_parent_map(
-                #     tenant=tenant_obj,
-                #     parent=parent,
-                #     type_=TENANT_PARENT_MAP_RIGHTSIZER_TYPE
-                # )
+                self.tenant_service.add_to_parent_map(
+                    tenant=tenant_obj,
+                    parent=parent,
+                    type_=TENANT_PARENT_MAP_RIGHTSIZER_TYPE
+                )
             except ModularException as e:
                 _LOG.error(e.content)
                 return build_response(
