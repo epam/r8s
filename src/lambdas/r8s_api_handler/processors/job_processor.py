@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import List
 import os
-from modular_sdk.commons.constants import RIGHTSIZER_LICENSES_PARENT_TYPE
+from modular_sdk.commons.constants import (RIGHTSIZER_LICENSES_PARENT_TYPE,
+                                           ParentScope)
 from modular_sdk.models.parent import Parent
 from modular_sdk.models.tenant import Tenant
 from modular_sdk.services.customer_service import CustomerService
@@ -182,7 +183,6 @@ class JobProcessor(AbstractCommandProcessor):
                    f'{rate_limit}')
         envs[ENV_TENANT_CUSTOMER_INDEX] = str(rate_limit)
 
-        parent_meta = self.parent_service.get_parent_meta(parent=parent)
         input_scan_tenants = event.get(TENANTS_ATTR)
         if input_scan_tenants:
             _LOG.debug(f'Validating user-provided scan tenants: '
@@ -195,16 +195,23 @@ class JobProcessor(AbstractCommandProcessor):
             _LOG.debug(f'Setting scan_tenants env to '
                        f'\'{scan_tenants}\'')
             envs['SCAN_TENANTS'] = ','.join(scan_tenants)
-        elif parent_meta.scope == PARENT_SCOPE_SPECIFIC_TENANT:
-            _LOG.debug(f'Listing tenants activated for parent '
+        elif parent.scope == ParentScope.SPECIFIC.value:
+            _LOG.debug(f'Extracting tenant activated for parent '
                        f'{parent.parent_id}')
-            scan_tenants = self.parent_service.list_activated_tenants(
-                parent=parent,
-                cloud=parent_meta.cloud,
-                rate_limit=rate_limit
+            tenant = self.tenant_service.get(
+                tenant_name=parent.tenant_name,
+                attributes_to_get=[Tenant.name]
             )
-            scan_tenants = [t.name for t in scan_tenants]
-            envs['SCAN_TENANTS'] = ','.join(scan_tenants)
+            if not tenant:
+                _LOG.error(f'Tenant {parent.tenant_name} linked to parent '
+                           f'{parent_id} does not exist.')
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content=f'Tenant {parent.tenant_name} linked to parent '
+                            f'{parent_id} does not exist.'
+                )
+            scan_tenants = [tenant.name]
+            envs['SCAN_TENANTS'] = tenant.name
         else:
             # todo temporary
             # to validate job submit permission on any single tenant
@@ -212,7 +219,7 @@ class JobProcessor(AbstractCommandProcessor):
                 customer_id=parent.customer_id,
                 active=True,
                 attributes_to_get=[Tenant.name],
-                cloud=parent_meta.cloud,
+                cloud=parent.cloud,
                 rate_limit=rate_limit
             ))
             scan_tenants = [t.name for t in scan_tenants]
@@ -224,6 +231,7 @@ class JobProcessor(AbstractCommandProcessor):
                 content=f'No tenants to scan found.'
             )
 
+        parent_meta = self.parent_service.get_parent_meta(parent=parent)
         _LOG.debug(f'Checking permission to submit job on license '
                    f'\'{parent_meta.license_key}\' '
                    f'for tenants: {scan_tenants}')

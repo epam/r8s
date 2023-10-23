@@ -1,6 +1,7 @@
 from mongoengine import DoesNotExist, ValidationError
 
 from models.shape import Shape
+from functools import lru_cache
 
 
 class ShapeService:
@@ -12,6 +13,7 @@ class ShapeService:
         return Shape.objects.all()
 
     @staticmethod
+    @lru_cache(maxsize=256)
     def get(name):
         try:
             return Shape.objects.get(name=name)

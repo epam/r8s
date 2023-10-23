@@ -1,5 +1,5 @@
 import json
-from collections import Callable
+from typing import Callable
 from importlib import import_module
 from threading import Thread
 

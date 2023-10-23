@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.18.0] - 2023-10-13
+* Switch to new modular_sdk Parent scopes model
+
+## [2.17.0] - 2023-10-13
+* Upgrade r8s dependency versions to support python3.10
+
+## [2.16.2] - 2023-10-10
+* performance improvements:
+  - add threaded s3 download
+  - reformat metrics: switch from pd.iterrows to pd.apply
+  - add cache to Shape get
+
 ## [2.16.1] - 2023-10-07
 * Temporary update modular_sdk version in r8s_report_generator to 2.2.6a0
 

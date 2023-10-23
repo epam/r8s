@@ -1,7 +1,9 @@
 from typing import Optional, Union, List
 
+from modular_sdk.commons.constants import RIGHTSIZER_PARENT_TYPE
 from modular_sdk.models.application import Application
 from modular_sdk.models.parent import Parent
+from modular_sdk.services.tenant_service import TenantService
 
 from commons.constants import MAESTRO_RIGHTSIZER_APPLICATION_TYPE, \
     INPUT_STORAGE_ATTR, OUTPUT_STORAGE_ATTR, CLOUD_ATTR, SCOPE_ATTR, \
@@ -47,19 +49,11 @@ class OperationModeConfigurationCheck(AbstractHealthCheck):
         input_storage = app_meta_dict.get(INPUT_STORAGE_ATTR)
         output_storage = app_meta_dict.get(OUTPUT_STORAGE_ATTR)
 
-        parent_meta = self.parent_service.get_parent_meta(parent=parent)
-
-        parent_meta_dict = parent_meta.as_dict()
-        cloud = parent_meta_dict.get(CLOUD_ATTR)
-        scope = parent_meta_dict.get(SCOPE_ATTR)
-        algorithm = parent_meta_dict.get(ALGORITHM_ATTR)
-
         result = {
             INPUT_STORAGE_ATTR: input_storage,
             OUTPUT_STORAGE_ATTR: output_storage,
-            ALGORITHM_ATTR: algorithm,
-            CLOUD_ATTR: cloud,
-            SCOPE_ATTR: scope
+            CLOUD_ATTR: parent.cloud,
+            SCOPE_ATTR: parent.scope
         }
         if any([value is None for value in result.values()]):
             return self.not_ok_result(
@@ -72,9 +66,11 @@ class OperationModeConfigurationCheck(AbstractHealthCheck):
 class OperationModeConfigurationCompatibilityCheck(AbstractHealthCheck):
 
     def __init__(self, application_service: RightSizerApplicationService,
-                 parent_service: RightSizerParentService):
+                 parent_service: RightSizerParentService,
+                 tenant_service: TenantService):
         self.application_service = application_service
         self.parent_service = parent_service
+        self.tenant_service = tenant_service
 
     def identifier(self) -> str:
         return CHECK_ID_OPERATION_MODE_COMPATIBILITY
@@ -121,12 +117,13 @@ class OperationModeConfigurationCompatibilityCheck(AbstractHealthCheck):
             _LOG.debug(error)
             errors.append(error)
 
-        cloud = self.parent_service.get_parent_meta(parent=pairs[0][1]).cloud
+        # Get cloud of first (any) parent
+        cloud = pairs[0][1].cloud
+
         details = {
             'tenant_parent_mapping': tenant_parent_mapping,
             'cloud': cloud
         }
-
         if not errors:
             return self.ok_result(details=details)
 
@@ -139,21 +136,23 @@ class OperationModeConfigurationCompatibilityCheck(AbstractHealthCheck):
         if not application or not parent:
             return []
 
-        parent_meta = self.parent_service.get_parent_meta(parent=parent)
-
-        if parent_meta.scope == PARENT_SCOPE_ALL:
+        if parent.tenant_name:
+            tenant = self.tenant_service.get(
+                tenant_name=parent.tenant_name)
+            if not tenant:
+                return []
+            return [tenant.name]
+        else:
             return [PARENT_SCOPE_ALL]
-
-        linked_tenants = self.parent_service.list_activated_tenants(
-            parent=parent)
-        return [tenant.name for tenant in linked_tenants]
 
 
 class OperationModeCheckHandler:
     def __init__(self, application_service: RightSizerApplicationService,
-                 parent_service: RightSizerParentService):
+                 parent_service: RightSizerParentService,
+                 tenant_service: TenantService):
         self.application_service = application_service
         self.parent_service = parent_service
+        self.tenant_service = tenant_service
 
         self.checks = [
             OperationModeConfigurationCheck(
@@ -163,7 +162,8 @@ class OperationModeCheckHandler:
         self.singe_checks = [
             OperationModeConfigurationCompatibilityCheck(
                 application_service=self.application_service,
-                parent_service=self.parent_service
+                parent_service=self.parent_service,
+                tenant_service=self.tenant_service
             )
         ]
 
@@ -172,9 +172,14 @@ class OperationModeCheckHandler:
         applications = list(self.application_service.list(
             _type=MAESTRO_RIGHTSIZER_APPLICATION_TYPE, deleted=False))
 
-        _LOG.debug(f'Describing Parents')
-        parents = list(self.parent_service.list_rightsizer_parents(
-            only_active=True))
+        parents = []
+        for application in applications:
+            application_parents = self.parent_service.list_application_parents(
+                application_id=application.application_id,
+                type_=RIGHTSIZER_PARENT_TYPE,
+                only_active=True
+            )
+            parents.extend(application_parents)
         if not applications or not parents:
             _LOG.warning(f'No active parents/applications found')
             result = CheckCollectionResult(
@@ -189,8 +194,7 @@ class OperationModeCheckHandler:
         }
 
         for parent in parents:
-            parent_meta = self.parent_service.get_parent_meta(parent=parent)
-            if not parent_meta.cloud or parent_meta.cloud not in pairs:
+            if not parent.cloud or parent.cloud not in pairs:
                 continue
             related_application = [app for app in applications
                                    if parent.application_id ==
@@ -200,7 +204,7 @@ class OperationModeCheckHandler:
             else:
                 related_application = None
 
-            pairs[parent_meta.cloud].append((related_application, parent))
+            pairs[parent.cloud].append((related_application, parent))
 
         result = []
 
