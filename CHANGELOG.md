@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Algorithm.optimized_aggregation_threshold_days` will be aggregated by 
   `Algorithm.optimized_aggregation_step_minutes`
 
+## [2.18.1] - 2023-10-23
+* r8s job submit: fix input_scan_tenants validation
+
 ## [2.18.0] - 2023-10-13
 * Switch to new modular_sdk Parent scopes model
 
