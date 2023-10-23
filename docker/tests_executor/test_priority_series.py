@@ -5,9 +5,11 @@ import pandas as pd
 
 from commons.constants import ACTION_SCALE_UP
 from tests_executor.base_executor_test import BaseExecutorTest
-from tests_executor.constants import POINTS_IN_DAY, WEEK_DAYS
-from tests_executor.utils import constant_to_series, \
-    generate_timestamp_series, generate_constant_metric_series, dateparse
+from tests_executor.constants import (POINTS_IN_DAY, RECOMMENDATION_KEY,
+                                      SCHEDULE_KEY, RECOMMENDED_SHAPES_KEY)
+from tests_executor.utils import (generate_constant_metric_series,
+                                  constant_to_series,
+                                  generate_timestamp_series, dateparse)
 
 
 class TestPrioritySeries(BaseExecutorTest):
@@ -76,7 +78,7 @@ class TestPrioritySeries(BaseExecutorTest):
             "value": "c6a.+"
         }
 
-        parent_meta = ParentMeta(cloud='AWS', shape_rules=[shape_rule])
+        parent_meta = ParentMeta(shape_rules=[shape_rule])
         result = self.recommendation_service.process_instance(
             metric_file_path=self.metrics_file_path,
             algorithm=self.algorithm,
@@ -85,26 +87,20 @@ class TestPrioritySeries(BaseExecutorTest):
             parent_meta=parent_meta
         )
 
-        self.assertEqual(result.get('instance_id'), self.instance_id)
+        self.assert_resource_id(
+            result=result,
+            resource_id=self.instance_id
+        )
 
-        schedule = result.get('schedule')
+        recommendation = result.get(RECOMMENDATION_KEY)
+        schedule = recommendation.get(SCHEDULE_KEY)
 
-        self.assertEqual(len(schedule), 1)
-        schedule_item = schedule[0]
-
-        start = schedule_item.get('start')
-        stop = schedule_item.get('stop')
-
-        self.assertEqual(start, '00:00')
-        self.assertEqual(stop, '23:50')
-
-        weekdays = schedule_item.get('weekdays')
-        self.assertEqual(set(weekdays), set(WEEK_DAYS))
+        self.assert_always_run_schedule(schedule=schedule)
 
         self.assert_stats(result=result)
         self.assert_action(result=result, expected_actions=[ACTION_SCALE_UP])
 
-        recommended_shapes = result.get('recommended_shapes')
+        recommended_shapes = recommendation.get(RECOMMENDED_SHAPES_KEY)
         most_relevant = recommended_shapes[0]
 
         self.assertEqual(most_relevant.get('name'), 'c6a.4xlarge')

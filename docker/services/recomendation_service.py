@@ -1,20 +1,24 @@
 import json
 import os
 from datetime import datetime
-from typing import Union
+from typing import Union, List
+import itertools
 
 import numpy as np
 import pandas as pd
 
 from commons.constants import STATUS_ERROR, STATUS_OK, OK_MESSAGE, \
     ACTION_SHUTDOWN, ACTION_SCHEDULE, ACTION_SPLIT, ACTION_EMPTY, \
-    STATUS_POSTPONED
+    STATUS_POSTPONED, CURRENT_INSTANCE_TYPE_ATTR, CURRENT_MONTHLY_PRICE_ATTR, \
+    SAVING_OPTIONS_ATTR
 from commons.exception import ExecutorException, ProcessingPostponedException
 from commons.log_helper import get_logger
 from commons.profiler import profiler
 from models.algorithm import Algorithm
 from models.base_model import CloudEnum
 from models.parent_attributes import ParentMeta
+from models.recommendation_history import RecommendationHistory, \
+    RecommendationTypeEnum
 from models.shape_price import OSEnum
 from services.environment_service import EnvironmentService
 from services.meta_service import MetaService
@@ -77,12 +81,24 @@ class RecommendationService:
 
         _LOG.debug(f'Instance meta: {instance_meta}')
 
+        _LOG.debug(f'Loading past recommendations')
+        past_recommendations = list(
+            self.recommendation_history_service.get_recent_recommendation(
+                instance_id=instance_id,
+                limit=2  # can't be more than 2 recommendations in a job
+            ))
+        if past_recommendations:
+            # to get only recommendations from latest job
+            past_recommendations = [r for r in past_recommendations
+                                    if
+                                    r.job_id == past_recommendations[0].job_id]
+
         _LOG.debug(f'Loading past recommendation with feedback')
-        past_recommendations = self.recommendation_history_service. \
+        past_recommendations_feedback = self.recommendation_history_service. \
             get_recommendation_with_feedback(instance_id=instance_id)
 
         applied_recommendations = self.recommendation_history_service. \
-            filter_applied(recommendations=past_recommendations)
+            filter_applied(recommendations=past_recommendations_feedback)
         try:
             _LOG.debug(f'Loading adjustments from meta')
             meta_adjustments = self.meta_service.to_adjustments(
@@ -97,6 +113,17 @@ class RecommendationService:
                 instance_meta=instance_meta
             )
 
+            if not self.scan_required(
+                    past_recommendations=past_recommendations, df=df):
+                _LOG.debug(f'Past recommendation with no metrics change'
+                           f' detected. Going to use past recommendations')
+                return self.dump_reports_from_recommendations(
+                    reports_dir=reports_dir,
+                    cloud=cloud,
+                    stats=self.calculate_instance_stats(df=df),
+                    recommendations=past_recommendations
+                )
+
             _LOG.debug(f'Extracting instance type name')
             instance_type = self.metrics_service.get_instance_type(
                 metric_file_path=metric_file_path,
@@ -104,7 +131,7 @@ class RecommendationService:
             )
             _LOG.debug(f'Dividing into periods with different load')
             shutdown_periods, low_periods, medium_periods, \
-            high_periods, centroids = \
+                high_periods, centroids = \
                 self.metrics_service.divide_on_periods(
                     df=df,
                     algorithm=algorithm)
@@ -222,7 +249,7 @@ class RecommendationService:
                 shapes=recommended_sizes,
                 resize_action=resize_action,
                 stats=stats,
-                past_recommendations=past_recommendations
+                past_recommendations=past_recommendations_feedback
             )
 
             if not algorithm.recommendation_settings.ignore_savings:
@@ -249,7 +276,8 @@ class RecommendationService:
                     current_instance_type=instance_type,
                     savings=savings,
                     actions=general_action,
-                    instance_meta=instance_meta
+                    instance_meta=instance_meta,
+                    last_metric_capture_date=df.index.max().date()
                 )
                 if history_items:
                     _LOG.debug(
@@ -306,6 +334,27 @@ class RecommendationService:
             general_action=STATUS_ERROR
         )
 
+    def scan_required(self,
+                      past_recommendations: List[RecommendationHistory],
+                      df: pd.DataFrame) -> bool:
+        """
+        Indicate if instance scan is required.
+        No past recommendation -> True
+        Past recommendations and new metrics available -> True
+        Past recommendation, now new metrics available -> False
+
+        :param past_recommendations: past instance recommendations
+        :param df: metrics dataframe
+        :return: bool
+        """
+        if self.environment_service.force_rescan() or not past_recommendations:
+            return True
+        latest_r = past_recommendations[0]
+        if not latest_r.last_metric_capture_date:
+            return True
+        last_capture_date = latest_r.last_metric_capture_date.date()
+        return df.index.max().date() != last_capture_date
+
     def dump_reports(self, reports_dir, customer, cloud, tenant, region, stats,
                      instance_id=None, schedule=None, recommended_sizes=None,
                      meta=None, general_action=None,
@@ -337,6 +386,52 @@ class RecommendationService:
             f.write(json.dumps(item))
             f.write('\n')
         return item
+
+    def dump_reports_from_recommendations(
+            self, reports_dir, stats, cloud,
+            recommendations: List[RecommendationHistory]):
+        schedule = None
+        recommended_sizes = None
+        actions = []
+
+        for recommendation_item in recommendations:
+            recommendation_type = recommendation_item.recommendation_type
+            if recommendation_type == RecommendationTypeEnum.ACTION_SCHEDULE:
+                schedule = recommendation_item.recommendation
+            elif recommendation_type == RecommendationTypeEnum.ACTION_SHUTDOWN:
+                schedule = []
+            elif recommendation_type == RecommendationTypeEnum.ACTION_EMPTY:
+                recommended_sizes = recommendation_item.recommendation
+            elif recommendation_type in RecommendationTypeEnum.resize():
+                recommended_sizes = recommendation_item.recommendation
+            actions.append(recommendation_item.recommendation_type.value)
+
+        savings = {
+            CURRENT_INSTANCE_TYPE_ATTR:
+                recommendations[0].current_instance_type,
+            CURRENT_MONTHLY_PRICE_ATTR:
+                recommendations[0].current_month_price_usd,
+            SAVING_OPTIONS_ATTR: list(itertools.chain.from_iterable(
+                [r.savings for r in recommendations]
+            ))
+        }
+        if schedule is None:
+            schedule = self.schedule_service.get_always_run_schedule()
+
+        return self.dump_reports(
+            reports_dir=reports_dir,
+            customer=recommendations[0].customer,
+            cloud=cloud,
+            tenant=recommendations[0].tenant,
+            region=recommendations[0].region,
+            instance_id=recommendations[0].instance_id,
+            stats=stats,
+            schedule=schedule,
+            recommended_sizes=recommended_sizes,
+            meta=recommendations[0].instance_meta,
+            general_action=actions,
+            savings=savings
+        )
 
     @staticmethod
     def get_non_straight_periods(df, grouped_periods):

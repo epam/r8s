@@ -37,6 +37,7 @@ class RecommendationTypeEnum(ListEnum):
     ACTION_SCALE_DOWN = 'SCALE_DOWN'
     ACTION_CHANGE_SHAPE = 'CHANGE_SHAPE'
     ACTION_SPLIT = 'SPLIT'
+    ACTION_EMPTY = 'NO_ACTION'
 
     @classmethod
     def resize(cls):
@@ -57,10 +58,11 @@ class RecommendationHistory(BaseModel):
     current_month_price_usd = FloatField(null=True)
     recommendation_type = EnumField(RecommendationTypeEnum, null=True)
     recommendation = ListField(null=True, field=DictField(null=True))
-    savings = ListField(field=FloatField(null=True))
+    savings = ListField(field=DictField(null=True))
     instance_meta = DictField(null=True)
     feedback_dt = DateTimeField(null=True)
     feedback_status = EnumField(FeedbackStatusEnum, null=True)
+    last_metric_capture_date = DateTimeField(null=True)
 
     meta = {
         'indexes': [

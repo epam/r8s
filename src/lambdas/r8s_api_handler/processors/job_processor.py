@@ -172,6 +172,7 @@ class JobProcessor(AbstractCommandProcessor):
             "AWS_REGION": self.environment_service.aws_region(),
             "log_level": os.environ.get('log_level', 'ERROR'),
             "parent_id": parent.parent_id,
+            "FORCE_RESCAN": os.environ.get('force_rescan', "False"),
             "DEBUG": str(self.environment_service.is_debug())
         }
         meta_postponed_key = self.environment_service.meta_postponed_key()

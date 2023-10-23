@@ -3,7 +3,7 @@ import datetime
 
 from commons.constants import ACTION_EMPTY, ACTION_ERROR, ACTION_SCHEDULE, \
     ACTION_SCALE_UP, ACTION_SCALE_DOWN, ACTION_CHANGE_SHAPE, ACTION_SPLIT, \
-    ACTION_SHUTDOWN
+    ACTION_SHUTDOWN, SAVING_OPTIONS_ATTR
 from commons.log_helper import get_logger
 from models.recommendation_history import RecommendationHistory, \
     FeedbackStatusEnum, RecommendationTypeEnum
@@ -18,11 +18,11 @@ class RecommendationHistoryService:
 
     def create(self, instance_id: str, job_id: str, customer: str, tenant: str,
                region: str, current_instance_type: str, savings: dict,
-               schedule: list,
-               recommended_shapes: list,
-               actions: list,
-               instance_meta: dict) -> List[RecommendationHistory]:
-        if ACTION_EMPTY in actions or ACTION_ERROR in actions:
+               schedule: list, recommended_shapes: list, actions: list,
+               instance_meta: dict,
+               last_metric_capture_date: datetime.date
+               ) -> List[RecommendationHistory]:
+        if ACTION_ERROR in actions:
             _LOG.debug(f'Skipping saving result to history collection. '
                        f'Actions: \'{actions}\'')
             return []
@@ -30,32 +30,19 @@ class RecommendationHistoryService:
         current_month_price_usd = self._get_current_month_price(
             savings=savings
         )
-        if ACTION_SCHEDULE in actions:
-            schedule_savings = self._filter_savings_usd(
-                savings=savings,
-                action=ACTION_SCHEDULE
-            )
-            recommendation_item = self._create_or_update_recent(
-                instance_id=instance_id,
-                job_id=job_id,
-                customer=customer,
-                tenant=tenant,
-                region=region,
-                current_instance_type=current_instance_type,
-                current_month_price_usd=current_month_price_usd,
-                recommendation_type=ACTION_SCHEDULE,
-                recommendation=schedule,
-                savings=schedule_savings,
-                instance_meta=instance_meta
-            )
-            result.append(recommendation_item)
+        saving_options = savings.get(SAVING_OPTIONS_ATTR, [])
 
-        resize_action = self._get_resize_action(actions=actions)
-        if resize_action:
-            resize_savings = self._filter_savings_usd(
-                savings=savings,
-                action=resize_action
-            )
+        for action in actions:
+            recommendation = None
+            if action in [*RESIZE_ACTIONS, ACTION_EMPTY, ACTION_SHUTDOWN]:
+                recommendation = recommended_shapes
+            elif action == ACTION_SCHEDULE:
+                recommendation = schedule
+
+            if recommendation is None:
+                _LOG.warning(f'Unknown recommendation type detected: '
+                             f'{action}')
+                continue
             recommendation_item = self._create_or_update_recent(
                 instance_id=instance_id,
                 job_id=job_id,
@@ -64,29 +51,11 @@ class RecommendationHistoryService:
                 region=region,
                 current_instance_type=current_instance_type,
                 current_month_price_usd=current_month_price_usd,
-                recommendation_type=resize_action,
-                recommendation=recommended_shapes,
-                savings=resize_savings,
-                instance_meta=instance_meta
-            )
-            result.append(recommendation_item)
-        if ACTION_SHUTDOWN in actions:
-            shutdown_savings = self._filter_savings_usd(
-                savings=savings,
-                action=ACTION_SHUTDOWN
-            )
-            recommendation_item = self._create_or_update_recent(
-                instance_id=instance_id,
-                job_id=job_id,
-                customer=customer,
-                tenant=tenant,
-                region=region,
-                current_instance_type=current_instance_type,
-                current_month_price_usd=current_month_price_usd,
-                recommendation_type=ACTION_SHUTDOWN,
-                recommendation=None,
-                savings=shutdown_savings,
-                instance_meta=instance_meta
+                recommendation_type=action,
+                recommendation=recommendation,
+                savings=saving_options,
+                instance_meta=instance_meta,
+                last_metric_capture_date=last_metric_capture_date
             )
             result.append(recommendation_item)
         return result
@@ -94,7 +63,8 @@ class RecommendationHistoryService:
     def _create_or_update_recent(self, instance_id, job_id, customer, tenant,
                                  region, current_instance_type,
                                  current_month_price_usd, recommendation_type,
-                                 recommendation, savings, instance_meta):
+                                 recommendation, savings, instance_meta,
+                                 last_metric_capture_date):
         recent_recommendations = self.get_recent_recommendation(
             instance_id=instance_id,
             recommendation_type=recommendation_type,
@@ -118,7 +88,8 @@ class RecommendationHistoryService:
                 recommendation_type=recommendation_type,
                 recommendation=recommendation,
                 savings=savings,
-                instance_meta=instance_meta
+                instance_meta=instance_meta,
+                last_metric_capture_date=last_metric_capture_date
             )
         recent_recommendations = list(recent_recommendations)
         if len(recent_recommendations) > 1:
@@ -139,24 +110,29 @@ class RecommendationHistoryService:
             current_month_price_usd=current_month_price_usd,
             recommendation=recommendation,
             savings=savings,
-            instance_meta=instance_meta
+            instance_meta=instance_meta,
+            last_metric_capture_date=last_metric_capture_date
         )
         return recent_recommendation
 
-    def get_recent_recommendation(self, instance_id, recommendation_type,
-                                  without_feedback=False):
+    def get_recent_recommendation(self, instance_id, recommendation_type=None,
+                                  without_feedback=False, limit=None):
         threshold_date = self._get_week_start_dt()
 
         query = {
             'instance_id': instance_id,
-            'recommendation_type': recommendation_type,
             'added_at__gt': threshold_date
         }
+        if recommendation_type:
+            query['recommendation_type']: recommendation_type
         if without_feedback:
             query['feedback_dt'] = None
             query['feedback_status'] = None
 
-        return RecommendationHistory.objects(**query).order_by('-added_at')
+        result = RecommendationHistory.objects(**query).order_by('-added_at')
+        if limit:
+            result = result.limit(limit)
+        return result
 
     @staticmethod
     def get_recommendation_with_feedback(instance_id):
@@ -212,25 +188,6 @@ class RecommendationHistoryService:
     @staticmethod
     def delete(recommendation: RecommendationHistory):
         recommendation.delete()
-
-    @staticmethod
-    def _get_resize_action(actions):
-        for action in actions:
-            if action in RESIZE_ACTIONS:
-                return action
-
-    @staticmethod
-    def _filter_savings_usd(savings: dict, action):
-        if not savings:
-            return
-        saving_options = savings.get('saving_options', [])
-        if not saving_options:
-            return
-        option_savings_usd = [option.get('saving_month_usd') for
-                              option in saving_options
-                              if option.get('action') == action]
-        return [saving for saving in option_savings_usd
-                if isinstance(saving, (int, float))]
 
     @staticmethod
     def _get_current_month_price(savings: dict):

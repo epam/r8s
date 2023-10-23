@@ -234,7 +234,7 @@ class StorageService:
         try:
             end_dt = datetime.strptime(scan_to_date, DATE_FORMAT)
         except (ValueError, TypeError):
-            _LOG.warning(f'Invalid/Empty scan stop date: {scan_from_date} '
+            _LOG.warning(f'Invalid/Empty scan stop date: {scan_to_date} '
                          f'must have {DATE_FORMAT} pattern.')
             end_d = date.today() + timedelta(days=1)
             end_dt = datetime.combine(end_d, datetime.min.time())
