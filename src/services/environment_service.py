@@ -2,9 +2,11 @@ import os
 
 from commons.constants import ENV_SERVICE_MODE, DOCKER_SERVICE_MODE, \
     MAIL_REPORT_DEFAULT_PROCESSING_DAYS, \
-    MAIL_REPORT_DEFAULT_HIGH_PRIORITY_THRESHOLD, ENV_TENANT_CUSTOMER_INDEX
+    MAIL_REPORT_DEFAULT_HIGH_PRIORITY_THRESHOLD, ENV_TENANT_CUSTOMER_INDEX, \
+    ENV_LM_TOKEN_LIFETIME_MINUTES
 
 DEFAULT_TENANTS_CUSTOMER_NAME_INDEX_RCU = 5
+DEFAULT_LM_TOKEN_LIFETIME_MINUTES = 120
 
 
 class EnvironmentService:
@@ -67,3 +69,8 @@ class EnvironmentService:
     def tenants_customer_name_index_rcu():
         return int(os.environ.get(ENV_TENANT_CUSTOMER_INDEX,
                                   DEFAULT_TENANTS_CUSTOMER_NAME_INDEX_RCU))
+
+    @staticmethod
+    def lm_token_lifetime_minutes():
+        return int(os.environ.get(ENV_LM_TOKEN_LIFETIME_MINUTES,
+                                  DEFAULT_LM_TOKEN_LIFETIME_MINUTES))

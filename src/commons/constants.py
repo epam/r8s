@@ -260,6 +260,7 @@ ENV_VAULT_HOST = 'VAULT_URL'
 ENV_VAULT_PORT = 'VAULT_SERVICE_SERVICE_PORT'
 
 ENV_TENANT_CUSTOMER_INDEX = 'tenants_customer_name_index_rcu'
+ENV_LM_TOKEN_LIFETIME_MINUTES = 'lm_token_lifetime_minutes'
 EXP_ATTR = 'exp'
 
 # cognito
@@ -305,3 +306,4 @@ B64ENCODED_ATTR = 'b64_encoded'
 ALLOWED_ATTR = 'allowed'
 FORBIDDEN_ATTR = 'forbidden'
 REMAINING_BALANCE_ATTR = 'remaining_balance'
+TOKEN_ATTR = 'token'
