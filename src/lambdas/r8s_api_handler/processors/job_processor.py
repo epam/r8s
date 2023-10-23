@@ -468,17 +468,15 @@ class JobProcessor(AbstractCommandProcessor):
                              f'customer \'{parent.customer_id}\'')
                 invalid_tenants.append(tenant_name)
                 continue
-            if tenant_obj.cloud != parent_meta.cloud:
+            if tenant_obj.cloud != parent.cloud:
                 _LOG.warning(f'Tenant cloud \'{tenant_obj.cloud}\' '
                              f'does not match with parent '
                              f'cloud {parent_meta.cloud}.')
                 invalid_tenants.append(tenant_name)
                 continue
 
-            tenant_parent_map = tenant_obj.parent_map.as_dict()
-            if parent_meta.scope == PARENT_SCOPE_SPECIFIC_TENANT and \
-                    tenant_parent_map.get(
-                        RIGHTSIZER_LICENSES_PARENT_TYPE) != parent.parent_id:
+            if (parent.scope == ParentScope.SPECIFIC.value and
+                    parent.tenant_name != tenant_name):
                 _LOG.warning(f'Using parent \'{parent.parent_id}\' '
                              f'is forbidden for tenant \'{tenant_name}\'')
                 invalid_tenants.append(tenant_name)

@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.18.1] - 2023-10-23
+* r8s job submit: fix input_scan_tenants validation
+
 ## [2.18.0] - 2023-10-13
 * Switch to new modular_sdk Parent scopes model
 
