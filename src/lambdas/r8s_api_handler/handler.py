@@ -27,8 +27,6 @@ from lambdas.r8s_api_handler.processors.parent_licenses_processor import \
 from lambdas.r8s_api_handler.processors.parent_processor import ParentProcessor
 from lambdas.r8s_api_handler.processors.parent_resize_insights_processor import \
     ParentResizeInsightsProcessor
-from lambdas.r8s_api_handler.processors.parent_tenant_linkage_processor import \
-    ParentTenantLinkageProcessor
 from lambdas.r8s_api_handler.processors.policies_processor import \
     PolicyProcessor
 from lambdas.r8s_api_handler.processors.recommendation_history_processor import \
@@ -96,7 +94,6 @@ SHAPE_RULE_ACTION = 'shape_rule'
 SHAPE_RULE_DRY_RUN_ACTION = 'shape_rule_dry_run'
 PARENT_ACTION = 'parent'
 PARENT_LICENSES_ACTION = 'parent_licenses'
-PARENT_TENANT_LINK_ACTION = 'parent_tenant_link'
 PARENT_INSIGHTS_RESIZE_ACTION = 'parent_insights_resize'
 SHAPE_ACTION = 'shape'
 SHAPE_PRICE_ACTION = 'shape_price'
@@ -180,8 +177,6 @@ class R8sApiHandler(AbstractApiHandlerLambda):
                 self._instantiate_shape_rule_dry_run_processor,
             PARENT_ACTION: self._instantiate_parent_processor,
             PARENT_LICENSES_ACTION: self._instantiate_parent_licenses_processor,
-            PARENT_TENANT_LINK_ACTION:
-                self._instantiate_parent_tenant_linkage_processor,
             USER_ACTION: self._instantiate_user_processor,
             SHAPE_ACTION: self._instantiate_shape_processor,
             SHAPE_PRICE_ACTION: self._instantiate_shape_price_processor,
@@ -295,7 +290,8 @@ class R8sApiHandler(AbstractApiHandlerLambda):
     def _instantiate_shape_rule_processor(self):
         return ShapeRuleProcessor(
             application_service=self.application_service,
-            parent_service=self.parent_service
+            parent_service=self.parent_service,
+            tenant_service=self.tenant_service
         )
 
     def _instantiate_shape_rule_dry_run_processor(self):
@@ -303,7 +299,8 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             application_service=self.application_service,
             parent_service=self.parent_service,
             shape_service=self.shape_service,
-            shape_rules_filter_service=self.shape_rules_filter_service
+            shape_rules_filter_service=self.shape_rules_filter_service,
+            tenant_service=self.tenant_service
         )
 
     def _instantiate_parent_processor(self):
@@ -324,13 +321,6 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             tenant_service=self.tenant_service,
             license_service=self.license_service,
             license_manager_service=self.license_manager_service
-        )
-
-    def _instantiate_parent_tenant_linkage_processor(self):
-        return ParentTenantLinkageProcessor(
-            application_service=self.application_service,
-            parent_service=self.parent_service,
-            tenant_service=self.tenant_service
         )
 
     def _instantiate_shape_processor(self):

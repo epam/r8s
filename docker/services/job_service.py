@@ -3,6 +3,7 @@ from datetime import datetime
 from mongoengine import DoesNotExist, ValidationError
 
 from commons.log_helper import get_logger
+from commons.profiler import profiler
 from commons.time_helper import utc_iso
 from models.job import Job, JobStatusEnum, JobTenantStatusEnum
 from services.environment_service import EnvironmentService
@@ -67,6 +68,7 @@ class JobService:
                 scan_tenants.append(tenant)
         return scan_tenants
 
+    @profiler(execution_step=f'lm_update_job_status')
     def set_licensed_job_status(self, job: Job, tenant: str,
                                 status: JobTenantStatusEnum):
         allowed_statuses = (JobTenantStatusEnum.TENANT_FAILED_STATUS,

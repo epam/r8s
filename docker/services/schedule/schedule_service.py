@@ -6,6 +6,7 @@ import pandas
 
 from commons.constants import WEEK_DAYS
 from commons.log_helper import get_logger
+from commons.profiler import profiler
 from models.algorithm import RecommendationSettings
 from models.recommendation_history import RecommendationHistory, \
     RecommendationTypeEnum, FeedbackStatusEnum
@@ -26,6 +27,7 @@ class ScheduleService:
     def __init__(self, metrics_service: MetricsService):
         self.metrics_service = metrics_service
 
+    @profiler(execution_step=f'instance_schedule_generation')
     def generate_schedule(self, recommendation_settings: RecommendationSettings,
                           shutdown_periods, instance_id, df, instance_meta=None,
                           past_recommendations: List[RecommendationHistory] = None):

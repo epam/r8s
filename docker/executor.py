@@ -2,9 +2,11 @@ import os.path
 
 from modular_sdk.models.parent import Parent
 
-from commons.constants import JOB_STEP_INITIALIZATION, TENANT_LICENSE_KEY_ATTR
+from commons.constants import (JOB_STEP_INITIALIZATION,
+                               TENANT_LICENSE_KEY_ATTR, PROFILE_LOG_PATH)
 from commons.exception import ExecutorException, LicenseForbiddenException
 from commons.log_helper import get_logger
+from commons.profiler import profiler
 from models.algorithm import Algorithm
 from models.job import Job, JobStatusEnum, JobTenantStatusEnum
 from models.license import License
@@ -71,6 +73,7 @@ def set_job_fail_reason(exception: Exception):
         _LOG.debug('Job reason was saved.')
 
 
+@profiler(execution_step=f'lm_submit_job')
 def submit_licensed_job(parent: Parent, tenant_name: str,
                         license_: License):
     customer = parent.customer_id
@@ -117,7 +120,8 @@ def process_tenant_instances(metrics_dir, reports_dir,
         scan_clouds=[cloud],
         scan_tenants=[tenant],
         scan_from_date=SCAN_FROM_DATE,
-        scan_to_date=SCAN_TO_DATE)
+        scan_to_date=SCAN_TO_DATE,
+        max_days=algorithm.recommendation_settings.max_days)
 
     tenant_folder_path = os.path.join(
         metrics_dir,
@@ -340,6 +344,14 @@ def main():
     _LOG.debug(f'Setting job state to SUCCEEDED')
     job_service.set_status(job=job,
                            status=JobStatusEnum.JOB_SUCCEEDED_STATUS.value)
+
+    if os.path.exists(PROFILE_LOG_PATH):
+        _LOG.debug(f'Uploading profile log')
+        storage_service.upload_profile_log(
+            storage=output_storage,
+            job_id=JOB_ID,
+            file_path=PROFILE_LOG_PATH
+        )
     _LOG.debug(f'Cleaning workdir')
     os_service.clean_workdir(work_dir=work_dir)
 

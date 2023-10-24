@@ -1,6 +1,7 @@
 import os
 from datetime import datetime, timedelta, date
 from glob import glob
+import concurrent
 
 from bson import ObjectId
 from bson.errors import InvalidId
@@ -10,6 +11,7 @@ from commons.constants import SERVICE_ATTR, \
     JOB_STEP_DOWNLOAD_METRICS, CSV_EXTENSION, META_FILE_NAME, ALL
 from commons.exception import ExecutorException
 from commons.log_helper import get_logger
+from commons.profiler import profiler
 from models.storage import Storage, StorageServiceEnum, S3Storage
 from services.clients.s3 import S3Client
 
@@ -69,9 +71,10 @@ class StorageService:
     def delete(storage: Storage):
         storage.delete()
 
+    @profiler(execution_step=f's3_download_tenant_metrics')
     def download_metrics(self, data_source: Storage, output_path: str,
                          scan_customer, scan_clouds, scan_tenants,
-                         scan_from_date, scan_to_date):
+                         scan_from_date, scan_to_date, max_days):
         type_downloader_mapping = {
             S3Storage: self._download_metrics_s3
         }
@@ -85,11 +88,12 @@ class StorageService:
             )
         return downloader(data_source, output_path, scan_customer,
                           scan_clouds, scan_tenants, scan_from_date,
-                          scan_to_date)
+                          scan_to_date, max_days)
 
     def _download_metrics_s3(self, data_source: S3Storage, output_path,
                              scan_customer, scan_clouds, scan_tenants,
-                             scan_from_date=None, scan_to_date=None):
+                             scan_from_date=None, scan_to_date=None,
+                             max_days=None):
         access = data_source.access
         prefix = access.prefix
         bucket_name = access.bucket_name
@@ -115,6 +119,12 @@ class StorageService:
                    obj.get('Key').endswith(CSV_EXTENSION)
                    or obj.get('Key').endswith(f'/{META_FILE_NAME}')]
 
+        if not scan_from_date and max_days:
+            _LOG.debug(f'Start stan date is not specified. Going to use '
+                       f'limitation from algorithm of {max_days} days')
+            scan_start_dt = datetime.utcnow() - timedelta(days=max_days)
+            scan_from_date = scan_start_dt.strftime(DATE_FORMAT)
+
         filter_only_dates = self.get_scan_dates_list(
             scan_from_date=scan_from_date,
             scan_to_date=scan_to_date
@@ -123,19 +133,24 @@ class StorageService:
             objects = [obj for obj in objects if obj['Key'].split('/')[-2]
                        in filter_only_dates]
         _LOG.debug(f'{len(objects)} metric/meta files found, downloading')
-        for file in objects:
-            path = file.get('Key').split('/')
-            if len(path) > 0 and path[0] == prefix:
-                path = path[1:]
-            path = '/'.join(path[:-1])
-            output_folder_path = '/'.join((output_path, path))
-            os.makedirs(output_folder_path, exist_ok=True)
-            self.s3_client.download_file(
-                bucket_name=bucket_name,
-                full_file_name=file.get('Key'),
-                output_folder_path=output_folder_path
-            )
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            futures = []
+            for file in objects:
+                path = file.get('Key').split('/')
+                if len(path) > 0 and path[0] == prefix:
+                    path = path[1:]
+                path = '/'.join(path[:-1])
+                output_folder_path = '/'.join((output_path, path))
+                os.makedirs(output_folder_path, exist_ok=True)
 
+                futures.append(executor.submit(
+                    self.s3_client.download_file,
+                    bucket_name=bucket_name,
+                    full_file_name=file.get('Key'),
+                    output_folder_path=output_folder_path
+                ))
+
+    @profiler(execution_step=f's3_upload_job_results')
     def upload_job_results(self, job_id, storage: Storage,
                            results_folder_path, tenant=None):
         type_uploader_mapping = {
@@ -220,7 +235,7 @@ class StorageService:
             end_dt = datetime.strptime(scan_to_date, DATE_FORMAT)
         except (ValueError, TypeError):
             _LOG.warning(f'Invalid/Empty scan stop date: {scan_from_date} '
-                         f'must have %Y_%m_%d pattern.')
+                         f'must have {DATE_FORMAT} pattern.')
             end_d = date.today() + timedelta(days=1)
             end_dt = datetime.combine(end_d, datetime.min.time())
             _LOG.debug(f'Default stop date will be used: {end_dt.isoformat()}')
@@ -232,3 +247,23 @@ class StorageService:
     def __date_range(start_date, end_date):
         return [start_date + timedelta(n)
                 for n in range(int((end_date - start_date).days) + 1)]
+
+    def upload_profile_log(self, job_id, storage: Storage, file_path):
+        access = storage.access
+        prefix = access.prefix
+        bucket_name = access.bucket_name
+
+        if prefix:
+            s3_folder_path = os.path.join(prefix, job_id)
+        else:
+            s3_folder_path = job_id
+
+        s3_file_key = os.path.join(s3_folder_path, file_path.split('/')[-1])
+        with open(file_path, 'r') as f:
+            body = f.read()
+
+        self.s3_client.put_object(
+            bucket_name=bucket_name,
+            object_name=s3_file_key,
+            body=body
+        )

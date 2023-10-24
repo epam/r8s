@@ -1,6 +1,7 @@
 import hashlib
 import json
 from datetime import datetime
+from functools import cached_property
 
 from mongoengine import StringField, ListField, IntField, EnumField, \
     EmbeddedDocument, BooleanField, EmbeddedDocumentField, DateTimeField
@@ -121,7 +122,8 @@ class Algorithm(BaseModel):
             algorithm_dto['last_modified'] = last_modified.isoformat()
         return algorithm_dto
 
-    def get_read_configuration(self):
+    @cached_property
+    def read_configuration(self):
         if not self.metric_format:
             return {}
         return {k: v for k, v in self.metric_format.to_mongo().items() if v}

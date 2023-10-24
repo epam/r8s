@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/python:3.8 as compile-image
+FROM public.ecr.aws/docker/library/python:3.10 as compile-image
 
 WORKDIR /build
 
@@ -11,7 +11,7 @@ RUN pip install --user -r ./docker/requirements.txt && \
 COPY docker docker
 
 
-FROM public.ecr.aws/docker/library/python:3.8-slim AS build-image
+FROM public.ecr.aws/docker/library/python:3.10-slim AS build-image
 
 ENV PATH=/root/.local/bin:$PATH
 COPY --from=compile-image /root/.local /root/.local

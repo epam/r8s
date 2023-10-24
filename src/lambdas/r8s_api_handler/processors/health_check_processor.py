@@ -153,7 +153,8 @@ class HealthCheckProcessor(AbstractCommandProcessor):
     def _init_operation_mode_handler(self):
         return OperationModeCheckHandler(
             application_service=self.application_service,
-            parent_service=self.parent_service
+            parent_service=self.parent_service,
+            tenant_service=self.tenant_service
         )
 
     def _init_shape_update_date_handler(self):
