@@ -14,7 +14,8 @@ from modular_sdk.services.tenant_service import TenantService
 from commons import build_response, RESPONSE_BAD_REQUEST_CODE, \
     RESPONSE_INTERNAL_SERVER_ERROR, RESPONSE_OK_CODE
 from commons.constants import CUSTOMER_ATTR, TENANT_ATTR, \
-    RECOMMENDATION_SETTINGS_ATTR, TARGET_TIMEZONE_NAME_ATTR, TENANTS_ATTR
+    RECOMMENDATION_SETTINGS_ATTR, TARGET_TIMEZONE_NAME_ATTR, TENANTS_ATTR, \
+    RECOMMENDATION_TYPE_ATTR
 from commons.log_helper import get_logger
 from models.recommendation_history import RecommendationHistory, \
     RecommendationTypeEnum
@@ -257,7 +258,8 @@ class ReportGenerator(AbstractLambda):
         resource_job_id_mapping = {}
         for recommendation in recommendations:
             instance_id = recommendation.instance_id
-            recommendation_type = recommendation.recommendation_type.value
+            recommendation_type = recommendation.get_json().get(
+                RECOMMENDATION_TYPE_ATTR)
 
             if not recommendation.current_month_price_usd \
                     or not recommendation.savings \
@@ -408,15 +410,17 @@ class ReportGenerator(AbstractLambda):
         return result
 
     def format_recommendation(self, recommendation: RecommendationHistory):
-        recommendation_type = recommendation.recommendation_type
+        recommendation_type = recommendation.get_json().get(
+            RECOMMENDATION_TYPE_ATTR)
 
-        if recommendation_type == RecommendationTypeEnum.ACTION_SHUTDOWN:
+        resize_actions = [i.value for i in RecommendationTypeEnum.resize()]
+        if recommendation_type == RecommendationTypeEnum.ACTION_SHUTDOWN.value:
             return self._format_shutdown_recommendation(
                 recommendation=recommendation)
-        elif recommendation_type == RecommendationTypeEnum.ACTION_SCHEDULE:
+        elif recommendation_type == RecommendationTypeEnum.ACTION_SCHEDULE.value:
             return self._format_schedule_recommendation(
                 recommendation=recommendation)
-        elif recommendation_type in RecommendationTypeEnum.resize():
+        elif recommendation_type in resize_actions:
             return self._format_resize_recommendation(
                 recommendation=recommendation)
 
@@ -425,7 +429,15 @@ class ReportGenerator(AbstractLambda):
         recommended_instance_types = [item.get('name') for
                                       item in recommendation.recommendation]
 
-        estimated_savings = sorted(recommendation.savings)
+        savings = reversed(recommendation.savings)
+
+        estimated_savings = []
+        for saving in savings:
+            if isinstance(saving, dict):
+                estimated_savings.append(saving['saving_month_usd'])
+            else:
+                estimated_savings.append(saving)
+
         if len(estimated_savings) > 2:
             estimated_savings = [estimated_savings[0], estimated_savings[-1]]
         saving_percents = [
@@ -453,10 +465,16 @@ class ReportGenerator(AbstractLambda):
 
     @staticmethod
     def _format_schedule_recommendation(recommendation):
+        savings_usd = []
+        for saving in recommendation.savings:
+            if isinstance(saving, dict):
+                savings_usd.append(saving['saving_month_usd'])
+            else:
+                savings_usd.append(saving)
         saving_percents = [
             round(saving_item / recommendation.current_month_price_usd,
                   2) * 100
-            for saving_item in recommendation.savings]
+            for saving_item in savings_usd]
         return {
             "resource_id": recommendation.instance_id,
             "recommendation": list(recommendation.recommendation),
@@ -465,12 +483,18 @@ class ReportGenerator(AbstractLambda):
             "current_price": recommendation.current_month_price_usd,
             "current_instance_type": recommendation.current_instance_type,
             "region": recommendation.region,
-            "estimated_saving": sorted(recommendation.savings),
+            "estimated_saving": sorted(savings_usd),
             "saving_percent": sorted(saving_percents)
         }
 
     @staticmethod
     def _format_shutdown_recommendation(recommendation):
+        savings_usd = []
+        for saving in recommendation.savings:
+            if isinstance(saving, dict):
+                savings_usd.append(saving['saving_month_usd'])
+            else:
+                savings_usd.append(saving)
         return {
             "resource_id": recommendation.instance_id,
             "recommendation": [],
@@ -479,7 +503,7 @@ class ReportGenerator(AbstractLambda):
             "current_price": recommendation.current_month_price_usd,
             "current_instance_type": recommendation.current_instance_type,
             "region": recommendation.region,
-            "estimated_saving": sorted(recommendation.savings),
+            "estimated_saving": sorted(savings_usd),
             "saving_percent": [100]
         }
 
