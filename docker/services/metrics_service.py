@@ -327,7 +327,7 @@ class MetricsService:
         old_df = old_df.groupby(pd.Grouper(
             freq=f'{optimized_step_minutes}Min')).mean()
 
-        return pd.concat([latest_df, old_df])
+        return pd.concat([old_df, latest_df])
 
     @staticmethod
     def divide_by_days(df, skip_incomplete_corner_days: bool,
@@ -426,6 +426,9 @@ class MetricsService:
         period_end_row_index = None
         dfs_ = []
         last_row = None
+
+        if not df.index.is_monotonic_increasing:
+            df.sort_index(inplace=True)
         for row in df.itertuples():
             if not period_start_row_index:
                 period_start_row_index = row.Index
