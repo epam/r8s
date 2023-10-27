@@ -63,10 +63,11 @@ class RecommendationHistory(BaseModel):
     current_month_price_usd = FloatField(null=True)
     recommendation_type = EnumField(RecommendationTypeEnum, null=True)
     recommendation = ListField(null=True, field=DictField(null=True))
-    savings = ListField(field=FloatField(null=True))
+    savings = ListField(field=DictField(null=True))
     instance_meta = DictField(null=True)
     feedback_dt = DateTimeField(null=True)
     feedback_status = EnumField(FeedbackStatusEnum, null=True)
+    last_metric_capture_date = DateTimeField(null=True)
 
     dto_skip_attrs = ['savings', 'instance_meta']
     meta = {
