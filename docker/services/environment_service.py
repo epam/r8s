@@ -82,5 +82,8 @@ class EnvironmentService:
 
     @staticmethod
     def lm_token_lifetime_minutes():
-        return int(os.environ.get(ENV_LM_TOKEN_LIFETIME_MINUTES,
-                                  DEFAULT_LM_TOKEN_LIFETIME_MINUTES))
+        try:
+            return int(os.environ.get(ENV_LM_TOKEN_LIFETIME_MINUTES,
+                                      DEFAULT_LM_TOKEN_LIFETIME_MINUTES))
+        except ValueError:
+            return DEFAULT_LM_TOKEN_LIFETIME_MINUTES
