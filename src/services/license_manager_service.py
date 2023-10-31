@@ -1,3 +1,5 @@
+import re
+
 from commons import RESPONSE_OK_CODE
 from commons.constants import KID_ATTR, ALG_ATTR, CLIENT_TOKEN_ATTR, \
     TOKEN_ATTR, EXPIRATION_ATTR
@@ -23,7 +25,7 @@ CLIENT_TYPE_SAAS = 'SAAS'
 CLIENT_TYPE_ONPREM = 'ONPREM'
 
 STATUS_CODE_ATTR = 'status_code'
-SSM_LM_TOKEN_KEY = 'r8s_lm_auth_token'
+SSM_LM_TOKEN_KEY = 'r8s_lm_auth_token_{customer}'
 
 _LOG = get_logger(__name__)
 
@@ -37,16 +39,19 @@ class LicenseManagerService:
         self.ssm_service = ssm_service
         self.environment_service = environment_service
 
-    def synchronize_license(self, license_key: str):
+    def synchronize_license(self, license_key: str, customer: str):
         """
         Mandates License synchronization request, delegated to prepare
         a rightsizer service-token, given the Service is the SaaS installation.
         For any request related exception, returns the respective instance
         to handle on.
         :parameter license_key: str,
+        :parameter customer: str,
         :return: Union[Response, ConnectionError, RequestException]
         """
-        auth = self._get_client_token()
+        auth = self._get_client_token(
+            customer=customer
+        )
         if not auth:
             _LOG.warning('Client authorization token could be established.')
             return None
@@ -69,7 +74,9 @@ class LicenseManagerService:
 
     def get_allowance_map(self, customer: str, tenants: List[str],
                           tenant_license_keys: List[str]):
-        auth = self._get_client_token()
+        auth = self._get_client_token(
+            customer=customer
+        )
         if not auth:
             _LOG.warning('Client authorization token could be established.')
             return None
@@ -86,9 +93,11 @@ class LicenseManagerService:
         return response[0] if len(response) == 1 else {}
 
     def update_job_in_license_manager(self, job_id, created_at, started_at,
-                                      stopped_at, status):
+                                      stopped_at, status, customer):
 
-        auth = self._get_client_token()
+        auth = self._get_client_token(
+            customer=customer
+        )
         if not auth:
             _LOG.warning('Client authorization token could be established.')
             return None
@@ -100,8 +109,11 @@ class LicenseManagerService:
 
         return getattr(response, STATUS_CODE_ATTR, None)
 
-    def activate_tenant(self, tenant: str, tlk: str) -> Optional[dict]:
-        auth = self._get_client_token()
+    def activate_tenant(self, customer: str, tenant: str,
+                        tlk: str) -> Optional[dict]:
+        auth = self._get_client_token(
+            customer=customer
+        )
         if not auth:
             _LOG.warning('Client authorization token could be established.')
             return None
@@ -119,7 +131,7 @@ class LicenseManagerService:
         return response[0] if len(response) == 1 else {}
 
     def activate_customer(self, customer: str, tlk: str) -> Optional[dict]:
-        auth = self._get_client_token()
+        auth = self._get_client_token(customer=customer)
         if not auth:
             _LOG.warning('Client authorization token could be established.')
             return None
@@ -135,9 +147,10 @@ class LicenseManagerService:
         response = _json.get('items') or []
         return response[0] if len(response) == 1 else {}
 
-    def _get_client_token(self):
+    def _get_client_token(self, customer: str):
+        secret_name = self.get_ssm_auth_token_name(customer=customer)
         cached_auth = self.ssm_service.get_secret_value(
-            secret_name=SSM_LM_TOKEN_KEY) or {}
+            secret_name=secret_name) or {}
         cached_token = cached_auth.get(TOKEN_ATTR)
         cached_token_expiration = cached_auth.get(EXPIRATION_ATTR)
 
@@ -151,7 +164,8 @@ class LicenseManagerService:
         token = self._generate_client_token(
             expires=dict(
                 minutes=lifetime_minutes
-            )
+            ),
+            customer=customer
         )
         if not token:
             return
@@ -164,7 +178,7 @@ class LicenseManagerService:
             TOKEN_ATTR: token
         }
         self.ssm_service.create_secret_value(
-            secret_name=SSM_LM_TOKEN_KEY,
+            secret_name=secret_name,
             secret_value=secret_data
         )
 
@@ -173,7 +187,7 @@ class LicenseManagerService:
         now = int(datetime.utcnow().timestamp())
         return now >= expiration
 
-    def _generate_client_token(self, expires: dict):
+    def _generate_client_token(self, expires: dict, customer: str):
         """
         Delegated to derive a rightsizer-service-token, encoding any given
         payload key-value pairs into the claims.
@@ -190,6 +204,7 @@ class LicenseManagerService:
         t_head = f'\'{token_type}\''
         encoder = self.token_service.derive_encoder(
             token_type=CLIENT_TOKEN_ATTR,
+            customer=customer
         )
 
         if not encoder:
@@ -222,3 +237,8 @@ class LicenseManagerService:
     @staticmethod
     def derive_client_private_key_id(kid: str):
         return f'cs_lm_client_{kid}_prk'
+
+    @staticmethod
+    def get_ssm_auth_token_name(customer: str):
+        customer = re.sub(r"[\s-]", '_', customer.lower())
+        return SSM_LM_TOKEN_KEY.format(customer=customer)

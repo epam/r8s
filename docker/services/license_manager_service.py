@@ -1,5 +1,6 @@
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
+import re
 
 from commons.constants import RESPONSE_OK_CODE, \
     ITEMS_PARAM, MESSAGE_PARAM, CLIENT_TOKEN_ATTR, \
@@ -16,7 +17,7 @@ _LOG = get_logger(__name__)
 
 GENERIC_JOB_LICENSING_ISSUE = 'Job:\'{id}\' could not be granted by the ' \
                               'License Manager Service.'
-SSM_LM_TOKEN_KEY = 'r8s_lm_auth_token'
+SSM_LM_TOKEN_KEY = 'r8s_lm_auth_token_{customer}'
 
 
 class BalanceExhaustion(Exception):
@@ -106,11 +107,12 @@ class LicenseManagerService:
         self.ssm_service = ssm_service
 
     def update_job_in_license_manager(
-            self, job_id: str, created_at: str = None, started_at: str = None,
-            stopped_at: str = None, status: str = None
+            self, job_id: str, customer: str, created_at: str = None,
+            started_at: str = None, stopped_at: str = None, status: str = None
     ):
-
-        auth = self._get_client_token()
+        auth = self._get_client_token(
+            customer=customer
+        )
         if not auth:
             _LOG.warning('Client authorization token could be established.')
             return None
@@ -143,7 +145,9 @@ class LicenseManagerService:
         :raises: BalanceExhaustion, given the job-balance has been exhausted
         :return: Optional[Dict]
         """
-        auth = self._get_client_token()
+        auth = self._get_client_token(
+            customer=customer
+        )
         if not auth:
             _LOG.warning('Client authorization token could be established.')
             return None
@@ -174,9 +178,10 @@ class LicenseManagerService:
             elif response.status_code == RESPONSE_FORBIDDEN_CODE:
                 raise BalanceExhaustion(message)
 
-    def _get_client_token(self):
+    def _get_client_token(self, customer: str):
+        secret_name = self.get_ssm_auth_token_name(customer=customer)
         cached_auth = self.ssm_service.get_secret_value(
-            secret_name=SSM_LM_TOKEN_KEY) or {}
+            secret_name=secret_name) or {}
         cached_token = cached_auth.get(TOKEN_ATTR)
         cached_token_expiration = cached_auth.get(EXPIRATION_ATTR)
 
@@ -190,7 +195,8 @@ class LicenseManagerService:
         token = self._generate_client_token(
             expires=dict(
                 minutes=lifetime_minutes
-            )
+            ),
+            customer=customer
         )
         if not token:
             return
@@ -203,7 +209,7 @@ class LicenseManagerService:
             TOKEN_ATTR: token
         }
         self.ssm_service.create_secret_value(
-            secret_name=SSM_LM_TOKEN_KEY,
+            secret_name=secret_name,
             secret_value=secret_data
         )
 
@@ -212,7 +218,7 @@ class LicenseManagerService:
         now = int(datetime.utcnow().timestamp())
         return now >= expiration
 
-    def _generate_client_token(self, expires: dict):
+    def _generate_client_token(self, expires: dict, customer: str):
         """
         Delegated to derive a rightsizer-service-token, encoding any given
         payload key-value pairs into the claims.
@@ -228,7 +234,8 @@ class LicenseManagerService:
 
         t_head = f'\'{token_type}\''
         encoder = self.token_service.derive_encoder(
-            token_type=CLIENT_TOKEN_ATTR
+            token_type=CLIENT_TOKEN_ATTR,
+            customer=customer
         )
 
         if not encoder:
@@ -265,3 +272,8 @@ class LicenseManagerService:
     @staticmethod
     def _default_instance(value, _type: type, *args, **kwargs):
         return value if isinstance(value, _type) else _type(*args, **kwargs)
+
+    @staticmethod
+    def get_ssm_auth_token_name(customer: str):
+        customer = re.sub(r"[\s-]", '_', customer.lower())
+        return SSM_LM_TOKEN_KEY.format(customer=customer)

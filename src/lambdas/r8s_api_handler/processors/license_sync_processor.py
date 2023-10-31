@@ -63,7 +63,9 @@ class LicenseSyncProcessor(AbstractCommandProcessor):
     def _execute_license_sync(self, license_obj: License):
         _LOG.info(f'Syncing license \'{license_obj.license_key}\'')
         response = self.license_manager_service.synchronize_license(
-            license_key=license_obj.license_key)
+            license_key=license_obj.license_key,
+            customer=license_obj.customers[0]
+        )
         if not response.status_code == 200:
             return
 

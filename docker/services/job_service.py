@@ -69,7 +69,7 @@ class JobService:
         return scan_tenants
 
     @profiler(execution_step=f'lm_update_job_status')
-    def set_licensed_job_status(self, job: Job, tenant: str,
+    def set_licensed_job_status(self, job: Job, tenant: str, customer: str,
                                 status: JobTenantStatusEnum):
         allowed_statuses = (JobTenantStatusEnum.TENANT_FAILED_STATUS,
                             JobTenantStatusEnum.TENANT_SUCCEEDED_STATUS)
@@ -85,5 +85,6 @@ class JobService:
             created_at=utc_iso(job.created_at),
             started_at=utc_iso(job.started_at),
             stopped_at=utc_iso(),
-            status=status.value
+            status=status.value,
+            customer=customer
         )
