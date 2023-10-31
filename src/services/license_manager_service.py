@@ -139,7 +139,7 @@ class LicenseManagerService:
         cached_auth = self.ssm_service.get_secret_value(
             secret_name=SSM_LM_TOKEN_KEY) or {}
         cached_token = cached_auth.get(TOKEN_ATTR)
-        cached_token_expiration = cached_token.get(EXPIRATION_ATTR)
+        cached_token_expiration = cached_auth.get(EXPIRATION_ATTR)
 
         if (cached_token and cached_token_expiration and
                 not self.is_expired(expiration=cached_token_expiration)):
