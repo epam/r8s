@@ -212,6 +212,7 @@ class LicenseManagerService:
             secret_name=secret_name,
             secret_value=secret_data
         )
+        return token
 
     @staticmethod
     def is_expired(expiration: int):
