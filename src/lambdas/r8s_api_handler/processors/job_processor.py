@@ -14,7 +14,7 @@ from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
 from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import CLOUD_AWS, TENANTS_ATTR, \
     ENV_TENANT_CUSTOMER_INDEX, FORBIDDEN_ATTR, ALLOWED_ATTR, \
-    REMAINING_BALANCE_ATTR
+    REMAINING_BALANCE_ATTR, ENV_LM_TOKEN_LIFETIME_MINUTES
 from commons.constants import POST_METHOD, GET_METHOD, DELETE_METHOD, ID_ATTR, \
     NAME_ATTR, USER_ID_ATTR, PARENT_ID_ATTR, SCAN_FROM_DATE_ATTR, \
     SCAN_TO_DATE_ATTR, TENANT_LICENSE_KEY_ATTR, PARENT_SCOPE_SPECIFIC_TENANT
@@ -173,7 +173,9 @@ class JobProcessor(AbstractCommandProcessor):
             "log_level": os.environ.get('log_level', 'ERROR'),
             "parent_id": parent.parent_id,
             "FORCE_RESCAN": os.environ.get('force_rescan', "False"),
-            "DEBUG": str(self.environment_service.is_debug())
+            "DEBUG": str(self.environment_service.is_debug()),
+            ENV_LM_TOKEN_LIFETIME_MINUTES: str(
+                self.environment_service.lm_token_lifetime_minutes())
         }
         meta_postponed_key = self.environment_service.meta_postponed_key()
         if meta_postponed_key:
