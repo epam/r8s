@@ -83,7 +83,7 @@ class RecommendationService:
 
         _LOG.debug(f'Loading past recommendations')
         past_recommendations = list(
-            self.recommendation_history_service.get_recent_recommendation(
+            self.recommendation_history_service.get_instance_recommendations(
                 instance_id=instance_id,
                 limit=2  # can't be more than 2 recommendations in a job
             ))
@@ -353,6 +353,8 @@ class RecommendationService:
         if not latest_r.last_metric_capture_date:
             return True
         last_capture_date = latest_r.last_metric_capture_date.date()
+        _LOG.debug(f'Last captured date: {last_capture_date}. '
+                   f'Current: {df.index.max().date()}')
         return df.index.max().date() != last_capture_date
 
     def dump_reports(self, reports_dir, customer, cloud, tenant, region, stats,

@@ -227,7 +227,7 @@ class MetricsService:
                 creation_dt = datetime.datetime.utcfromtimestamp(
                     creation_date_timestamp // 1000)
                 creation_dt = creation_dt.astimezone(
-                    pytz.timezone(df.index.max().tz.zone))
+                    pytz.timezone(str(df.index.max().tz)))
                 return df[(df.index >= creation_dt)]
             except Exception as e:
                 _LOG.debug(f'Failed to discard metrics before timestamp. '

@@ -135,6 +135,17 @@ class RecommendationHistoryService:
         return result
 
     @staticmethod
+    def get_instance_recommendations(instance_id, limit=None):
+        query = {
+            'instance_id': instance_id
+        }
+
+        result = RecommendationHistory.objects(**query).order_by('-added_at')
+        if limit:
+            result = result.limit(limit)
+        return result
+
+    @staticmethod
     def get_recommendation_with_feedback(instance_id):
         return list(RecommendationHistory.objects(
             instance_id=instance_id,
