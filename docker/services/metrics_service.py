@@ -184,16 +184,19 @@ class MetricsService:
                 instance_meta=instance_meta
             )
             df_duration_days = (df.index.max() - df.index.min()).days
+            min_allowed_days = (algorithm.recommendation_settings.
+                                min_allowed_days)
             if np.isnan(df_duration_days) or \
-                    df_duration_days < \
-                    algorithm.recommendation_settings.min_allowed_days:
+                    df_duration_days < min_allowed_days:
                 _LOG.error(
                     f'Insufficient data. Analysed period must be larger '
-                    f'than a full day with 5-min frequency of records.')
+                    f'than a full {min_allowed_days} day(s) with 5-min '
+                    f'frequency of records.')
                 raise ExecutorException(
                     step_name=JOB_STEP_INITIALIZE_ALGORITHM,
-                    reason=f'Insufficient data. Analysed period must be larger '
-                           f'than a full day with 5-min frequency of records.'
+                    reason=f'Insufficient data. Analysed period must '
+                           f'be larger than a full {min_allowed_days} '
+                           f'day(s) with 5-min frequency of records.'
                 )
             df = self.get_last_period(df,
                                       days=recommendation_settings.max_days)

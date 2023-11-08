@@ -2,6 +2,7 @@ import os
 from datetime import datetime, timedelta, date
 from glob import glob
 import concurrent
+import itertools
 
 from bson import ObjectId
 from bson.errors import InvalidId
@@ -74,7 +75,7 @@ class StorageService:
     @profiler(execution_step=f's3_download_tenant_metrics')
     def download_metrics(self, data_source: Storage, output_path: str,
                          scan_customer, scan_clouds, scan_tenants,
-                         scan_from_date, scan_to_date, max_days):
+                         scan_from_date, scan_to_date, max_days, min_days):
         type_downloader_mapping = {
             S3Storage: self._download_metrics_s3
         }
@@ -88,12 +89,12 @@ class StorageService:
             )
         return downloader(data_source, output_path, scan_customer,
                           scan_clouds, scan_tenants, scan_from_date,
-                          scan_to_date, max_days)
+                          scan_to_date, max_days, min_days)
 
     def _download_metrics_s3(self, data_source: S3Storage, output_path,
                              scan_customer, scan_clouds, scan_tenants,
                              scan_from_date=None, scan_to_date=None,
-                             max_days=None):
+                             max_days=None, min_days=None):
         access = data_source.access
         prefix = access.prefix
         bucket_name = access.bucket_name
@@ -132,6 +133,15 @@ class StorageService:
         if filter_only_dates:
             objects = [obj for obj in objects if obj['Key'].split('/')[-2]
                        in filter_only_dates]
+
+        if min_days:
+            _LOG.debug(f'Filtering objects by the amount of '
+                       f'daily metric files. '
+                       f'Minimum days required: {min_days}')
+            objects = self.filter_keys_by_occurrence_count(
+                objects=objects,
+                min_count=min_days
+            )
         _LOG.debug(f'{len(objects)} metric/meta files found, downloading')
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
             futures = []
@@ -267,3 +277,24 @@ class StorageService:
             object_name=s3_file_key,
             body=body
         )
+
+    @staticmethod
+    def filter_keys_by_occurrence_count(objects: list, min_count: int):
+        instance_metrics_map = {}
+        meta_keys = []
+        for object_ in objects:
+            filename = object_['Key'].split('/')[-1]
+            if filename == META_FILE_NAME:
+                meta_keys.append(object_)
+                continue
+
+            if filename not in instance_metrics_map:
+                instance_metrics_map[filename] = [object_]
+            else:
+                instance_metrics_map[filename].append(object_)
+        instance_metrics_map = {instance: objects_ for instance, objects_
+                                in instance_metrics_map.items()
+                                if len(objects_) >= min_count}
+        filtered_metric_objects = list(itertools.chain.from_iterable(
+            instance_metrics_map.values()))
+        return filtered_metric_objects + meta_keys

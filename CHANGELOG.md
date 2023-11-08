@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.19.5] - 2023-11-08
+* Skip metrics download from s3 for instances with less daily-metric files than 
+  `algorithm.recommendation_settings.min_allowed_days`
+
 ## [2.19.4] - 2023-11-06
 * Fix timezone conversion while discarding metrics before instance creation
 * Fix past instance recommendation querying (previously, only recommendation from current week were extracted)
