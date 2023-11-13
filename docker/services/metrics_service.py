@@ -31,6 +31,10 @@ META_KEY_RESOURCE_ID = 'resourceId'
 META_KEY_CREATE_DATE_TIMESTAMP = 'createDateTimestamp'
 MINIMUM_DAYS_TO_CUT_INCOMPLETE_EDGE_DAYS = 14
 
+INSUFFICIENT_DATA_ERROR_TEMPLATE = """Insufficient data. Analysed period 
+must be larger than a full {days} day(s) with 5-min frequency 
+of records."""
+
 
 class MetricsService:
 
@@ -188,15 +192,13 @@ class MetricsService:
                                 min_allowed_days)
             if np.isnan(df_duration_days) or \
                     df_duration_days < min_allowed_days:
-                _LOG.error(
-                    f'Insufficient data. Analysed period must be larger '
-                    f'than a full {min_allowed_days} day(s) with 5-min '
-                    f'frequency of records.')
+                message = INSUFFICIENT_DATA_ERROR_TEMPLATE.format(
+                    days=min_allowed_days
+                )
+                _LOG.error(message)
                 raise ExecutorException(
                     step_name=JOB_STEP_INITIALIZE_ALGORITHM,
-                    reason=f'Insufficient data. Analysed period must '
-                           f'be larger than a full {min_allowed_days} '
-                           f'day(s) with 5-min frequency of records.'
+                    reason=message
                 )
             df = self.get_last_period(df,
                                       days=recommendation_settings.max_days)
