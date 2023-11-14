@@ -844,7 +844,7 @@ class AdapterClient:
         if license_key:
             request[PARAM_LICENSE_KEY] = license_key
         return self.__make_request(
-            resource=API_LICENSE, method=HTTP_GET, payload={}
+            resource=API_LICENSE, method=HTTP_GET, payload=request
         )
 
     def license_delete(self, license_key):
@@ -852,7 +852,7 @@ class AdapterClient:
             PARAM_LICENSE_KEY: license_key
         }
         return self.__make_request(
-            resource=API_LICENSE, method=HTTP_DELETE, payload={}
+            resource=API_LICENSE, method=HTTP_DELETE, payload=request
         )
 
     def license_sync_post(self, license_key=None):
