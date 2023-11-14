@@ -860,7 +860,7 @@ class AdapterClient:
         if license_key:
             request[PARAM_LICENSE_KEY] = license_key
         return self.__make_request(
-            resource=API_LICENSE_SYNC, method=HTTP_POST, payload={}
+            resource=API_LICENSE_SYNC, method=HTTP_POST, payload=request
         )
 
     def lm_config_setting_get(self):
