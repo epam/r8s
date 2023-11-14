@@ -3,7 +3,8 @@ import os.path
 from modular_sdk.models.parent import Parent
 
 from commons.constants import (JOB_STEP_INITIALIZATION,
-                               TENANT_LICENSE_KEY_ATTR, PROFILE_LOG_PATH)
+                               TENANT_LICENSE_KEY_ATTR, PROFILE_LOG_PATH,
+                               JOB_STEP_INITIALIZE_ALGORITHM)
 from commons.exception import ExecutorException, LicenseForbiddenException
 from commons.log_helper import get_logger
 from commons.profiler import profiler
@@ -18,10 +19,13 @@ from services.environment_service import EnvironmentService
 from services.job_service import JobService
 from services.license_manager_service import LicenseManagerService
 from services.license_service import LicenseService
-from services.metrics_service import MetricsService
+from services.metrics_service import MetricsService, \
+    INSUFFICIENT_DATA_ERROR_TEMPLATE
 from services.mocked_data_service import MockedDataService
 from services.os_service import OSService
 from services.recomendation_service import RecommendationService
+from services.recommendation_history_service import \
+    RecommendationHistoryService
 from services.reformat_service import ReformatService
 from services.resize.resize_service import ResizeService
 from services.rightsizer_application_service import \
@@ -50,6 +54,8 @@ application_service: RightSizerApplicationService = SERVICE_PROVIDER. \
 license_service: LicenseService = SERVICE_PROVIDER.license_service()
 license_manager_service: LicenseManagerService = SERVICE_PROVIDER. \
     license_manager_service()
+recommendation_history_service: RecommendationHistoryService = (
+    SERVICE_PROVIDER.recommendation_history_service())
 
 _LOG = get_logger('r8s-executor')
 
@@ -112,8 +118,18 @@ def process_tenant_instances(metrics_dir, reports_dir,
     _LOG.info(f'Downloading metrics from storage \'{input_storage.name}\', '
               f'for tenant: {tenant}')
 
+    force_rescan = environment_service.force_rescan()
+    if not force_rescan:
+        _LOG.debug(f'Querying for past tenant {tenant} recommendations.')
+        recommendations_map = (recommendation_history_service.
+                               get_tenant_recommendation(tenant=tenant))
+    else:
+        _LOG.debug(f'Force rescan enabled, querying for past tenant '
+                   f'recommendations is omitted')
+        recommendations_map = {}
+
     cloud = licensed_parent.meta.cloud.lower()
-    storage_service.download_metrics(
+    insufficient_map, unchanged_map = storage_service.download_metrics(
         data_source=input_storage,
         output_path=metrics_dir,
         scan_customer=licensed_parent.customer_id,
@@ -122,7 +138,9 @@ def process_tenant_instances(metrics_dir, reports_dir,
         scan_from_date=SCAN_FROM_DATE,
         scan_to_date=SCAN_TO_DATE,
         max_days=algorithm.recommendation_settings.max_days,
-        min_days=algorithm.recommendation_settings.min_allowed_days)
+        min_days=algorithm.recommendation_settings.min_allowed_days,
+        recommendations_map=recommendations_map,
+        force_rescan=force_rescan)
 
     tenant_folder_path = os.path.join(
         metrics_dir,
@@ -181,6 +199,33 @@ def process_tenant_instances(metrics_dir, reports_dir,
         licensed_job=licensed_job_data
     )
 
+    if insufficient_map:
+        _LOG.info(f'Dumping {len(insufficient_map.keys())} instances '
+                  f'with insufficient metrics: '
+                  f'{list(insufficient_map.keys())}')
+        for instance_id, metric_s3_keys in insufficient_map.items():
+            _LOG.debug(f'Dumping instance {instance_id} result')
+            recommendation_service.dump_error_report(
+                reports_dir=reports_dir,
+                metric_file_path=metric_s3_keys[0],
+                exception=ExecutorException(
+                    step_name=JOB_STEP_INITIALIZE_ALGORITHM,
+                    reason=INSUFFICIENT_DATA_ERROR_TEMPLATE.format(
+                        days=algorithm.recommendation_settings.min_allowed_days
+                    )
+                )
+            )
+    if unchanged_map:
+        _LOG.info(f'Dumping instances with unchanged metrics from last '
+                  f'scan: {list(unchanged_map.keys())}')
+        for instance_id, past_recommendations in unchanged_map.items():
+            _LOG.debug(f'Dumping instance {instance_id} result')
+            recommendation_service.dump_reports_from_recommendations(
+                reports_dir=reports_dir,
+                cloud=cloud.lower(),
+                recommendations=past_recommendations
+            )
+
     _LOG.info(f'Tenant {tenant} metric file paths to '
               f'process: \'{metric_file_paths}\'')
     for index, metric_file_path in enumerate(metric_file_paths, start=1):
@@ -208,7 +253,8 @@ def process_tenant_instances(metrics_dir, reports_dir,
     job_service.set_licensed_job_status(
         job=job,
         tenant=tenant,
-        status=JobTenantStatusEnum.TENANT_SUCCEEDED_STATUS
+        status=JobTenantStatusEnum.TENANT_SUCCEEDED_STATUS,
+        customer=customer
     )
 
 

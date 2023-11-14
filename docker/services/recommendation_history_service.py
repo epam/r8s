@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 import datetime
 
 from commons.constants import ACTION_EMPTY, ACTION_ERROR, ACTION_SCHEDULE, \
@@ -134,6 +134,46 @@ class RecommendationHistoryService:
             result = result.limit(limit)
         return result
 
+    def get_tenant_recommendation(
+            self, tenant: str, last_days=60,
+            filter_only_last_job=True) -> \
+            Dict[str, List[RecommendationHistory]]:
+        threshold_date = self._get_past_date(n_days=last_days)
+        query = {
+            'added_at__gt': threshold_date,
+            'tenant': tenant
+        }
+        items = RecommendationHistory.objects(**query).order_by('-added_at')
+        result = {}
+
+        for item in items:
+            instance_id = item.instance_id
+            if item.instance_id not in result:
+                result[instance_id] = [item]
+            elif (not filter_only_last_job or
+                  result[instance_id][0].job_id == item.job_id):
+                result[instance_id].append(item)
+
+        return result
+
+    def get_instance_last_captured_date_map(self, tenant, last_days=40):
+        threshold_date = self._get_past_date(n_days=last_days)
+        query = {
+            'added_at__gt': threshold_date,
+            'tenant': tenant
+        }
+        items = RecommendationHistory.objects(**query).order_by('-added_at')
+
+        result = {}
+        for item in items:
+            instance_id = item.instance_id
+            last_captured_date = item.last_metric_capture_date
+
+            if (instance_id not in result or
+                    result[instance_id] < last_captured_date):
+                result[instance_id] = last_captured_date
+        return result
+
     @staticmethod
     def get_instance_recommendations(instance_id, limit=None):
         query = {
@@ -211,3 +251,9 @@ class RecommendationHistoryService:
         now = datetime.datetime.now(datetime.timezone.utc)
         now = now.replace(hour=0, minute=0, second=0, microsecond=0)
         return now - datetime.timedelta(days=now.weekday())
+
+    @staticmethod
+    def _get_past_date(n_days: int):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        target = now - datetime.timedelta(days=n_days)
+        return target.date()

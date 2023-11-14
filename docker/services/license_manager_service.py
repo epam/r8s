@@ -7,6 +7,7 @@ from commons.constants import RESPONSE_OK_CODE, \
     KID_ATTR, ALG_ATTR, RESPONSE_FORBIDDEN_CODE, \
     RESPONSE_RESOURCE_NOT_FOUND_CODE, TOKEN_ATTR, EXPIRATION_ATTR
 from commons.log_helper import get_logger
+from models.shape_price import DEFAULT_CUSTOMER
 from services.environment_service import EnvironmentService
 from services.ssm_service import SSMService
 from services.clients.license_manager import LicenseManagerClient
@@ -107,7 +108,7 @@ class LicenseManagerService:
         self.ssm_service = ssm_service
 
     def update_job_in_license_manager(
-            self, job_id: str, customer: str, created_at: str = None,
+            self, job_id: str, customer: str = None, created_at: str = None,
             started_at: str = None, stopped_at: str = None, status: str = None
     ):
         auth = self._get_client_token(
@@ -178,7 +179,7 @@ class LicenseManagerService:
             elif response.status_code == RESPONSE_FORBIDDEN_CODE:
                 raise BalanceExhaustion(message)
 
-    def _get_client_token(self, customer: str):
+    def _get_client_token(self, customer: str = None):
         secret_name = self.get_ssm_auth_token_name(customer=customer)
         cached_auth = self.ssm_service.get_secret_value(
             secret_name=secret_name) or {}
@@ -275,6 +276,8 @@ class LicenseManagerService:
         return value if isinstance(value, _type) else _type(*args, **kwargs)
 
     @staticmethod
-    def get_ssm_auth_token_name(customer: str):
+    def get_ssm_auth_token_name(customer: str = None):
+        if not customer:
+            customer = DEFAULT_CUSTOMER
         customer = re.sub(r"[\s-]", '_', customer.lower())
         return SSM_LM_TOKEN_KEY.format(customer=customer)
