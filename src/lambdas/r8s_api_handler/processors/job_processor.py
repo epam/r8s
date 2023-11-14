@@ -143,6 +143,14 @@ class JobProcessor(AbstractCommandProcessor):
                 content=f'Parent of {RIGHTSIZER_LICENSES_PARENT_TYPE} '
                         f'type required.'
             )
+        if parent.scope == ParentScope.DISABLED:
+            _LOG.error(f'Submitting jobs for parent with DISABLED scope '
+                       f'is not allowed')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'Submitting jobs for parent with DISABLED scope '
+                        f'is not allowed'
+            )
 
         application_id = parent.application_id
         application = self.application_service.get_application_by_id(
@@ -216,8 +224,8 @@ class JobProcessor(AbstractCommandProcessor):
             scan_tenants = [tenant.name]
             envs['SCAN_TENANTS'] = tenant.name
         else:
-            # todo temporary
-            # to validate job submit permission on any single tenant
+            _LOG.debug(f'Extracting tenants activated for parent '
+                       f'{parent.parent_id}')
             scan_tenants = list(self.tenant_service.i_get_tenant_by_customer(
                 customer_id=parent.customer_id,
                 active=True,
@@ -226,6 +234,12 @@ class JobProcessor(AbstractCommandProcessor):
                 rate_limit=rate_limit
             ))
             scan_tenants = [t.name for t in scan_tenants]
+            _LOG.debug(f'Extracted tenants: {scan_tenants}')
+            scan_tenants = self.parent_service.filter_directly_linked_tenants(
+                tenant_names=scan_tenants,
+                parent=parent
+            )
+            _LOG.debug(f'Tenants to scan: {scan_tenants}')
 
         if not scan_tenants:
             _LOG.error(f'No tenants to scan found.')

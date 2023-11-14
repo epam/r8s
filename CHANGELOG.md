@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.19.7] - 2023-11-14
+* Exclude directly linked tenants (SPECIFIC/DISABLED) from ALL-scoped parent jobs
+
 ## [2.19.6] - 2023-11-13
 * Optimisation improvements:
   - instances with unchanged metrics (since last scan) won't be downloaded
