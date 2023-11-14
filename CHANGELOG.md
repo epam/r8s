@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.19.7] - 2023-11-14
 * Exclude directly linked tenants (SPECIFIC/DISABLED) from ALL-scoped parent jobs
+* License sync: fix set latest_sync date
+* Remove obsolete permissions from admin_policy.json
 
 ## [2.19.6] - 2023-11-13
 * Optimisation improvements:
