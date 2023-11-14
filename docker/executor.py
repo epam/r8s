@@ -253,7 +253,8 @@ def process_tenant_instances(metrics_dir, reports_dir,
     job_service.set_licensed_job_status(
         job=job,
         tenant=tenant,
-        status=JobTenantStatusEnum.TENANT_SUCCEEDED_STATUS
+        status=JobTenantStatusEnum.TENANT_SUCCEEDED_STATUS,
+        customer=customer
     )
 
 

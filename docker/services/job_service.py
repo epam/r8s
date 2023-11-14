@@ -69,8 +69,9 @@ class JobService:
         return scan_tenants
 
     @profiler(execution_step=f'lm_update_job_status')
-    def set_licensed_job_status(self, job: Job, tenant: str, customer: str,
-                                status: JobTenantStatusEnum):
+    def set_licensed_job_status(self, job: Job, tenant: str,
+                                status: JobTenantStatusEnum,
+                                customer: str = None):
         allowed_statuses = (JobTenantStatusEnum.TENANT_FAILED_STATUS,
                             JobTenantStatusEnum.TENANT_SUCCEEDED_STATUS)
         if tenant not in job.tenant_status_map or \
