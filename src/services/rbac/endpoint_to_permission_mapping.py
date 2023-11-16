@@ -69,6 +69,12 @@ ENDPOINT_PERMISSION_MAPPING = {
         PATCH_METHOD: 'r8s:parent:update_parent',
         DELETE_METHOD: 'r8s:parent:remove_parent',
     },
+    '/parents/licenses/': {
+        GET_METHOD: 'r8s:parent:describe_parent',
+        POST_METHOD: 'r8s:parent:create_parent',
+        PATCH_METHOD: 'r8s:parent:update_parent',
+        DELETE_METHOD: 'r8s:parent:remove_parent',
+    },
     '/parents/shape-rules/': {
         GET_METHOD: 'r8s:parent:describe_shape_rule',
         POST_METHOD: 'r8s:parent:create_shape_rule',

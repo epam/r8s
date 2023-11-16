@@ -485,7 +485,7 @@ class JobProcessor(AbstractCommandProcessor):
                              f'customer \'{parent.customer_id}\'')
                 invalid_tenants.append(tenant_name)
                 continue
-            if tenant_obj.cloud != parent.cloud:
+            if tenant_obj.cloud != parent_meta.cloud:
                 _LOG.warning(f'Tenant cloud \'{tenant_obj.cloud}\' '
                              f'does not match with parent '
                              f'cloud {parent_meta.cloud}.')

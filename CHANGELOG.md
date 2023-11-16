@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.19.8] - 2023-11-16
+* fix tenant cloud validation on job submit
+* add missing permissions for /parent/licenses endpoint
+
 ## [2.19.7] - 2023-11-14
 * Exclude directly linked tenants (SPECIFIC/DISABLED) from ALL-scoped parent jobs
 * License sync: fix set latest_sync date
