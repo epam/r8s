@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.19.8] - 2023-11-16
 * fix tenant cloud validation on job submit
 * add missing permissions for /parent/licenses endpoint
+* fix duplicated recommendations for insufficient/unchanged instances
 
 ## [2.19.7] - 2023-11-14
 * Exclude directly linked tenants (SPECIFIC/DISABLED) from ALL-scoped parent jobs

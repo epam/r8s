@@ -168,6 +168,11 @@ class StorageService:
                 s3_keys=s3_keys,
                 recommendations_map=recommendations_map
             )
+        if insufficient_map and unchanged_map:
+            unchanged_map = {instance_id: value for instance_id, value
+                             in unchanged_map.items()
+                             if instance_id not in insufficient_map}
+
         _LOG.debug(f'{len(s3_keys)} metric, {len(meta_keys)} meta '
                    f'files found, downloading')
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
