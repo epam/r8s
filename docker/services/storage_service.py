@@ -342,7 +342,7 @@ class StorageService:
                 insufficient_metrics_map[instance_id] = keys
 
         return list(itertools.chain.from_iterable(
-            instance_metrics_map.values())), insufficient_metrics_map
+            valid_instances_map.values())), insufficient_metrics_map
 
     def filter_keys_without_updates(
             self, s3_keys: List[str],
