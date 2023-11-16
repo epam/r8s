@@ -73,6 +73,7 @@
             "s3:ListBucket",
             "s3:GetObject",
             "ssm:GetParameter",
+            "ssm:PutParameter",
             "ssm:DeleteParameter",
             "batch:DescribeJobs",
             "dynamodb:BatchGetItem",
