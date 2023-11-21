@@ -90,11 +90,14 @@ class RecommendationHistory(BaseModel):
 
     def get_dto(self):
         recommendation_dto = super(RecommendationHistory, self).get_dto()
-        added_at = recommendation_dto.get('added_at')
-        if isinstance(added_at, datetime):
-            recommendation_dto['added_at'] = added_at.isoformat()
 
-        applied_at = recommendation_dto.get('feedback_dt')
-        if isinstance(applied_at, datetime):
-            recommendation_dto['feedback_dt'] = applied_at.isoformat()
+        dt_attributes = ('added_at', 'feedback_dt', 'last_metric_capture_date')
+
+        for attribute_name in dt_attributes:
+            attribute_value = recommendation_dto.get(attribute_name)
+
+            if isinstance(attribute_value, datetime):
+                recommendation_dto[attribute_name] = (
+                    attribute_value.isoformat())
+
         return recommendation_dto
