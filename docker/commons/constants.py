@@ -208,3 +208,8 @@ ITEMS_PARAM = 'items'
 MESSAGE_PARAM = 'message'
 
 PROFILE_LOG_PATH = f'/tmp/execution_log.txt'
+
+ID_TOKEN_ATTR = 'id_token'
+REFRESH_TOKEN_ATTR = 'refresh_token'
+PASSWORD_ATTR = 'password'
+AUTHORIZATION_PARAM = 'authorization'

@@ -7,6 +7,7 @@ from modular_sdk.services.impl.maestro_credentials_service import AccessMeta
 from requests import request, Response
 from requests.exceptions import RequestException
 
+from commons import secure_event
 from commons.constants import POST_METHOD, PATCH_METHOD, \
     STATUS_ATTR, TENANT_ATTR, AUTHORIZATION_PARAM, CUSTOMER_ATTR, \
     SERVICE_TYPE_ATTR, SERVICE_TYPE_RIGHTSIZER, ALGORITHMS_ATTR
@@ -136,7 +137,7 @@ class LicenseManagerClient:
         """
         _injectable_payload = cls._request_payload_injector(method, payload)
         try:
-            _input = f'data - {_injectable_payload}'
+            _input = f'data - {secure_event(_injectable_payload)}'
             if headers:
                 _input += f', headers: {headers}'
 
