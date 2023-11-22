@@ -13,6 +13,7 @@ PARAM_STOPPED_AT = 'stopped_at'
 PARAM_ACTIVE = 'active'
 PARAM_ACTION = 'action'
 PARAM_SCOPE = 'scope'
+PARAM_LIMIT = 'limit'
 
 PARAM_USERNAME = 'username'
 PARAM_PASSWORD = 'password'

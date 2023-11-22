@@ -72,6 +72,7 @@ OUTPUT_STORAGE_ATTR = 'output_storage'
 ADDED_AT_ATTR = 'added_at'
 RECOMMENDATION_TYPE_ATTR = 'recommendation_type'
 JOB_ID_ATTR = 'job_id'
+LIMIT_ATTR = 'limit'
 
 RULE_ACTION_ATTR = 'rule_action'
 CONDITION_ATTR = 'condition'

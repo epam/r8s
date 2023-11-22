@@ -14,7 +14,7 @@ from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
 from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import CLOUD_AWS, TENANTS_ATTR, \
     ENV_TENANT_CUSTOMER_INDEX, FORBIDDEN_ATTR, ALLOWED_ATTR, \
-    REMAINING_BALANCE_ATTR, ENV_LM_TOKEN_LIFETIME_MINUTES
+    REMAINING_BALANCE_ATTR, ENV_LM_TOKEN_LIFETIME_MINUTES, LIMIT_ATTR
 from commons.constants import POST_METHOD, GET_METHOD, DELETE_METHOD, ID_ATTR, \
     NAME_ATTR, USER_ID_ATTR, PARENT_ID_ATTR, SCAN_FROM_DATE_ATTR, \
     SCAN_TO_DATE_ATTR, TENANT_LICENSE_KEY_ATTR, PARENT_SCOPE_SPECIFIC_TENANT
@@ -90,11 +90,18 @@ class JobProcessor(AbstractCommandProcessor):
         applications = self.application_service.resolve_application(
             event=event
         )
+        limit = event.get(LIMIT_ATTR)
         if not applications:
             _LOG.error(f'No suitable application found to describe jobs.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
                 content=f'No suitable application found to describe jobs.'
+            )
+        if limit and not isinstance(limit, int):
+            _LOG.error(f'{LIMIT_ATTR} attribute must be a valid int')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'{LIMIT_ATTR} attribute must be a valid int'
             )
         if job_id:
             _LOG.debug(f'Describing job by id: \'{job_id}\'')
@@ -104,7 +111,7 @@ class JobProcessor(AbstractCommandProcessor):
             jobs = [self.job_service.get_by_name(name=job_name)]
         else:
             _LOG.debug(f'Describing all jobs')
-            jobs = self.job_service.list()
+            jobs = self.job_service.list(limit=limit)
 
         if not jobs or jobs and all([job is None for job in jobs]):
             _LOG.debug(f'No jobs found matching given query')

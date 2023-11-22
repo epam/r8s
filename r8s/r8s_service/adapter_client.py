@@ -414,12 +414,15 @@ class AdapterClient:
         return self.__make_request(resource=API_STORAGE_DATA, method=HTTP_GET,
                                    payload=request)
 
-    def job_get(self, job_id, job_name):
+    def job_get(self, job_id, job_name, limit):
         request = {}
         if job_id:
             request[PARAM_ID] = job_id
         elif job_name:
             request[PARAM_NAME] = job_name
+
+        if limit:
+            request[PARAM_LIMIT] = limit
         return self.__make_request(resource=API_JOB,
                                    method=HTTP_GET,
                                    payload=request)

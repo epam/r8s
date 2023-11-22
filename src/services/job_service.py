@@ -79,8 +79,8 @@ class JobService:
         return tenant_status_map
 
     @staticmethod
-    def list():
-        return list(Job.objects.all())
+    def list(limit: int = None):
+        return list(Job.objects.all().limit(limit))
 
     @staticmethod
     def get_by_id(object_id):
