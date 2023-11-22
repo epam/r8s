@@ -75,11 +75,6 @@ ENDPOINT_PERMISSION_MAPPING = {
         PATCH_METHOD: 'r8s:parent:update_parent',
         DELETE_METHOD: 'r8s:parent:remove_parent',
     },
-    '/parents/tenant-link/': {
-        GET_METHOD: 'r8s:parent:describe_tenant_link',
-        POST_METHOD: 'r8s:parent:link_tenant',
-        DELETE_METHOD: 'r8s:parent:unlink_tenant',
-    },
     '/parents/shape-rules/': {
         GET_METHOD: 'r8s:parent:describe_shape_rule',
         POST_METHOD: 'r8s:parent:create_shape_rule',
@@ -111,6 +106,9 @@ ENDPOINT_PERMISSION_MAPPING = {
     '/licenses/': {
         GET_METHOD: 'r8s:license:describe_license',
         DELETE_METHOD: 'r8s:license:delete_license',
+    },
+    '/licenses/sync/': {
+        POST_METHOD: 'r8s:license:sync_license'
     },
     '/settings/license-manager/config': {
         GET_METHOD: 'r8s:setting:describe_lm_config',

@@ -167,6 +167,7 @@ ENV_VAULT_HOST = 'VAULT_URL'
 ENV_VAULT_PORT = 'VAULT_SERVICE_SERVICE_PORT'
 
 ENV_FORCE_RESCAN = 'FORCE_RESCAN'
+ENV_LM_TOKEN_LIFETIME_MINUTES = 'lm_token_lifetime_minutes'
 JOB_ID = 'job_id'
 
 # License Manager
@@ -194,6 +195,7 @@ B64ENCODED_ATTR = 'b64_encoded'
 SERVICE_TYPE_ATTR = 'service_type'
 SERVICE_TYPE_RIGHTSIZER = 'RIGHTSIZER'
 ALGORITHMS_ATTR = 'algorithms'
+TOKEN_ATTR = 'token'
 
 RESPONSE_BAD_REQUEST_CODE = 400
 RESPONSE_UNAUTHORIZED = 401
@@ -206,3 +208,8 @@ ITEMS_PARAM = 'items'
 MESSAGE_PARAM = 'message'
 
 PROFILE_LOG_PATH = f'/tmp/execution_log.txt'
+
+ID_TOKEN_ATTR = 'id_token'
+REFRESH_TOKEN_ATTR = 'refresh_token'
+PASSWORD_ATTR = 'password'
+AUTHORIZATION_PARAM = 'authorization'

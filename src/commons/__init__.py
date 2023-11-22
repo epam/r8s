@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime
 
-from commons.constants import PASSWORD_ATTR, ID_TOKEN_ATTR, REFRESH_TOKEN_ATTR
+from commons.constants import (PASSWORD_ATTR, ID_TOKEN_ATTR,
+                               REFRESH_TOKEN_ATTR, AUTHORIZATION_PARAM)
 from commons.exception import ApplicationException
 
 RESPONSE_BAD_REQUEST_CODE = 400
@@ -74,8 +75,9 @@ def validate_params(event, required_params_list):
                              'are missing: {0}'.format(missing_params_list))
 
 
-def secure_event(event: dict, secured_keys=(PASSWORD_ATTR, ID_TOKEN_ATTR,
-                                            REFRESH_TOKEN_ATTR)):
+def secure_event(event: dict,
+                 secured_keys=(PASSWORD_ATTR, ID_TOKEN_ATTR,
+                               REFRESH_TOKEN_ATTR, AUTHORIZATION_PARAM)):
     result_event = {}
     if not isinstance(event, dict):
         return event

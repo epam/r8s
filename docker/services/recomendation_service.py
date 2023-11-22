@@ -81,18 +81,6 @@ class RecommendationService:
 
         _LOG.debug(f'Instance meta: {instance_meta}')
 
-        _LOG.debug(f'Loading past recommendations')
-        past_recommendations = list(
-            self.recommendation_history_service.get_recent_recommendation(
-                instance_id=instance_id,
-                limit=2  # can't be more than 2 recommendations in a job
-            ))
-        if past_recommendations:
-            # to get only recommendations from latest job
-            past_recommendations = [r for r in past_recommendations
-                                    if
-                                    r.job_id == past_recommendations[0].job_id]
-
         _LOG.debug(f'Loading past recommendation with feedback')
         past_recommendations_feedback = self.recommendation_history_service. \
             get_recommendation_with_feedback(instance_id=instance_id)
@@ -112,17 +100,6 @@ class RecommendationService:
                 applied_recommendations=applied_recommendations,
                 instance_meta=instance_meta
             )
-
-            if not self.scan_required(
-                    past_recommendations=past_recommendations, df=df):
-                _LOG.debug(f'Past recommendation with no metrics change'
-                           f' detected. Going to use past recommendations')
-                return self.dump_reports_from_recommendations(
-                    reports_dir=reports_dir,
-                    cloud=cloud,
-                    stats=self.calculate_instance_stats(df=df),
-                    recommendations=past_recommendations
-                )
 
             _LOG.debug(f'Extracting instance type name')
             instance_type = self.metrics_service.get_instance_type(
@@ -334,27 +311,6 @@ class RecommendationService:
             general_action=STATUS_ERROR
         )
 
-    def scan_required(self,
-                      past_recommendations: List[RecommendationHistory],
-                      df: pd.DataFrame) -> bool:
-        """
-        Indicate if instance scan is required.
-        No past recommendation -> True
-        Past recommendations and new metrics available -> True
-        Past recommendation, now new metrics available -> False
-
-        :param past_recommendations: past instance recommendations
-        :param df: metrics dataframe
-        :return: bool
-        """
-        if self.environment_service.force_rescan() or not past_recommendations:
-            return True
-        latest_r = past_recommendations[0]
-        if not latest_r.last_metric_capture_date:
-            return True
-        last_capture_date = latest_r.last_metric_capture_date.date()
-        return df.index.max().date() != last_capture_date
-
     def dump_reports(self, reports_dir, customer, cloud, tenant, region, stats,
                      instance_id=None, schedule=None, recommended_sizes=None,
                      meta=None, general_action=None,
@@ -388,11 +344,15 @@ class RecommendationService:
         return item
 
     def dump_reports_from_recommendations(
-            self, reports_dir, stats, cloud,
+            self, reports_dir, cloud,
             recommendations: List[RecommendationHistory]):
         schedule = None
         recommended_sizes = None
         actions = []
+
+        stats = self.generate_past_recommendation_stats(
+            recommendations=recommendations
+        )
 
         for recommendation_item in recommendations:
             recommendation_type = recommendation_item.recommendation_type
@@ -478,6 +438,18 @@ class RecommendationService:
             'to_date': to_date,
             'status': status,
             'message': message
+        }
+
+    @staticmethod
+    def generate_past_recommendation_stats(
+            recommendations: List[RecommendationHistory]):
+        last_captured_date = max([rec.last_metric_capture_date
+                                  for rec in recommendations])
+        return {
+            'from_date': None,
+            'to_date': last_captured_date.isoformat(),
+            'status': STATUS_OK,
+            'message': OK_MESSAGE
         }
 
     def calculate_advanced_stats(self, df, algorithm, centroids):

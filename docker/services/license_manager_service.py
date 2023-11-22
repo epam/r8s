@@ -1,19 +1,24 @@
 from typing import List, Dict, Optional
+from datetime import datetime, timedelta
+import re
 
 from commons.constants import RESPONSE_OK_CODE, \
     ITEMS_PARAM, MESSAGE_PARAM, CLIENT_TOKEN_ATTR, \
-    KID_ATTR, ALG_ATTR, RESPONSE_FORBIDDEN_CODE,\
-    RESPONSE_RESOURCE_NOT_FOUND_CODE
+    KID_ATTR, ALG_ATTR, RESPONSE_FORBIDDEN_CODE, \
+    RESPONSE_RESOURCE_NOT_FOUND_CODE, TOKEN_ATTR, EXPIRATION_ATTR
 from commons.log_helper import get_logger
+from models.shape_price import DEFAULT_CUSTOMER
+from services.environment_service import EnvironmentService
+from services.ssm_service import SSMService
 from services.clients.license_manager import LicenseManagerClient
 from services.token_service import TokenService
 from commons.time_helper import utc_datetime
-from datetime import timedelta
 
 _LOG = get_logger(__name__)
 
 GENERIC_JOB_LICENSING_ISSUE = 'Job:\'{id}\' could not be granted by the ' \
                               'License Manager Service.'
+SSM_LM_TOKEN_KEY = 'r8s_lm_auth_token_{customer}'
 
 
 class BalanceExhaustion(Exception):
@@ -26,8 +31,8 @@ class BalanceExhaustion(Exception):
 
 class InaccessibleAssets(Exception):
     def __init__(
-        self, message: str, assets: Dict[str, List[str]],
-        hr_sep: str, ei_sep: str, i_sep: str, i_wrap: Optional[str] = None
+            self, message: str, assets: Dict[str, List[str]],
+            hr_sep: str, ei_sep: str, i_sep: str, i_wrap: Optional[str] = None
     ):
         self._assets = self._dissect(
             message=message, assets=assets, hr_sep=hr_sep, ei_sep=ei_sep,
@@ -36,8 +41,8 @@ class InaccessibleAssets(Exception):
 
     @staticmethod
     def _dissect(
-        message: str, assets: Dict[str, List[str]],
-        hr_sep: str, ei_sep: str, i_sep: str, i_wrap: Optional[str] = None
+            message: str, assets: Dict[str, List[str]],
+            hr_sep: str, ei_sep: str, i_sep: str, i_wrap: Optional[str] = None
     ):
         """
         Dissects License Manager response of entity(ies)-not-found message.
@@ -60,7 +65,7 @@ class InaccessibleAssets(Exception):
 
         entity, *ids = head.split(ei_sep, maxsplit=1)
         ids = ids[0] if len(ids) == 1 else ''
-        if 's' in entity and entity.index('s') == len(entity)-1:
+        if 's' in entity and entity.index('s') == len(entity) - 1:
             ids = ids.split(i_sep)
 
         ids = [each.strip(i_wrap or '') for each in ids.split(i_sep)]
@@ -80,7 +85,7 @@ class InaccessibleAssets(Exception):
 
         if len(self._assets) > 1:
             head += 's'
-        scope = ', ' .join(f'"{each}"' for each in self._assets)
+        scope = ', '.join(f'"{each}"' for each in self._assets)
         reason = 'are' if len(self._assets) > 1 else 'is'
         reason += ' no longer accessible'
         return f'{head}:{scope} - {reason}.'
@@ -92,18 +97,23 @@ class InaccessibleAssets(Exception):
 class LicenseManagerService:
 
     def __init__(
-        self, license_manager_client: LicenseManagerClient,
-        token_service: TokenService
+            self, license_manager_client: LicenseManagerClient,
+            token_service: TokenService,
+            environment_service: EnvironmentService,
+            ssm_service: SSMService
     ):
         self.license_manager_client = license_manager_client
         self.token_service = token_service
+        self.environment_service = environment_service
+        self.ssm_service = ssm_service
 
     def update_job_in_license_manager(
-        self, job_id: str, created_at: str = None, started_at: str = None,
-        stopped_at: str = None, status: str = None, expires: dict = None
+            self, job_id: str, customer: str = None, created_at: str = None,
+            started_at: str = None, stopped_at: str = None, status: str = None
     ):
-
-        auth = self._get_client_token(expires or dict(hours=1))
+        auth = self._get_client_token(
+            customer=customer
+        )
         if not auth:
             _LOG.warning('Client authorization token could be established.')
             return None
@@ -118,8 +128,8 @@ class LicenseManagerService:
         return
 
     def instantiate_licensed_job_dto(
-        self, job_id: str, customer: str, tenant: str,
-        algorithm_map: Dict[str, List[str]], expires: dict = None
+            self, job_id: str, customer: str, tenant: str,
+            algorithm_map: Dict[str, List[str]]
     ):
         """
         Mandates licensed Job data transfer object retrieval,
@@ -130,14 +140,15 @@ class LicenseManagerService:
         :parameter customer: str
         :parameter tenant: str
         :parameter algorithm_map: Union[Type[None], List[str]]
-        :parameter expires: dict, denotes auth-token expiration
 
         :raises: InaccessibleAssets, given the requested content is not
         accessible
         :raises: BalanceExhaustion, given the job-balance has been exhausted
         :return: Optional[Dict]
         """
-        auth = self._get_client_token(expires or dict(hours=1))
+        auth = self._get_client_token(
+            customer=customer
+        )
         if not auth:
             _LOG.warning('Client authorization token could be established.')
             return None
@@ -168,12 +179,52 @@ class LicenseManagerService:
             elif response.status_code == RESPONSE_FORBIDDEN_CODE:
                 raise BalanceExhaustion(message)
 
-    def _get_client_token(self, expires: dict, **payload):
+    def _get_client_token(self, customer: str = None):
+        secret_name = self.get_ssm_auth_token_name(customer=customer)
+        cached_auth = self.ssm_service.get_secret_value(
+            secret_name=secret_name) or {}
+        cached_token = cached_auth.get(TOKEN_ATTR)
+        cached_token_expiration = cached_auth.get(EXPIRATION_ATTR)
+
+        if (cached_token and cached_token_expiration and
+                not self.is_expired(expiration=cached_token_expiration)):
+            _LOG.debug(f'Using cached lm auth token.')
+            return cached_token
+        _LOG.debug(f'Cached lm auth token are not found or expired. '
+                   f'Generating new token.')
+        lifetime_minutes = self.environment_service.lm_token_lifetime_minutes()
+        token = self._generate_client_token(
+            expires=dict(
+                minutes=lifetime_minutes
+            ),
+            customer=customer
+        )
+        if not token:
+            return
+
+        _LOG.debug(f'Updating lm auth token in SSM.')
+        expiration_timestamp = int((datetime.utcnow() +
+                                    timedelta(minutes=30)).timestamp())
+        secret_data = {
+            EXPIRATION_ATTR: expiration_timestamp,
+            TOKEN_ATTR: token
+        }
+        self.ssm_service.create_secret_value(
+            secret_name=secret_name,
+            secret_value=secret_data
+        )
+        return token
+
+    @staticmethod
+    def is_expired(expiration: int):
+        now = int(datetime.utcnow().timestamp())
+        return now >= expiration
+
+    def _generate_client_token(self, expires: dict, customer: str):
         """
-        Delegated to derive a custodian-service-token, encoding any given
+        Delegated to derive a rightsizer-service-token, encoding any given
         payload key-value pairs into the claims.
         :parameter expires: dict, meant to store timedelta kwargs
-        :parameter payload: dict
         :return: Union[str, Type[None]]
         """
         token_type = CLIENT_TOKEN_ATTR
@@ -185,7 +236,8 @@ class LicenseManagerService:
 
         t_head = f'\'{token_type}\''
         encoder = self.token_service.derive_encoder(
-            token_type=CLIENT_TOKEN_ATTR, **payload
+            token_type=CLIENT_TOKEN_ATTR,
+            customer=customer
         )
 
         if not encoder:
@@ -222,3 +274,10 @@ class LicenseManagerService:
     @staticmethod
     def _default_instance(value, _type: type, *args, **kwargs):
         return value if isinstance(value, _type) else _type(*args, **kwargs)
+
+    @staticmethod
+    def get_ssm_auth_token_name(customer: str = None):
+        if not customer:
+            customer = DEFAULT_CUSTOMER
+        customer = re.sub(r"[\s-]", '_', customer.lower())
+        return SSM_LM_TOKEN_KEY.format(customer=customer)

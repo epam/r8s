@@ -14,13 +14,16 @@ def job():
               help='Id of the job to describe.')
 @click.option('--job_name', '-name', type=str,
               help='Name of the job to describe.')
+@click.option('--limit', '-l', type=int,
+              help='Limit maximum amount of jobs in the response.')
 @cli_response()
-def describe(job_id=None, job_name=None):
+def describe(job_id=None, job_name=None, limit=None):
     """
     Describes a R8s job.
     """
     from r8s_service.initializer import init_configuration
-    return init_configuration().job_get(job_id=job_id, job_name=job_name)
+    return init_configuration().job_get(
+        job_id=job_id, job_name=job_name, limit=limit)
 
 
 @job.command(cls=ViewCommand, name='submit')

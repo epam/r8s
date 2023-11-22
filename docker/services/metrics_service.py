@@ -31,6 +31,10 @@ META_KEY_RESOURCE_ID = 'resourceId'
 META_KEY_CREATE_DATE_TIMESTAMP = 'createDateTimestamp'
 MINIMUM_DAYS_TO_CUT_INCOMPLETE_EDGE_DAYS = 14
 
+INSUFFICIENT_DATA_ERROR_TEMPLATE = """Insufficient data. Analysed period 
+must be larger than a full {days} day(s) with 5-min frequency 
+of records."""
+
 
 class MetricsService:
 
@@ -184,16 +188,17 @@ class MetricsService:
                 instance_meta=instance_meta
             )
             df_duration_days = (df.index.max() - df.index.min()).days
+            min_allowed_days = (algorithm.recommendation_settings.
+                                min_allowed_days)
             if np.isnan(df_duration_days) or \
-                    df_duration_days < \
-                    algorithm.recommendation_settings.min_allowed_days:
-                _LOG.error(
-                    f'Insufficient data. Analysed period must be larger '
-                    f'than a full day with 5-min frequency of records.')
+                    df_duration_days < min_allowed_days:
+                message = INSUFFICIENT_DATA_ERROR_TEMPLATE.format(
+                    days=min_allowed_days
+                )
+                _LOG.error(message)
                 raise ExecutorException(
                     step_name=JOB_STEP_INITIALIZE_ALGORITHM,
-                    reason=f'Insufficient data. Analysed period must be larger '
-                           f'than a full day with 5-min frequency of records.'
+                    reason=message
                 )
             df = self.get_last_period(df,
                                       days=recommendation_settings.max_days)
@@ -227,7 +232,7 @@ class MetricsService:
                 creation_dt = datetime.datetime.utcfromtimestamp(
                     creation_date_timestamp // 1000)
                 creation_dt = creation_dt.astimezone(
-                    pytz.timezone(df.index.max().tz.zone))
+                    pytz.timezone(str(df.index.max().tz)))
                 return df[(df.index >= creation_dt)]
             except Exception as e:
                 _LOG.debug(f'Failed to discard metrics before timestamp. '

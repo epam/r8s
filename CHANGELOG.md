@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.19.10] - 2023-11-22
+* add `limit` parameter to `r8s job describe` command
+
+## [2.19.9] - 2023-11-21
+* fix non JSON serializable response in 'r8s recommendation describe' command
+* hide LM tokens from logs 
+
+## [2.19.8] - 2023-11-16
+* fix tenant cloud validation on job submit
+* add missing permissions for /parent/licenses endpoint
+* fix duplicated recommendations for insufficient/unchanged instances
+* remove raising exception if no valid metric files will be found
+
+## [2.19.7] - 2023-11-14
+* Exclude directly linked tenants (SPECIFIC/DISABLED) from ALL-scoped parent jobs
+* License sync: fix set latest_sync date
+* Remove obsolete permissions from admin_policy.json
+
+## [2.19.6] - 2023-11-13
+* Optimisation improvements:
+  - instances with unchanged metrics (since last scan) won't be downloaded
+  - recommendations will still be kept for instances with insufficient/unchanged metrics
+
+## [2.19.5] - 2023-11-08
+* Skip metrics download from s3 for instances with less daily-metric files than 
+  `algorithm.recommendation_settings.min_allowed_days`
+
+## [2.19.4] - 2023-11-06
+* Fix timezone conversion while discarding metrics before instance creation
+* Fix past instance recommendation querying (previously, only recommendation from current week were extracted)
+
+## [2.19.3] - 2023-10-31
+* Implement License Manager auth token storage
+
 ## [2.19.2] - 2023-10-27
 * fix non-monotonic index after clustering
 

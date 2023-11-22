@@ -14,7 +14,7 @@ from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
 from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import CLOUD_AWS, TENANTS_ATTR, \
     ENV_TENANT_CUSTOMER_INDEX, FORBIDDEN_ATTR, ALLOWED_ATTR, \
-    REMAINING_BALANCE_ATTR
+    REMAINING_BALANCE_ATTR, ENV_LM_TOKEN_LIFETIME_MINUTES, LIMIT_ATTR
 from commons.constants import POST_METHOD, GET_METHOD, DELETE_METHOD, ID_ATTR, \
     NAME_ATTR, USER_ID_ATTR, PARENT_ID_ATTR, SCAN_FROM_DATE_ATTR, \
     SCAN_TO_DATE_ATTR, TENANT_LICENSE_KEY_ATTR, PARENT_SCOPE_SPECIFIC_TENANT
@@ -90,11 +90,18 @@ class JobProcessor(AbstractCommandProcessor):
         applications = self.application_service.resolve_application(
             event=event
         )
+        limit = event.get(LIMIT_ATTR)
         if not applications:
             _LOG.error(f'No suitable application found to describe jobs.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
                 content=f'No suitable application found to describe jobs.'
+            )
+        if limit and not isinstance(limit, int):
+            _LOG.error(f'{LIMIT_ATTR} attribute must be a valid int')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'{LIMIT_ATTR} attribute must be a valid int'
             )
         if job_id:
             _LOG.debug(f'Describing job by id: \'{job_id}\'')
@@ -104,7 +111,7 @@ class JobProcessor(AbstractCommandProcessor):
             jobs = [self.job_service.get_by_name(name=job_name)]
         else:
             _LOG.debug(f'Describing all jobs')
-            jobs = self.job_service.list()
+            jobs = self.job_service.list(limit=limit)
 
         if not jobs or jobs and all([job is None for job in jobs]):
             _LOG.debug(f'No jobs found matching given query')
@@ -143,6 +150,14 @@ class JobProcessor(AbstractCommandProcessor):
                 content=f'Parent of {RIGHTSIZER_LICENSES_PARENT_TYPE} '
                         f'type required.'
             )
+        if parent.scope == ParentScope.DISABLED:
+            _LOG.error(f'Submitting jobs for parent with DISABLED scope '
+                       f'is not allowed')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'Submitting jobs for parent with DISABLED scope '
+                        f'is not allowed'
+            )
 
         application_id = parent.application_id
         application = self.application_service.get_application_by_id(
@@ -173,7 +188,9 @@ class JobProcessor(AbstractCommandProcessor):
             "log_level": os.environ.get('log_level', 'ERROR'),
             "parent_id": parent.parent_id,
             "FORCE_RESCAN": os.environ.get('force_rescan', "False"),
-            "DEBUG": str(self.environment_service.is_debug())
+            "DEBUG": str(self.environment_service.is_debug()),
+            ENV_LM_TOKEN_LIFETIME_MINUTES: str(
+                self.environment_service.lm_token_lifetime_minutes())
         }
         meta_postponed_key = self.environment_service.meta_postponed_key()
         if meta_postponed_key:
@@ -214,8 +231,8 @@ class JobProcessor(AbstractCommandProcessor):
             scan_tenants = [tenant.name]
             envs['SCAN_TENANTS'] = tenant.name
         else:
-            # todo temporary
-            # to validate job submit permission on any single tenant
+            _LOG.debug(f'Extracting tenants activated for parent '
+                       f'{parent.parent_id}')
             scan_tenants = list(self.tenant_service.i_get_tenant_by_customer(
                 customer_id=parent.customer_id,
                 active=True,
@@ -224,6 +241,12 @@ class JobProcessor(AbstractCommandProcessor):
                 rate_limit=rate_limit
             ))
             scan_tenants = [t.name for t in scan_tenants]
+            _LOG.debug(f'Extracted tenants: {scan_tenants}')
+            scan_tenants = self.parent_service.filter_directly_linked_tenants(
+                tenant_names=scan_tenants,
+                parent=parent
+            )
+            _LOG.debug(f'Tenants to scan: {scan_tenants}')
 
         if not scan_tenants:
             _LOG.error(f'No tenants to scan found.')
@@ -469,7 +492,7 @@ class JobProcessor(AbstractCommandProcessor):
                              f'customer \'{parent.customer_id}\'')
                 invalid_tenants.append(tenant_name)
                 continue
-            if tenant_obj.cloud != parent.cloud:
+            if tenant_obj.cloud != parent_meta.cloud:
                 _LOG.warning(f'Tenant cloud \'{tenant_obj.cloud}\' '
                              f'does not match with parent '
                              f'cloud {parent_meta.cloud}.')

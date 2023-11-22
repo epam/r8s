@@ -10,7 +10,7 @@ from functools import cached_property
 from commons.constants import POST_METHOD, PATCH_METHOD, \
     LICENSE_KEY_ATTR, STATUS_ATTR, TENANT_ATTR, TENANT_LICENSE_KEY_ATTR, \
     AUTHORIZATION_PARAM, CUSTOMER_ATTR, TENANT_LICENSE_KEYS_ATTR, TENANTS_ATTR
-from commons import RESPONSE_OK_CODE
+from commons import secure_event
 from commons.log_helper import get_logger
 from services.setting_service import SettingsService
 
@@ -194,7 +194,7 @@ class LicenseManagerClient:
         """
         _injectable_payload = cls._request_payload_injector(method, payload)
         try:
-            _input = f'data - {_injectable_payload}'
+            _input = f'data - {secure_event(_injectable_payload)}'
             if headers:
                 _input += f', headers: {headers}'
 

@@ -3,7 +3,7 @@ from typing import List, Union
 from modular_sdk.commons import generate_id
 from modular_sdk.commons.constants import RIGHTSIZER_PARENT_TYPE, \
     TENANT_PARENT_MAP_RIGHTSIZER_TYPE, RIGHTSIZER_LICENSES_PARENT_TYPE, \
-    TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE
+    TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE, ParentScope
 from modular_sdk.models.parent import Parent
 from modular_sdk.models.tenant import Tenant
 from modular_sdk.services.customer_service import CustomerService
@@ -205,3 +205,24 @@ class RightSizerParentService(ParentService):
                            f'parent \'{parent.parent_id}\'')
                 linked_tenants.append(tenant)
         return linked_tenants
+
+    def filter_directly_linked_tenants(self, tenant_names: List[str],
+                                       parent: Parent):
+        specific_parents = self.query_by_scope_index(
+            customer_id=parent.customer_id,
+            type_=parent.type,
+            scope=ParentScope.SPECIFIC,
+            is_deleted=False
+        )
+        disabled_parents = self.query_by_scope_index(
+            customer_id=parent.customer_id,
+            type_=parent.type,
+            scope=ParentScope.DISABLED,
+            is_deleted=False
+        )
+        parents = [*list(specific_parents), *list(disabled_parents)]
+        exclude_tenant_names = {parent.tenant_name for parent
+                                in parents if parent.tenant_name}
+        _LOG.debug(f'Tenants will be excluded from scan: '
+                   f'{exclude_tenant_names}')
+        return list(set(tenant_names) - exclude_tenant_names)

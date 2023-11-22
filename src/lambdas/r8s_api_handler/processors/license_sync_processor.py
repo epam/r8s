@@ -41,7 +41,8 @@ class LicenseSyncProcessor(AbstractCommandProcessor):
         _LOG.debug(f'Sync license event: {event}')
         license_key = event.get(LICENSE_KEY_ATTR)
 
-        licenses = self.license_service.list_licenses(license_key=license_key)
+        licenses = list(self.license_service.list_licenses(
+            license_key=license_key))
 
         license_key_list = [l.license_key for l in licenses]
         _LOG.debug(f'Licenses to sync: '
@@ -62,8 +63,11 @@ class LicenseSyncProcessor(AbstractCommandProcessor):
 
     def _execute_license_sync(self, license_obj: License):
         _LOG.info(f'Syncing license \'{license_obj.license_key}\'')
+        customer = list(license_obj.customers.keys())[0]
         response = self.license_manager_service.synchronize_license(
-            license_key=license_obj.license_key)
+            license_key=license_obj.license_key,
+            customer=customer
+        )
         if not response.status_code == 200:
             return
 

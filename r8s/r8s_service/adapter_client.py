@@ -414,12 +414,15 @@ class AdapterClient:
         return self.__make_request(resource=API_STORAGE_DATA, method=HTTP_GET,
                                    payload=request)
 
-    def job_get(self, job_id, job_name):
+    def job_get(self, job_id, job_name, limit):
         request = {}
         if job_id:
             request[PARAM_ID] = job_id
         elif job_name:
             request[PARAM_NAME] = job_name
+
+        if limit:
+            request[PARAM_LIMIT] = limit
         return self.__make_request(resource=API_JOB,
                                    method=HTTP_GET,
                                    payload=request)
@@ -844,7 +847,7 @@ class AdapterClient:
         if license_key:
             request[PARAM_LICENSE_KEY] = license_key
         return self.__make_request(
-            resource=API_LICENSE, method=HTTP_GET, payload={}
+            resource=API_LICENSE, method=HTTP_GET, payload=request
         )
 
     def license_delete(self, license_key):
@@ -852,7 +855,7 @@ class AdapterClient:
             PARAM_LICENSE_KEY: license_key
         }
         return self.__make_request(
-            resource=API_LICENSE, method=HTTP_DELETE, payload={}
+            resource=API_LICENSE, method=HTTP_DELETE, payload=request
         )
 
     def license_sync_post(self, license_key=None):
@@ -860,7 +863,7 @@ class AdapterClient:
         if license_key:
             request[PARAM_LICENSE_KEY] = license_key
         return self.__make_request(
-            resource=API_LICENSE_SYNC, method=HTTP_POST, payload={}
+            resource=API_LICENSE_SYNC, method=HTTP_POST, payload=request
         )
 
     def lm_config_setting_get(self):

@@ -105,7 +105,7 @@ class LicenseService:
         license_obj.expiration = license_data.get('valid_until')
         license_obj.customers = license_data.get(CUSTOMERS_ATTR)
         license_obj.algorithm_id = license_data.get(ALGORITHM_ID_ATTR)
-
+        license_obj.latest_sync = utc_iso()
         license_obj.save()
         return license_obj
 
