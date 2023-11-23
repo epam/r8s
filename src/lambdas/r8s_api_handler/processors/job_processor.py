@@ -97,12 +97,17 @@ class JobProcessor(AbstractCommandProcessor):
                 code=RESPONSE_BAD_REQUEST_CODE,
                 content=f'No suitable application found to describe jobs.'
             )
-        if limit and not isinstance(limit, int):
-            _LOG.error(f'{LIMIT_ATTR} attribute must be a valid int')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'{LIMIT_ATTR} attribute must be a valid int'
-            )
+
+        if limit:
+            try:
+                limit = int(limit)
+            except (ValueError, TypeError):
+                _LOG.error(f'{LIMIT_ATTR} attribute must be a valid int')
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content=f'{LIMIT_ATTR} attribute must be a valid int'
+                )
+
         if job_id:
             _LOG.debug(f'Describing job by id: \'{job_id}\'')
             jobs = [self.job_service.get_by_id(object_id=job_id)]
