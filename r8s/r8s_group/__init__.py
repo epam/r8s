@@ -248,7 +248,8 @@ class ResponseFormatter:
                             os.get_terminal_size().columns and \
                             input(CONFIRMATION_MESSAGE).lower().strip() \
                             in POSITIVE_ANSWERS:
-                        return self.process_json_view(status, response_meta)
+                        return self.process_json_view(
+                            status, response_meta, reversed)
                 except Exception:
                     pass
                 last_string_index = 0
