@@ -80,7 +80,7 @@ class JobService:
 
     @staticmethod
     def list(limit: int = None):
-        return list(Job.objects.all().limit(limit))
+        return list(Job.objects.all().order_by('-submitted_at').limit(limit))
 
     @staticmethod
     def get_by_id(object_id):
