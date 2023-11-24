@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
-from commons import PASSWORD_ATTR, ID_TOKEN_ATTR, REFRESH_TOKEN_ATTR, \
-    AUTHORIZATION_PARAM
+from commons.constants import (PASSWORD_ATTR, ID_TOKEN_ATTR,
+                               REFRESH_TOKEN_ATTR, AUTHORIZATION_PARAM)
 
 
 def get_iso_timestamp():

@@ -16,7 +16,7 @@ def job():
               help='Name of the job to describe.')
 @click.option('--limit', '-l', type=int,
               help='Limit maximum amount of jobs in the response.')
-@cli_response()
+@cli_response(reversed=True)
 def describe(job_id=None, job_name=None, limit=None):
     """
     Describes a R8s job.
