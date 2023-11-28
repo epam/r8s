@@ -63,13 +63,13 @@ ENDPOINT_PERMISSION_MAPPING = {
         PATCH_METHOD: 'r8s:application:update_application',
         DELETE_METHOD: 'r8s:application:remove_application',
     },
-    '/parents/': {
-        GET_METHOD: 'r8s:parent:describe_parent',
-        POST_METHOD: 'r8s:parent:create_parent',
-        PATCH_METHOD: 'r8s:parent:update_parent',
-        DELETE_METHOD: 'r8s:parent:remove_parent',
+    '/applications/licenses/': {
+        GET_METHOD: 'r8s:application:describe_application',
+        POST_METHOD: 'r8s:application:create_application',
+        PATCH_METHOD: 'r8s:application:update_application',
+        DELETE_METHOD: 'r8s:application:remove_application',
     },
-    '/parents/licenses/': {
+    '/parents/': {
         GET_METHOD: 'r8s:parent:describe_parent',
         POST_METHOD: 'r8s:parent:create_parent',
         PATCH_METHOD: 'r8s:parent:update_parent',

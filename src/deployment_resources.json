@@ -1447,7 +1447,7 @@
           ]
         }
       },
-      "/parents": {
+      "/applications/licenses": {
         "enable_cors": true,
         "ANY": {
           "integration_type": "lambda",
@@ -1455,7 +1455,7 @@
           "authorization_type": "authorizer",
           "method_request_parameters": {},
           "integration_request_body_template": {
-            "application/json": "#set($allParams = $input.params()) {\"action\": \"parent\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"application_licenses\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
           },
           "lambda_name": "r8s-api-handler",
           "responses": [
@@ -1553,7 +1553,7 @@
           ]
         }
       },
-      "/parents/licenses": {
+      "/parents": {
         "enable_cors": true,
         "ANY": {
           "integration_type": "lambda",
@@ -1561,7 +1561,7 @@
           "authorization_type": "authorizer",
           "method_request_parameters": {},
           "integration_request_body_template": {
-            "application/json": "#set($allParams = $input.params()) {\"action\": \"parent_licenses\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
+            "application/json": "#set($allParams = $input.params()) {\"action\": \"parent\", \"body\": $input.json('$'), \"http_method\": \"$context.httpMethod\", \"user_id\": \"$context.authorizer.claims['cognito:username']\", \"request_path\": \"$context.path\", \"query\": { #foreach($type in $allParams.keySet()) #set($params = $allParams.get($type)) \"$type\" : {#foreach($paramName in $params.keySet()) \"$paramName\" : \"$util.escapeJavaScript($params.get($paramName))\" #if($foreach.hasNext),#end #end } #if ($foreach.hasNext),#end #end } }"
           },
           "lambda_name": "r8s-api-handler",
           "responses": [
@@ -1871,7 +1871,7 @@
           ]
         }
       },
-          "/parents/shape-rules/dry-run": {
+      "/parents/shape-rules/dry-run": {
         "enable_cors": true,
         "GET": {
           "integration_type": "lambda",
