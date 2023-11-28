@@ -82,8 +82,7 @@ class RightSizerApplicationService(ApplicationService):
         )
         return application
 
-    def get_application_meta(self,
-                             application: Application) -> RightsizerApplicationMeta:
+    def get_application_meta(self, application: Application):
         meta: MapAttribute = application.meta
 
         meta_attr_class = None
