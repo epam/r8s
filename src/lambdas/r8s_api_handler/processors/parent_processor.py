@@ -216,22 +216,6 @@ class ParentProcessor(AbstractCommandProcessor):
         parent_dto = self.parent_service.get_dto(parent=parent)
         _LOG.debug(f'Created parent \'{parent_dto}\'')
 
-        if tenant_obj:
-            try:
-                _LOG.debug(f'Adding parent \'{parent.parent_id}\' to tenant '
-                           f'\'{tenant_obj.name}\' parent map')
-                self.tenant_service.add_to_parent_map(
-                    tenant=tenant_obj,
-                    parent=parent,
-                    type_=TENANT_PARENT_MAP_RIGHTSIZER_TYPE
-                )
-            except ModularException as e:
-                _LOG.error(e.content)
-                return build_response(
-                    code=e.code,
-                    content=e.content
-                )
-
         self.parent_service.save(parent=parent)
         _LOG.debug(f'Parent \'{parent.parent_id}\' has been saved')
 
@@ -279,13 +263,6 @@ class ParentProcessor(AbstractCommandProcessor):
             if not tenant:
                 _LOG.warning(f'Linked tenant {parent.tenant_name} '
                              f'does not exist.')
-            else:
-                _LOG.debug(f'Unlinking tenant {tenant.name} from parent '
-                           f'{parent.parent_id}')
-                self.tenant_service.remove_from_parent_map(
-                    tenant=tenant,
-                    type_=RIGHTSIZER_PARENT_TYPE
-                )
 
         _LOG.debug(f'Deleting parent \'{parent.parent_id}\'')
         self.parent_service.mark_deleted(parent=parent)
