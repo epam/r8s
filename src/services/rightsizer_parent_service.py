@@ -5,13 +5,11 @@ from modular_sdk.commons.constants import RIGHTSIZER_PARENT_TYPE, \
     TENANT_PARENT_MAP_RIGHTSIZER_TYPE, RIGHTSIZER_LICENSES_PARENT_TYPE, \
     TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE, ParentScope
 from modular_sdk.models.parent import Parent
-from modular_sdk.models.tenant import Tenant
 from modular_sdk.services.customer_service import CustomerService
 from modular_sdk.services.parent_service import ParentService
 from modular_sdk.services.tenant_service import TenantService
 from pynamodb.attributes import MapAttribute
 
-from commons import ApplicationException, RESPONSE_RESOURCE_NOT_FOUND_CODE
 from commons.log_helper import get_logger
 from models.algorithm import Algorithm
 from models.parent_attributes import ShapeRule, LicensesParentMeta
@@ -25,9 +23,7 @@ class RightSizerParentService(ParentService):
                  customer_service: CustomerService,
                  environment_service: EnvironmentService):
         self._excess_attributes_cache = {}
-        self.parent_type_meta_mapping = {
-            RIGHTSIZER_LICENSES_PARENT_TYPE: LicensesParentMeta
-        }
+
         self.parent_type_tenant_pid_mapping = {
             RIGHTSIZER_PARENT_TYPE: TENANT_PARENT_MAP_RIGHTSIZER_TYPE,
             RIGHTSIZER_LICENSES_PARENT_TYPE:
@@ -73,11 +69,9 @@ class RightSizerParentService(ParentService):
 
     def get_parent_meta(self, parent: Parent) -> LicensesParentMeta:
         meta: MapAttribute = parent.meta
-        meta_model = self.parent_type_meta_mapping.get(parent.type,
-                                                       RIGHTSIZER_PARENT_TYPE)
         if meta:
             meta_dict = meta.as_dict()
-            allowed_keys = list(meta_model._attributes.keys())
+            allowed_keys = list(LicensesParentMeta._attributes.keys())
             excess_attributes = {}
             meta_dict_filtered = {}
             for key, value in meta_dict.items():
@@ -88,9 +82,9 @@ class RightSizerParentService(ParentService):
             if excess_attributes:
                 self._excess_attributes_cache[parent.parent_id] = \
                     excess_attributes
-            application_meta_obj = meta_model(**meta_dict_filtered)
+            application_meta_obj = LicensesParentMeta(**meta_dict_filtered)
         else:
-            application_meta_obj = meta_model()
+            application_meta_obj = LicensesParentMeta()
         return application_meta_obj
 
     def set_parent_meta(self, parent: Parent,
@@ -145,11 +139,6 @@ class RightSizerParentService(ParentService):
             if existing_rule.rule_id == shape_rule.rule_id:
                 parent_meta.shape_rules[index] = shape_rule.as_dict()
                 return
-        raise ApplicationException(
-            code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-            content=f'Shape rule with id \'{shape_rule.rule_id}\' '
-                    f'does not exist'
-        )
 
     @staticmethod
     def update_shape_rule(shape_rule: ShapeRule, action=None, field=None,
@@ -177,32 +166,6 @@ class RightSizerParentService(ParentService):
     @staticmethod
     def get_shape_rule_dto(shape_rule: ShapeRule):
         return shape_rule.as_dict()
-
-    def list_activated_tenants(self, parent: Parent, cloud: str,
-                               rate_limit: int = None) -> List[Tenant]:
-        tenants = self.tenant_service.i_get_tenant_by_customer(
-            customer_id=parent.customer_id,
-            active=True,
-            attributes_to_get=[Tenant.name, Tenant.parent_map],
-            cloud=cloud,
-            rate_limit=rate_limit
-        )
-        linked_tenants = []
-        target_pid_key = self.parent_type_tenant_pid_mapping.get(
-            parent.type, RIGHTSIZER_PARENT_TYPE)
-        for tenant in tenants:
-            _LOG.debug(f'Processing tenant \'{tenant.name}\'')
-            parent_map = tenant.parent_map.as_dict()
-            if target_pid_key not in parent_map:
-                _LOG.debug(f'Tenant \'{tenant.name}\' does not have linked '
-                           f'RIGHTSIZER parent, skipping.')
-                continue
-            linked_parent_id = parent_map.get(target_pid_key)
-            if parent.parent_id == linked_parent_id:
-                _LOG.debug(f'Tenant {tenant.name} is linked to '
-                           f'parent \'{parent.parent_id}\'')
-                linked_tenants.append(tenant)
-        return linked_tenants
 
     def filter_directly_linked_tenants(self, tenant_names: List[str],
                                        parent: Parent):

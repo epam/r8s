@@ -1,6 +1,6 @@
 import os.path
 
-from modular_sdk.models.parent import Parent
+from modular_sdk.models.application import Application
 
 from commons.constants import (JOB_STEP_INITIALIZATION,
                                TENANT_LICENSE_KEY_ATTR, PROFILE_LOG_PATH,
@@ -11,7 +11,7 @@ from commons.profiler import profiler
 from models.algorithm import Algorithm
 from models.job import Job, JobStatusEnum, JobTenantStatusEnum
 from models.license import License
-from models.parent_attributes import ParentMeta
+from models.parent_attributes import LicensesParentMeta
 from models.storage import Storage
 from services import SERVICE_PROVIDER
 from services.algorithm_service import AlgorithmService
@@ -62,6 +62,7 @@ _LOG = get_logger('r8s-executor')
 JOB_ID = environment_service.get_batch_job_id()
 SCAN_FROM_DATE = environment_service.get_scan_from_date()
 SCAN_TO_DATE = environment_service.get_scan_to_date()
+LICENSED_APPLICATION_ID = environment_service.get_licensed_application_id()
 PARENT_ID = environment_service.get_licensed_parent_id()
 
 
@@ -80,12 +81,12 @@ def set_job_fail_reason(exception: Exception):
 
 
 @profiler(execution_step=f'lm_submit_job')
-def submit_licensed_job(parent: Parent, tenant_name: str,
+def submit_licensed_job(application: Application, tenant_name: str,
                         license_: License):
-    customer = parent.customer_id
+    customer = application.customer_id
     tenant_license_key = license_.customers.get(customer, {}).get(
         TENANT_LICENSE_KEY_ATTR)
-    algorithm_name = parent.meta.algorithm
+    algorithm_name = application.meta.algorithm
 
     algorithm_map = {
         tenant_license_key: algorithm_name
@@ -108,11 +109,10 @@ def submit_licensed_job(parent: Parent, tenant_name: str,
 
 def process_tenant_instances(metrics_dir, reports_dir,
                              input_storage, output_storage,
-                             parent_meta: ParentMeta,
-                             licensed_parent: Parent,
+                             parent_meta: LicensesParentMeta,
+                             licensed_application: Application,
                              algorithm: Algorithm,
                              license_: License,
-                             customer: str,
                              tenant: str,
                              job: Job):
     _LOG.info(f'Downloading metrics from storage \'{input_storage.name}\', '
@@ -128,11 +128,11 @@ def process_tenant_instances(metrics_dir, reports_dir,
                    f'recommendations is omitted')
         recommendations_map = {}
 
-    cloud = licensed_parent.meta.cloud.lower()
+    cloud = licensed_application.meta.cloud.lower()
     insufficient_map, unchanged_map = storage_service.download_metrics(
         data_source=input_storage,
         output_path=metrics_dir,
-        scan_customer=licensed_parent.customer_id,
+        scan_customer=licensed_application.customer_id,
         scan_clouds=[cloud],
         scan_tenants=[tenant],
         scan_from_date=SCAN_FROM_DATE,
@@ -144,7 +144,7 @@ def process_tenant_instances(metrics_dir, reports_dir,
 
     tenant_folder_path = os.path.join(
         metrics_dir,
-        customer,
+        licensed_application.customer_id,
         cloud,
         tenant)
 
@@ -188,7 +188,7 @@ def process_tenant_instances(metrics_dir, reports_dir,
 
     _LOG.debug(f'Submitting licensed job for tenant {tenant}')
     licensed_job_data = submit_licensed_job(
-        parent=licensed_parent,
+        application=licensed_application,
         license_=license_,
         tenant_name=tenant)
 
@@ -254,7 +254,7 @@ def process_tenant_instances(metrics_dir, reports_dir,
         job=job,
         tenant=tenant,
         status=JobTenantStatusEnum.TENANT_SUCCEEDED_STATUS,
-        customer=customer
+        customer=licensed_application.customer_id
     )
 
 
@@ -279,46 +279,44 @@ def main():
         status=JobStatusEnum.JOB_RUNNING_STATUS.value)
 
     scan_tenants = job_service.get_scan_tenants(job=job)
-    licensed_parent_id = job.parent_id
-    licensed_parent = parent_service.get_parent_by_id(
-        parent_id=licensed_parent_id)
-    _LOG.debug(f'Parent: \'{licensed_parent_id}\'')
-    if not licensed_parent or licensed_parent.is_deleted:
-        _LOG.error(f'Parent \'{licensed_parent_id}\' does not exist')
+    licensed_application = application_service.get_application_by_id(
+        application_id=LICENSED_APPLICATION_ID)
+    _LOG.debug(f'Application: \'{LICENSED_APPLICATION_ID}\'')
+    if not licensed_application or licensed_application.is_deleted:
+        _LOG.error(f'Application \'{LICENSED_APPLICATION_ID}\' does not exist')
         raise ExecutorException(
             step_name=JOB_STEP_INITIALIZATION,
-            reason=f'Parent \'{licensed_parent_id}\' does not exist'
+            reason=f'Application \'{LICENSED_APPLICATION_ID}\' does not exist'
         )
 
-    licensed_parent_meta = parent_service.get_parent_meta(
-        parent=licensed_parent)
-    license_key = licensed_parent_meta.license_key
+    licensed_application_meta = application_service.get_application_meta(
+        application=licensed_application)
+    license_key = licensed_application_meta.license_key
 
-    application_id = licensed_parent.application_id
-    application = application_service.get_application_by_id(
-        application_id=application_id)
-    if not application or application.is_deleted:
-        _LOG.error(f'Application \'{licensed_parent_id}\' does not exist')
+    host_application = application_service.get_host_application(
+        customer=licensed_application.customer_id)
+    if not host_application:
+        _LOG.error(f'Host application for licenses application '
+                   f'{LICENSED_APPLICATION_ID} not found')
         raise ExecutorException(
             step_name=JOB_STEP_INITIALIZATION,
-            reason=f'Application \'{licensed_parent_id}\' does not exist'
+            reason=f'Host application for licenses application '
+                   f'{LICENSED_APPLICATION_ID} not found'
         )
-    application_meta = application_service.get_application_meta(
-        application=application
+    host_application_meta = application_service.get_application_meta(
+        application=host_application
     )
-    algorithm_name = licensed_parent_meta.algorithm
+    algorithm_name = licensed_application_meta.algorithm
     algorithm = algorithm_service.get_by_name(name=algorithm_name)
     _LOG.debug(f'Algorithm: \'{algorithm_name}\'')
     if not algorithm:
-        _LOG.error(f'Application \'{application_id}\' does not have algorithm '
-                   f'specified')
+        _LOG.error(f'Algorithm \'{algorithm_name}\' not found')
         raise ExecutorException(
             step_name=JOB_STEP_INITIALIZATION,
-            reason=f'Application \'{application_id}\' does not have algorithm '
-                   f'specified'
+            reason=f'Algorithm \'{algorithm_name}\' not found'
         )
 
-    input_storage_name = application_meta.input_storage
+    input_storage_name = host_application_meta.input_storage
     _LOG.debug(f'Input storage: \'{input_storage_name}\'')
     input_storage: Storage = storage_service.get_by_name(
         name=input_storage_name)
@@ -329,7 +327,7 @@ def main():
             reason=f'Input storage \'{input_storage_name}\' does not exist.'
         )
 
-    output_storage_name = application_meta.output_storage
+    output_storage_name = host_application_meta.output_storage
     _LOG.debug(f'Output storage: \'{output_storage_name}\'')
     output_storage: Storage = storage_service.get_by_name(
         name=output_storage_name)
@@ -340,17 +338,20 @@ def main():
             reason=f'Output storage \'{output_storage_name}\' does not exist.'
         )
 
-    _LOG.info(f'Resolving RIGHTSIZER parent for license')
-    parent = parent_service.resolve(
-        licensed_parent=licensed_parent,
-        scan_tenants=scan_tenants
+    _LOG.info(f'Resolving RIGHTSIZER_LICENSES parents for application '
+              f'{LICENSED_APPLICATION_ID}')
+    parents = parent_service.get_job_parents(
+        application_id=LICENSED_APPLICATION_ID,
+        parent_id=PARENT_ID
     )
-    if not parent:
-        _LOG.error(f'Can\'t resolve RIGHTSIZER parent for license '
-                   f'\'{licensed_parent_id}\'. Shape rules won\'t be applied.')
-        parent_meta = ParentMeta()
-    else:
-        parent_meta = parent_service.get_parent_meta(parent=parent)
+    if not parents:
+        _LOG.error(f'Can\'t resolve RIGHTSIZER_LICENSES parents for license '
+                   f'application: \'{LICENSED_APPLICATION_ID}\'')
+        raise ExecutorException(
+            step_name=JOB_STEP_INITIALIZATION,
+            reason=f'Can\'t resolve RIGHTSIZER_LICENSES parents for license '
+                   f'application: \'{LICENSED_APPLICATION_ID}\''
+        )
 
     _LOG.debug(f'Describing License \'{license_key}\'')
     license_: License = license_service.get_license(license_id=license_key)
@@ -363,11 +364,10 @@ def main():
                 reports_dir=reports_dir,
                 input_storage=input_storage,
                 output_storage=output_storage,
-                parent_meta=parent_meta,
-                licensed_parent=licensed_parent,
+                parent_meta=LicensesParentMeta(),
+                licensed_application=licensed_application,
                 algorithm=algorithm,
                 license_=license_,
-                customer=parent.customer_id,
                 tenant=tenant,
                 job=job
             )
