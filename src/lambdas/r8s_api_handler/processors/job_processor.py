@@ -213,9 +213,16 @@ class JobProcessor(AbstractCommandProcessor):
                 application=application,
                 input_scan_tenants=scan_tenants
             )
-            _LOG.debug(f'Setting scan_tenants env to '
-                       f'\'{scan_tenants}\'')
-            envs['SCAN_TENANTS'] = ','.join(scan_tenants)
+        else:
+            _LOG.debug(f'Resolving tenant names from parents: '
+                       f'{", ".join([p.parent_id for p in parents])}')
+            scan_tenants = self.parent_service.resolve_tenant_names(
+                parents=parents,
+                cloud=application.meta.cloud
+            )
+        _LOG.debug(f'Setting scan_tenants env to '
+                   f'\'{scan_tenants}\'')
+        envs['SCAN_TENANTS'] = ','.join(scan_tenants)
 
         application_meta = self.application_service.get_application_meta(
             application=application)

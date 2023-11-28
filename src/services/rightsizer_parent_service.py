@@ -187,3 +187,22 @@ class RightSizerParentService(ParentService):
         _LOG.debug(f'Tenants will be excluded from scan: '
                    f'{exclude_tenant_names}')
         return list(set(tenant_names) - exclude_tenant_names)
+
+    def resolve_tenant_names(self, parents: List[Parent], cloud) -> List[str]:
+        tenant_names = []
+        to_exclude = []
+
+        for parent in parents:
+            if parent.scope == ParentScope.DISABLED:
+                to_exclude.append(parent.tenant_name)
+            elif parent.scope == ParentScope.SPECIFIC:
+                tenant_names.append(parent.tenant_name)
+            elif parent.scope == ParentScope.ALL:
+                tenants = list(self.tenant_service.i_get_tenant_by_customer(
+                    customer_id=parent.customer_id,
+                    active=True,
+                    cloud=cloud
+                ))
+                tenant_names.extend([tenant.name for tenant in tenants])
+        tenant_names = list(set(tenant_names))
+        return [name for name in tenant_names if name not in to_exclude]
