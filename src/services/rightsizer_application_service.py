@@ -1,20 +1,24 @@
-from typing import List
+from typing import List, Union
 
 from modular_sdk.models.application import Application
 from modular_sdk.services.application_service import ApplicationService
 from modular_sdk.services.customer_service import CustomerService
 from pynamodb.attributes import MapAttribute
 
+from commons import ApplicationException, RESPONSE_INTERNAL_SERVER_ERROR
 from commons.constants import APPLICATION_ID_ATTR, \
-    MAESTRO_RIGHTSIZER_APPLICATION_TYPE, RIGHTSIZER_APPLICATION_TYPES, \
+    MAESTRO_RIGHTSIZER_APPLICATION_TYPE, \
     MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE
+from commons.log_helper import get_logger
 from models.application_attributes import RightsizerApplicationMeta, \
-    ConnectionAttribute
+    ConnectionAttribute, RightsizerLicensesApplicationMeta
 from models.storage import Storage
 from services.abstract_api_handler_lambda import PARAM_USER_CUSTOMER
 from services.ssm_service import SSMService
 
 APPLICATION_SECRET_NAME_TEMPLATE = 'm3.app.{application_id}'
+
+_LOG = get_logger(__name__)
 
 
 class RightSizerApplicationService(ApplicationService):
@@ -81,9 +85,24 @@ class RightSizerApplicationService(ApplicationService):
     def get_application_meta(self,
                              application: Application) -> RightsizerApplicationMeta:
         meta: MapAttribute = application.meta
+
+        meta_attr_class = None
+        if application.type == MAESTRO_RIGHTSIZER_APPLICATION_TYPE:
+            meta_attr_class = RightsizerApplicationMeta
+        elif application.type == MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE:
+            meta_attr_class = RightsizerLicensesApplicationMeta
+
+        if not meta_attr_class:
+            _LOG.error(f'Cant get application meta for type: '
+                       f'{application.type}')
+            raise ApplicationException(
+                code=RESPONSE_INTERNAL_SERVER_ERROR,
+                content=f'Invalid application type specified: '
+                        f'{application.type}')
+
         if meta:
             meta_dict = meta.as_dict()
-            allowed_keys = list(RightsizerApplicationMeta._attributes.keys())
+            allowed_keys = list(meta_attr_class._attributes.keys())
             excess_attributes = {}
             meta_dict_filtered = {}
             for key, value in meta_dict.items():
@@ -94,13 +113,14 @@ class RightSizerApplicationService(ApplicationService):
             if excess_attributes:
                 self._excess_attributes_cache[application.application_id] = \
                     excess_attributes
-            application_meta_obj = RightsizerApplicationMeta(**meta_dict_filtered)
+            application_meta_obj = meta_attr_class(**meta_dict_filtered)
         else:
-            application_meta_obj = RightsizerApplicationMeta()
+            application_meta_obj = meta_attr_class()
         return application_meta_obj
 
     def set_application_meta(self, application: Application,
-                             meta: RightsizerApplicationMeta):
+                             meta: Union[RightsizerApplicationMeta,
+                             RightsizerLicensesApplicationMeta]):
         meta_dict = meta.as_dict()
 
         excess_attributes = self._excess_attributes_cache.get(
@@ -121,7 +141,8 @@ class RightSizerApplicationService(ApplicationService):
         return filtered
 
     def resolve_application(self, event: dict,
-                            type_=MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE) -> List[Application]:
+                            type_=MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE) -> \
+            List[Application]:
         user_customer = event.get(PARAM_USER_CUSTOMER)
         event_application = event.get(APPLICATION_ID_ATTR)
 

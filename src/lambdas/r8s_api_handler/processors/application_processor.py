@@ -10,7 +10,7 @@ from commons.constants import POST_METHOD, GET_METHOD, PATCH_METHOD, \
     DELETE_METHOD, CUSTOMER_ATTR, \
     DESCRIPTION_ATTR, OUTPUT_STORAGE_ATTR, INPUT_STORAGE_ATTR, \
     CONNECTION_ATTR, PORT_ATTR, PROTOCOL_ATTR, HOST_ATTR, USERNAME_ATTR, \
-    PASSWORD_ATTR, APPLICATION_ID_ATTR
+    PASSWORD_ATTR, APPLICATION_ID_ATTR, MAESTRO_RIGHTSIZER_APPLICATION_TYPE
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -65,7 +65,8 @@ class ApplicationProcessor(AbstractCommandProcessor):
 
         _LOG.debug(f'Resolving applications')
         applications = self.application_service.resolve_application(
-            event=event)
+            event=event, type_=MAESTRO_RIGHTSIZER_APPLICATION_TYPE
+        )
 
         if not applications:
             _LOG.warning(f'No application found matching given query.')

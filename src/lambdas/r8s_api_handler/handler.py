@@ -24,8 +24,6 @@ from lambdas.r8s_api_handler.processors.license_sync_processor import \
     LicenseSyncProcessor
 from lambdas.r8s_api_handler.processors.mail_report_processor import \
     MailReportProcessor
-from lambdas.r8s_api_handler.processors.parent_licenses_processor import \
-    ParentLicensesProcessor
 from lambdas.r8s_api_handler.processors.parent_processor import ParentProcessor
 from lambdas.r8s_api_handler.processors.parent_resize_insights_processor import \
     ParentResizeInsightsProcessor
@@ -95,7 +93,7 @@ MAIL_REPORT_ACTION = 'mail_report'
 STORAGE_DATA_ACTION = 'storage_data'
 SHAPE_RULE_ACTION = 'shape_rule'
 SHAPE_RULE_DRY_RUN_ACTION = 'shape_rule_dry_run'
-PARENT_LICENSES_ACTION = 'parent_licenses'
+PARENT_ACTION = 'parent'
 PARENT_INSIGHTS_RESIZE_ACTION = 'parent_insights_resize'
 SHAPE_ACTION = 'shape'
 SHAPE_PRICE_ACTION = 'shape_price'
@@ -179,7 +177,7 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             SHAPE_RULE_ACTION: self._instantiate_shape_rule_processor,
             SHAPE_RULE_DRY_RUN_ACTION:
                 self._instantiate_shape_rule_dry_run_processor,
-            PARENT_LICENSES_ACTION: self._instantiate_parent_licenses_processor,
+            PARENT_ACTION: self._instantiate_parent_processor,
             USER_ACTION: self._instantiate_user_processor,
             SHAPE_ACTION: self._instantiate_shape_processor,
             SHAPE_PRICE_ACTION: self._instantiate_shape_price_processor,
@@ -316,8 +314,8 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             tenant_service=self.tenant_service
         )
 
-    def _instantiate_parent_licenses_processor(self):
-        return ParentLicensesProcessor(
+    def _instantiate_parent_processor(self):
+        return ParentProcessor(
             algorithm_service=self.algorithm_service,
             customer_service=self.customer_service,
             application_service=self.application_service,

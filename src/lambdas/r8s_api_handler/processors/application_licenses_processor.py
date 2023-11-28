@@ -9,7 +9,7 @@ from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import GET_METHOD, POST_METHOD, DELETE_METHOD, \
     APPLICATION_ID_ATTR, DESCRIPTION_ATTR, \
     CLOUD_ATTR, CLOUD_ALL, TENANT_LICENSE_KEY_ATTR, \
-    LICENSE_KEY_ATTR, CUSTOMER_ATTR
+    LICENSE_KEY_ATTR, CUSTOMER_ATTR, APPLICATION_TENANTS_ALL
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -168,6 +168,8 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
             license_obj=license_obj,
             customer=customer_obj.name
         )
+        if not tenants:
+            tenants = [APPLICATION_TENANTS_ALL]
 
         meta = RightsizerLicensesApplicationMeta(
             cloud=cloud,
