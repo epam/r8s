@@ -5,6 +5,7 @@ from modular_sdk.commons.constants import (RIGHTSIZER_LICENSES_PARENT_TYPE,
                                            ParentScope)
 from modular_sdk.models.application import Application
 from modular_sdk.models.tenant import Tenant
+from modular_sdk.models.parent import Parent
 from modular_sdk.services.customer_service import CustomerService
 from modular_sdk.services.tenant_service import TenantService
 
@@ -211,6 +212,7 @@ class JobProcessor(AbstractCommandProcessor):
                        f'{scan_tenants}')
             self._validate_input_tenants(
                 application=application,
+                parents=parents,
                 input_scan_tenants=scan_tenants
             )
         else:
@@ -479,7 +481,15 @@ class JobProcessor(AbstractCommandProcessor):
             )
 
     def _validate_input_tenants(self, application: Application,
+                                parents: List[Parent],
                                 input_scan_tenants: list = None) -> list:
+        allowed_tenants = []
+        for parent in parents:
+            if parent.scope == ParentScope.ALL:
+                allowed_tenants.append(APPLICATION_TENANTS_ALL)
+            elif parent.scope == ParentScope.SPECIFIC:
+                allowed_tenants.append(parent.tenant_name)
+
         app_meta = self.application_service.get_application_meta(
             application=application)
         if not isinstance(input_scan_tenants, list):
@@ -489,7 +499,6 @@ class JobProcessor(AbstractCommandProcessor):
                 content=f'{TENANTS_ATTR} attribute must be a list.'
             )
         invalid_tenants = []
-        app_allowed_tenants = app_meta.tenants
         for tenant_name in input_scan_tenants:
             _LOG.debug(f'Validating tenant \'{tenant_name}\'')
             tenant_obj: Tenant = self.tenant_service.get(
@@ -510,8 +519,9 @@ class JobProcessor(AbstractCommandProcessor):
                              f'cloud {app_meta.cloud}.')
                 invalid_tenants.append(tenant_name)
                 continue
-            if (app_allowed_tenants != [APPLICATION_TENANTS_ALL]
-                    and tenant_name not in app_allowed_tenants):
+            if APPLICATION_TENANTS_ALL in allowed_tenants:
+                continue
+            if tenant_name not in allowed_tenants:
                 _LOG.warning(f'Scanning tenant \'{tenant_name}\' '
                              f'is forbidden for application '
                              f'\'{application.application_id}\'')
@@ -519,7 +529,7 @@ class JobProcessor(AbstractCommandProcessor):
 
         if invalid_tenants:
             message = f'Some of the specified tenants are invalid for ' \
-                      f'application \'{application.parent_id}\': ' \
+                      f'application \'{application.application_id}\': ' \
                       f'{", ".join(invalid_tenants)}'
             _LOG.error(message)
             return build_response(
