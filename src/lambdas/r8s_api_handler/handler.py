@@ -255,6 +255,7 @@ class R8sApiHandler(AbstractApiHandlerLambda):
     def _instantiate_application_processor(self):
         return ApplicationProcessor(
             application_service=self.application_service,
+            parent_service=self.parent_service,
             algorithm_service=self.algorithm_service,
             storage_service=self.storage_service,
             customer_service=self.customer_service,
