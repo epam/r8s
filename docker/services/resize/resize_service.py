@@ -7,7 +7,7 @@ from commons.exception import ExecutorException
 from commons.log_helper import get_logger
 from models.algorithm import ShapeSorting
 from models.base_model import CloudEnum
-from models.parent_attributes import ParentMeta
+from models.parent_attributes import LicensesParentMeta
 from models.recommendation_history import RecommendationHistory, \
     FeedbackStatusEnum
 from models.shape import Shape
@@ -345,7 +345,7 @@ class ResizeService:
         return [shape.get_dto() for shape in suitable_shapes]
 
     def divide_by_priority(self, sizes, cloud, current_shape: Shape, resize_action,
-                           parent_meta: ParentMeta = None,
+                           parent_meta: LicensesParentMeta = None,
                            forbid_change_series=True,
                            forbid_change_family=True):
         current_size_name = current_shape.name

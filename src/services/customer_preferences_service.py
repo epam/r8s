@@ -3,7 +3,7 @@ from typing import List
 
 from commons.constants import RULE_ID_ATTR
 from commons.log_helper import get_logger
-from models.parent_attributes import ParentMeta
+from models.parent_attributes import LicensesParentMeta
 from models.shape import Shape
 
 _LOG = get_logger('r8s-customer-preferences-filter')
@@ -33,7 +33,7 @@ class CustomerPreferencesService:
         }
 
     def get_allowed_instance_types(self, cloud: str,
-                                   parent_meta: ParentMeta,
+                                   parent_meta: LicensesParentMeta,
                                    instances_data: List[Shape]):
         shape_rules = parent_meta.shape_rules
 

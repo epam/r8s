@@ -19,8 +19,10 @@ class JobService:
         self.environment_service = environment_service
         self.batch_client = batch_client
 
-    def submit_job(self, job_owner: str, parent_id: str, envs,
-                   tenant_status_map: dict):
+    def submit_job(self, job_owner: str,
+                   application_id: str, envs,
+                   tenant_status_map: dict,
+                   parent_id: str = None):
         submitted_at = get_iso_timestamp()
         job_name = f'{job_owner}-{submitted_at}'
         job_name = ''.join([ch if ch.isalnum() or ch in ('-', '_')
@@ -45,6 +47,7 @@ class JobService:
             owner=job_owner,
             submitted_at=submitted_at,
             job_queue=self.environment_service.get_batch_job_queue(),
+            application_id=application_id,
             parent_id=parent_id,
             tenant_status_map=tenant_status_map)
         _LOG.debug(f'Saving job')

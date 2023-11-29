@@ -1,28 +1,22 @@
-from typing import List
-
-from modular_sdk.commons import ModularException
 from modular_sdk.commons.constants import AWS_CLOUD, AZURE_CLOUD, GOOGLE_CLOUD, \
-    RIGHTSIZER_LICENSES_PARENT_TYPE, \
-    TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE, ParentScope
-from modular_sdk.models.parent import Parent
+    RIGHTSIZER_LICENSES_TYPE
 from modular_sdk.services.customer_service import CustomerService
-from modular_sdk.services.tenant_service import TenantService
 
 from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
     build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
     validate_params, RESPONSE_FORBIDDEN_CODE
 from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import GET_METHOD, POST_METHOD, DELETE_METHOD, \
-    PARENT_ID_ATTR, APPLICATION_ID_ATTR, DESCRIPTION_ATTR, \
-    CLOUD_ATTR, CLOUD_ALL, PARENT_SCOPE_SPECIFIC_TENANT, \
-    TENANT_LICENSE_KEY_ATTR, \
-    LICENSE_KEY_ATTR, PARENT_SCOPE_ALL
+    APPLICATION_ID_ATTR, DESCRIPTION_ATTR, \
+    CLOUD_ATTR, CLOUD_ALL, TENANT_LICENSE_KEY_ATTR, \
+    LICENSE_KEY_ATTR, CUSTOMER_ATTR, APPLICATION_TENANTS_ALL
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
 from models.algorithm import Algorithm
+from models.application_attributes import RightsizerLicensesApplicationMeta
 from models.license import License
-from models.parent_attributes import LicensesParentMeta
+from services.abstract_api_handler_lambda import PARAM_USER_CUSTOMER
 from services.algorithm_service import AlgorithmService
 from services.license_manager_service import LicenseManagerService
 from services.license_service import LicenseService
@@ -30,24 +24,22 @@ from services.rightsizer_application_service import \
     RightSizerApplicationService
 from services.rightsizer_parent_service import RightSizerParentService
 
-_LOG = get_logger('r8s-parent-licenses-processor')
+_LOG = get_logger('r8s-application-licenses-processor')
 
 CLOUDS = [AWS_CLOUD, AZURE_CLOUD, GOOGLE_CLOUD, CLOUD_ALL]
 
 
-class ParentLicensesProcessor(AbstractCommandProcessor):
+class ApplicationLicensesProcessor(AbstractCommandProcessor):
     def __init__(self, algorithm_service: AlgorithmService,
                  customer_service: CustomerService,
                  application_service: RightSizerApplicationService,
                  parent_service: RightSizerParentService,
-                 tenant_service: TenantService,
                  license_service: LicenseService,
                  license_manager_service: LicenseManagerService):
         self.algorithm_service = algorithm_service
         self.customer_service = customer_service
         self.application_service = application_service
         self.parent_service = parent_service
-        self.tenant_service = tenant_service
         self.license_service = license_service
         self.license_manager_service = license_manager_service
 
@@ -69,11 +61,11 @@ class ParentLicensesProcessor(AbstractCommandProcessor):
         return command_handler(event=event)
 
     def get(self, event):
-        _LOG.debug(f'Describe parent licenses event: {event}')
+        _LOG.debug(f'Describe application licenses event: {event}')
 
         _LOG.debug(f'Resolving applications')
         applications = self.application_service.resolve_application(
-            event=event)
+            event=event, type_=RIGHTSIZER_LICENSES_TYPE)
 
         if not applications:
             _LOG.warning(f'No application found matching given query.')
@@ -82,30 +74,8 @@ class ParentLicensesProcessor(AbstractCommandProcessor):
                 content=f'No application found matching given query.'
             )
 
-        parents: List[Parent] = []
-
-        for application in applications:
-            application_parents = self.parent_service.list_application_parents(
-                application_id=application.application_id,
-                type_=RIGHTSIZER_LICENSES_PARENT_TYPE,
-                only_active=True
-            )
-            _LOG.debug(f'Got \'{len(application_parents)}\' from application '
-                       f'\'{application.application_id}\'')
-            parents.extend(application_parents)
-
-        parent_id = event.get(PARENT_ID_ATTR)
-        if parent_id:
-            parents = [parent for parent in parents if
-                       parent.parent_id == parent_id]
-        if not parents:
-            _LOG.error(f'No Parents found matching given query.')
-            return build_response(
-                code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No Parents found matching given query.'
-            )
-
-        response = [self.parent_service.get_dto(parent) for parent in parents]
+        response = [self.application_service.get_dto(application)
+                    for application in applications]
         _LOG.debug(f'Response: {response}')
 
         return build_response(
@@ -114,30 +84,24 @@ class ParentLicensesProcessor(AbstractCommandProcessor):
         )
 
     def post(self, event):
-        _LOG.debug(f'Create licensed parent event: {event}')
-        validate_params(event, (APPLICATION_ID_ATTR, DESCRIPTION_ATTR,
+        _LOG.debug(f'Create licensed application event: {event}')
+        validate_params(event, (CUSTOMER_ATTR, DESCRIPTION_ATTR,
                                 CLOUD_ATTR, TENANT_LICENSE_KEY_ATTR))
 
-        _LOG.debug(f'Resolving applications')
-        applications = self.application_service.resolve_application(
-            event=event)
+        customer = event.get(CUSTOMER_ATTR)
+        user_customer = event.get(PARAM_USER_CUSTOMER)
 
-        if not applications:
-            _LOG.warning(f'No application found matching given query.')
+        _LOG.debug(f'Validating user access to customer \'{customer}\'')
+        if not self._is_allowed_customer(user_customer=user_customer,
+                                         customer=customer):
+            _LOG.warning(f'User is not allowed to create application for '
+                         f'customer \'{customer}\'')
             return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No application found matching given query.'
+                code=RESPONSE_FORBIDDEN_CODE,
+                content=f'You are not allowed to create application for '
+                        f'customer \'{customer}\''
             )
-        if len(applications) > 1:
-            _LOG.error(f'Exactly one application must be identified.')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Exactly one application must be identified.'
-            )
-        application = applications[0]
-        _LOG.debug(f'Target application \'{application.application_id}\'')
 
-        customer = application.customer_id
         _LOG.debug(f'Validating customer existence \'{customer}\'')
         customer_obj = self.customer_service.get(name=customer)
         if not customer_obj:
@@ -202,131 +166,66 @@ class ParentLicensesProcessor(AbstractCommandProcessor):
 
         tenants = self.license_service.list_allowed_tenants(
             license_obj=license_obj,
-            customer=application.customer_id
+            customer=customer_obj.name
         )
-        if tenants is None:  # license activation is forbidden
-            _LOG.error(f'Activation of license \'{license_obj.license_key}\' '
-                       f'is forbidden to customer '
-                       f'\'{application.customer_id}\'')
-            return build_response(
-                code=RESPONSE_FORBIDDEN_CODE,
-                content=f'Activation of license \'{license_obj.license_key}\' '
-                        f'is forbidden to customer '
-                        f'\'{application.customer_id}\''
-            )
+        if not tenants:
+            tenants = [APPLICATION_TENANTS_ALL]
 
-        meta = LicensesParentMeta(
+        meta = RightsizerLicensesApplicationMeta(
             cloud=cloud,
             algorithm=algorithm_obj.name,
             license_key=license_key,
+            tenants=tenants
         )
-        parents = []
-        if tenants:
-            for index, tenant in enumerate(tenants, start=1):
-                _LOG.debug(f'{index}/{len(tenants)} Creating RIGHTSIZER_LICENSES '
-                           f'parent for tenant {tenant}')
-                parent = self.parent_service.create_tenant_scope(
-                    application_id=application.application_id,
-                    customer_id=customer,
-                    type_=RIGHTSIZER_LICENSES_PARENT_TYPE,
-                    description=description,
-                    meta=meta.as_dict(),
-                    tenant_name=tenant
-                )
-                parents.append(parent)
-        else:
-            _LOG.debug(f'Creating RIGHTSIZER_LICENSES parent for all tenants '
-                       f'in cloud: {cloud}')
-            parent = self.parent_service.create_all_scope(
-                application_id=application.application_id,
-                customer_id=customer,
-                type_=RIGHTSIZER_LICENSES_PARENT_TYPE,
-                description=description,
-                meta=meta.as_dict(),
-                cloud=cloud
-            )
-            parents.append(parent)
+        _LOG.debug(f'Application meta {meta.as_dict()}')
 
-        _LOG.debug(f'Going to save {len(parents)} parent(s).')
-        for parent in parents:
-            self.parent_service.save(parent=parent)
+        _LOG.debug(f'Creating application')
+        application = self.application_service.create(
+            customer_id=customer_obj.name,
+            type=RIGHTSIZER_LICENSES_TYPE,
+            description=description,
+            is_deleted=False,
+            meta=meta.as_dict()
+        )
+        _LOG.debug(f'Saving application')
+        self.application_service.save(application=application)
 
-        parent_dtos = [self.parent_service.get_dto(parent=parent)
-                       for parent in parents]
-        _LOG.debug(f'Created parents: \'{parent_dtos}\'')
+        _LOG.debug(f'Preparing response')
+        response = self.application_service.get_dto(application=application)
 
-        for parent in parents:
-            if not parent.tenant_name:
-                continue
-            try:
-                _LOG.debug(f'Going to activate tenants {tenants} for parent '
-                           f'\'{parent.parent_id}\'')
-                self.activate_tenant(
-                    tenant_name=parent.tenant_name,
-                    parent=parent
-                )
-            except ModularException as e:
-                _LOG.error(e.content)
-                return build_response(
-                    code=e.code,
-                    content=e.content
-                )
-
+        _LOG.debug(f'Response: {response}')
         return build_response(
             code=RESPONSE_OK_CODE,
-            content=parent_dtos
+            content=response
         )
 
     def delete(self, event):
-        _LOG.debug(f'Delete licenses parent event: {event}')
-        validate_params(event, (PARENT_ID_ATTR,))
+        _LOG.debug(f'Delete licenses application event: {event}')
+        validate_params(event, (APPLICATION_ID_ATTR,))
 
+        application_id = event.get(APPLICATION_ID_ATTR)
         _LOG.debug(f'Resolving applications')
         applications = self.application_service.resolve_application(
-            event=event)
+            event=event, type_=RIGHTSIZER_LICENSES_TYPE)
 
-        if not applications:
-            _LOG.warning(f'No application found matching given query.')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No application found matching given query.'
-            )
-        app_ids = [app.application_id for app in applications]
-        _LOG.debug(f'Allowed application ids \'{app_ids}\'')
+        target_application = None
+        for application in applications:
+            if application.application_id == application_id:
+                target_application = application
 
-        parent_id = event.get(PARENT_ID_ATTR)
-        _LOG.debug(f'Describing parent by id \'{parent_id}\'')
-        parent = self.parent_service.get_parent_by_id(parent_id=parent_id)
-        if not parent or parent.is_deleted or parent.application_id \
-                not in app_ids:
-            _LOG.debug(f'Parent \'{parent_id}\' does not exist or '
-                       f'already deleted.')
+        if not target_application:
+            _LOG.warning(f'Application {application_id} not found.')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'Parent \'{parent_id}\' does not exist or '
-                        f'already deleted.'
+                content=f'Application {application_id} not found.'
             )
 
-        if parent.tenant_name:
-            _LOG.debug(f'Describing tenant {parent.tenant_name}')
-            tenant = self.tenant_service.get(tenant_name=parent.tenant_name)
-            if not tenant:
-                _LOG.warning(f'Linked tenant {parent.tenant_name} '
-                             f'does not exist.')
-            else:
-                _LOG.debug(f'Going to unlink tenant {parent.tenant_name} '
-                           f'from parent {parent.parent_id}')
-                self.tenant_service.remove_from_parent_map(
-                    tenant=tenant,
-                    type_=RIGHTSIZER_LICENSES_PARENT_TYPE
-                )
-
-        _LOG.debug(f'Deleting parent \'{parent.parent_id}\'')
-        self.parent_service.mark_deleted(parent=parent)
+        _LOG.debug(f'Deleting application \'{application_id}\'')
+        self.application_service.mark_deleted(application=target_application)
 
         return build_response(
             code=RESPONSE_OK_CODE,
-            content=f'Parent \'{parent_id}\' has been deleted.'
+            content=f'Application \'{application_id}\' has been deleted.'
         )
 
     def activate_license(self, tenant_license_key: str, customer: str):
@@ -381,17 +280,10 @@ class ParentLicensesProcessor(AbstractCommandProcessor):
         )
         return license_obj
 
-    def activate_tenant(self, tenant_name: str, parent: Parent):
-        _LOG.debug(f'Describing tenant \'{tenant_name}\'')
-        tenant_obj = self.tenant_service.get(tenant_name=tenant_name)
-        if not tenant_obj:
-            _LOG.error(f'Tenant \'{tenant_name}\' does not exist.')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Tenant \'{tenant_name}\' does not exist.'
-            )
-        self.tenant_service.add_to_parent_map(
-            tenant=tenant_obj,
-            parent=parent,
-            type_=TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE
-        )
+    @staticmethod
+    def _is_allowed_customer(user_customer, customer):
+        if user_customer == 'admin':
+            return True
+        if user_customer == customer:
+            return True
+        return False

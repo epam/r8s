@@ -16,7 +16,7 @@ from commons.log_helper import get_logger
 from commons.profiler import profiler
 from models.algorithm import Algorithm
 from models.base_model import CloudEnum
-from models.parent_attributes import ParentMeta
+from models.parent_attributes import LicensesParentMeta
 from models.recommendation_history import RecommendationHistory, \
     RecommendationTypeEnum
 from models.shape_price import OSEnum
@@ -56,7 +56,7 @@ class RecommendationService:
     @profiler(execution_step=f'instance_recommendation_generation')
     def process_instance(self, metric_file_path, algorithm: Algorithm,
                          reports_dir, instance_meta_mapping=None,
-                         parent_meta: Union[None, ParentMeta] = None):
+                         parent_meta: Union[None, LicensesParentMeta] = None):
         _LOG.debug(f'Parsing entity names from metrics file path '
                    f'\'{metric_file_path}\'')
         df = None

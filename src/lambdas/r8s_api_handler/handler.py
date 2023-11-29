@@ -7,6 +7,8 @@ from commons.constants import GET_METHOD
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.algorithm_processor import \
     AlgorithmProcessor
+from lambdas.r8s_api_handler.processors.application_licenses_processor import \
+    ApplicationLicensesProcessor
 from lambdas.r8s_api_handler.processors.application_processor import \
     ApplicationProcessor
 from lambdas.r8s_api_handler.processors.health_check_processor import \
@@ -22,8 +24,6 @@ from lambdas.r8s_api_handler.processors.license_sync_processor import \
     LicenseSyncProcessor
 from lambdas.r8s_api_handler.processors.mail_report_processor import \
     MailReportProcessor
-from lambdas.r8s_api_handler.processors.parent_licenses_processor import \
-    ParentLicensesProcessor
 from lambdas.r8s_api_handler.processors.parent_processor import ParentProcessor
 from lambdas.r8s_api_handler.processors.parent_resize_insights_processor import \
     ParentResizeInsightsProcessor
@@ -86,6 +86,7 @@ ROLE_ACTION = 'role'
 ALGORITHM_ACTION = 'algorithm'
 STORAGE_ACTION = 'storage'
 APPLICATION_ACTION = 'application'
+APPLICATION_LICENSES_ACTION = 'application_licenses'
 JOB_ACTION = 'job'
 REPORT_ACTION = 'report'
 MAIL_REPORT_ACTION = 'mail_report'
@@ -93,7 +94,6 @@ STORAGE_DATA_ACTION = 'storage_data'
 SHAPE_RULE_ACTION = 'shape_rule'
 SHAPE_RULE_DRY_RUN_ACTION = 'shape_rule_dry_run'
 PARENT_ACTION = 'parent'
-PARENT_LICENSES_ACTION = 'parent_licenses'
 PARENT_INSIGHTS_RESIZE_ACTION = 'parent_insights_resize'
 SHAPE_ACTION = 'shape'
 SHAPE_PRICE_ACTION = 'shape_price'
@@ -168,6 +168,8 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             ALGORITHM_ACTION: self._instantiate_algorithm_processor,
             STORAGE_ACTION: self._instantiate_storage_processor,
             APPLICATION_ACTION: self._instantiate_application_processor,
+            APPLICATION_LICENSES_ACTION:
+                self._instantiate_application_licenses_processor,
             JOB_ACTION: self._instantiate_job_processor,
             REPORT_ACTION: self._instantiate_report_processor,
             MAIL_REPORT_ACTION: self._instantiate_mail_report_processor,
@@ -176,7 +178,6 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             SHAPE_RULE_DRY_RUN_ACTION:
                 self._instantiate_shape_rule_dry_run_processor,
             PARENT_ACTION: self._instantiate_parent_processor,
-            PARENT_LICENSES_ACTION: self._instantiate_parent_licenses_processor,
             USER_ACTION: self._instantiate_user_processor,
             SHAPE_ACTION: self._instantiate_shape_processor,
             SHAPE_PRICE_ACTION: self._instantiate_shape_price_processor,
@@ -254,10 +255,21 @@ class R8sApiHandler(AbstractApiHandlerLambda):
     def _instantiate_application_processor(self):
         return ApplicationProcessor(
             application_service=self.application_service,
+            parent_service=self.parent_service,
             algorithm_service=self.algorithm_service,
             storage_service=self.storage_service,
             customer_service=self.customer_service,
             api_gateway_client=self.api_gateway_client
+        )
+
+    def _instantiate_application_licenses_processor(self):
+        return ApplicationLicensesProcessor(
+            algorithm_service=self.algorithm_service,
+            customer_service=self.customer_service,
+            application_service=self.application_service,
+            parent_service=self.parent_service,
+            license_service=self.license_service,
+            license_manager_service=self.license_manager_service
         )
 
     def _instantiate_job_processor(self):
@@ -305,15 +317,6 @@ class R8sApiHandler(AbstractApiHandlerLambda):
 
     def _instantiate_parent_processor(self):
         return ParentProcessor(
-            customer_service=self.customer_service,
-            application_service=self.application_service,
-            parent_service=self.parent_service,
-            tenant_service=self.tenant_service,
-            environment_service=self.environment_service
-        )
-
-    def _instantiate_parent_licenses_processor(self):
-        return ParentLicensesProcessor(
             algorithm_service=self.algorithm_service,
             customer_service=self.customer_service,
             application_service=self.application_service,

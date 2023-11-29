@@ -427,9 +427,10 @@ class AdapterClient:
                                    method=HTTP_GET,
                                    payload=request)
 
-    def job_post(self, parent_id,
+    def job_post(self, application_id, parent_id,
                  scan_tenants, scan_from_date, scan_to_date):
         request = {
+            PARAM_APPLICATION_ID: application_id,
             PARAM_PARENT_ID: parent_id,
             PARAM_TENANTS: scan_tenants,
             PARAM_SCAN_FROM_DATE: scan_from_date,
@@ -552,38 +553,34 @@ class AdapterClient:
                                    method=HTTP_DELETE,
                                    payload=request)
 
-    def parent_get(self, application_id=None, parent_id=None):
+    def application_licenses_get(self, application_id=None):
         request = {}
         if application_id:
             request[PARAM_APPLICATION_ID] = application_id
-        if parent_id:
-            request[PARAM_PARENT_ID] = parent_id
 
-        return self.__make_request(resource=API_PARENT,
+        return self.__make_request(resource=API_APPLICATION_LICENSES,
                                    method=HTTP_GET,
                                    payload=request)
 
-    def parent_post(self, application_id, description,
-                    cloud, scope, tenant_name=None):
+    def application_licenses_post(self, customer, description, cloud,
+                                  tenant_license_key):
         request = {
-            PARAM_APPLICATION_ID: application_id,
+            PARAM_CUSTOMER: customer,
             PARAM_DESCRIPTION: description,
             PARAM_CLOUD: cloud,
-            PARAM_SCOPE: scope,
-            PARAM_TENANT: tenant_name
+            PARAM_TENANT_LICENSE_KEY: tenant_license_key,
         }
-        request = {k: v for k, v in request.items() if v}
 
-        return self.__make_request(resource=API_PARENT,
+        return self.__make_request(resource=API_APPLICATION_LICENSES,
                                    method=HTTP_POST,
                                    payload=request)
 
-    def parent_delete(self, parent_id):
+    def application_licenses_delete(self, application_id):
         request = {
-            PARAM_PARENT_ID: parent_id
+            PARAM_APPLICATION_ID: application_id
         }
 
-        return self.__make_request(resource=API_PARENT,
+        return self.__make_request(resource=API_APPLICATION_LICENSES,
                                    method=HTTP_DELETE,
                                    payload=request)
 
@@ -604,20 +601,21 @@ class AdapterClient:
         if parent_id:
             request[PARAM_PARENT_ID] = parent_id
 
-        return self.__make_request(resource=API_PARENT_LICENSES,
+        return self.__make_request(resource=API_PARENT,
                                    method=HTTP_GET,
                                    payload=request)
 
     def parent_licenses_post(self, application_id, description,
-                             cloud, tenant_license_key):
+                             tenant, scope):
         request = {
             PARAM_APPLICATION_ID: application_id,
             PARAM_DESCRIPTION: description,
-            PARAM_CLOUD: cloud,
-            PARAM_TENANT_LICENSE_KEY: tenant_license_key
+            PARAM_SCOPE: scope
         }
+        if tenant:
+            request[PARAM_TENANT] = tenant
 
-        return self.__make_request(resource=API_PARENT_LICENSES,
+        return self.__make_request(resource=API_PARENT,
                                    method=HTTP_POST,
                                    payload=request)
 
@@ -626,7 +624,7 @@ class AdapterClient:
             PARAM_PARENT_ID: parent_id
         }
 
-        return self.__make_request(resource=API_PARENT_LICENSES,
+        return self.__make_request(resource=API_PARENT,
                                    method=HTTP_DELETE,
                                    payload=request)
 

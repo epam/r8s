@@ -1,6 +1,7 @@
 import click
 
 from r8s_group import cli_response, ViewCommand
+from r8s_group.application_licenses import licenses
 from r8s_service.constants import ALLOWED_PROTOCOLS, \
     PROTOCOL_HTTPS
 
@@ -122,3 +123,5 @@ def delete(application_id):
     from r8s_service.initializer import init_configuration
     return init_configuration().application_delete(
         application_id=application_id)
+
+application.add_command(licenses)

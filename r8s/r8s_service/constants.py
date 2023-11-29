@@ -33,6 +33,7 @@ API_USER = 'users'
 
 PARAM_ID = '_id'
 API_APPLICATION = 'applications'
+API_APPLICATION_LICENSES = 'applications/licenses'
 API_PARENT = 'parents'
 API_PARENT_LICENSES = 'parents/licenses'
 API_PARENT_TENANT_LINK = 'parents/tenant-link'

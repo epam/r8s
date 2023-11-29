@@ -26,6 +26,7 @@ class Job(BaseModel):
     name = StringField(unique=True)
     owner = StringField(null=True)
     job_queue = StringField(null=True)
+    application_id = StringField(null=True)
     parent_id = StringField(null=True)
     created_at = DateTimeField(null=True)
     started_at = DateTimeField(null=True)
