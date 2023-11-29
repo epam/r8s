@@ -228,7 +228,8 @@ class ApplicationProcessor(AbstractCommandProcessor):
         validate_params(event, (APPLICATION_ID_ATTR,))
 
         applications = self.application_service.resolve_application(
-            event=event
+            event=event,
+            type_=MAESTRO_RIGHTSIZER_APPLICATION_TYPE
         )
         application_id = event.get(APPLICATION_ID_ATTR)
         if not applications:
@@ -331,7 +332,8 @@ class ApplicationProcessor(AbstractCommandProcessor):
         validate_params(event, (APPLICATION_ID_ATTR,))
 
         applications = self.application_service.resolve_application(
-            event=event
+            event=event,
+            type_=MAESTRO_RIGHTSIZER_APPLICATION_TYPE
         )
         application_id = event.get(APPLICATION_ID_ATTR)
         if not applications:
