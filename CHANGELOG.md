@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2023-11-29
+* migrate to new Application/Parent model:
+  - RIGHTSIZER Application: host application
+  - RIGHTSIZER Parent: links host application to tenants (ALL-scoped, auto-generated)
+  - RIGHTSIZER_LICENSES Application: license application
+  - RIGHTSIZER_LICENSES Parent: indicates that license is activated for tenant(s)
+
 ## [2.19.10] - 2023-11-22
 * add `limit` parameter to `r8s job describe` command
 
