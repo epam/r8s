@@ -427,9 +427,10 @@ class AdapterClient:
                                    method=HTTP_GET,
                                    payload=request)
 
-    def job_post(self, parent_id,
+    def job_post(self, application_id, parent_id,
                  scan_tenants, scan_from_date, scan_to_date):
         request = {
+            PARAM_APPLICATION_ID: application_id,
             PARAM_PARENT_ID: parent_id,
             PARAM_TENANTS: scan_tenants,
             PARAM_SCAN_FROM_DATE: scan_from_date,
