@@ -26,7 +26,8 @@ from services.environment_service import EnvironmentService
 from services.job_service import JobService
 from services.recommendation_history_service import \
     RecommendationHistoryService
-from services.rightsizer_parent_service import RightSizerParentService
+from services.rightsizer_application_service import \
+    RightSizerApplicationService
 
 _LOG = get_logger('r8s-report-generator')
 
@@ -46,7 +47,7 @@ class ReportGenerator(AbstractLambda):
                  customer_service: CustomerService,
                  recommendation_service: RecommendationHistoryService,
                  maestro_rabbitmq_service: MaestroRabbitMQTransport,
-                 parent_service: RightSizerParentService,
+                 application_service: RightSizerApplicationService,
                  algorithm_service: AlgorithmService,
                  environment_service: EnvironmentService):
         self.job_service = job_service
@@ -54,7 +55,7 @@ class ReportGenerator(AbstractLambda):
         self.customer_service = customer_service
         self.recommendation_service = recommendation_service
         self.maestro_rabbitmq_service = maestro_rabbitmq_service
-        self.parent_service = parent_service
+        self.application_service = application_service
         self.algorithm_service = algorithm_service
         self.environment_service = environment_service
 
@@ -547,21 +548,25 @@ class ReportGenerator(AbstractLambda):
         if not job:
             _LOG.error(f'No job with id \'{job_id}\' found')
             return UTC_TIMEZONE_NAME
-        parent_id = job.parent_id
-        if not parent_id:
-            _LOG.error(f'Job \'{job_id}\' does not have parent_id specified.')
+        application_id = job.application_id
+        if not application_id:
+            _LOG.error(f'Job \'{job_id}\' does not have application_id specified.')
             return UTC_TIMEZONE_NAME
-        parent = self.parent_service.get_parent_by_id(parent_id=parent_id)
-        if not parent:
-            _LOG.error(f'Parent with id \'{parent_id}\' does not exist.')
+        application = self.application_service.get_application_by_id(
+            application_id=application_id)
+        if not application:
+            _LOG.error(f'Application with id \'{application_id}\' '
+                       f'does not exist.')
             return UTC_TIMEZONE_NAME
-        parent_meta = self.parent_service.get_parent_meta(parent=parent)
-        if not parent_meta:
-            _LOG.error(f'Parent \'{parent_id}\' meta is empty.')
+        app_meta = self.application_service.get_application_meta(
+            application=application)
+        if not app_meta:
+            _LOG.error(f'Application \'{application_id}\' meta is empty.')
             return UTC_TIMEZONE_NAME
-        algorithm_name = parent_meta.algorithm
+        algorithm_name = app_meta.algorithm
         if not algorithm_name:
-            _LOG.error(f'Algorithm not specified in parent \'{parent_id}\'.')
+            _LOG.error(f'Algorithm not specified in application '
+                       f'\'{application_id}\'.')
             return UTC_TIMEZONE_NAME
         algorithm = self.algorithm_service.get_by_name(name=algorithm_name)
         if not algorithm:
@@ -581,7 +586,7 @@ HANDLER = ReportGenerator(
     tenant_service=SERVICE_PROVIDER.tenant_service(),
     recommendation_service=SERVICE_PROVIDER.recommendation_history_service(),
     maestro_rabbitmq_service=SERVICE_PROVIDER.maestro_rabbitmq_service(),
-    parent_service=SERVICE_PROVIDER.rightsizer_parent_service(),
+    application_service=SERVICE_PROVIDER.rightsizer_application_service(),
     algorithm_service=SERVICE_PROVIDER.algorithm_service(),
     environment_service=SERVICE_PROVIDER.environment_service())
 
