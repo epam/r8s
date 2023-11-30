@@ -3,6 +3,8 @@ from typing import List, Union
 from modular_sdk.models.application import Application
 from modular_sdk.services.application_service import ApplicationService
 from modular_sdk.services.customer_service import CustomerService
+from modular_sdk.commons.constants import ApplicationType
+
 from pynamodb.attributes import MapAttribute
 
 from commons import ApplicationException, RESPONSE_INTERNAL_SERVER_ERROR
@@ -81,6 +83,15 @@ class RightSizerApplicationService(ApplicationService):
             meta=meta
         )
         return application
+
+    def get_host_application(self, customer):
+        applications = list(self.list(
+            customer=customer,
+            _type=ApplicationType.RIGHTSIZER,
+            deleted=False,
+            limit=1
+        ))
+        return applications[0] if applications else None
 
     def get_application_meta(self, application: Application):
         meta: MapAttribute = application.meta
