@@ -290,7 +290,8 @@ class R8sApiHandler(AbstractApiHandlerLambda):
     def _instantiate_report_processor(self):
         return ReportProcessor(
             job_service=self.job_service,
-            report_service=self.report_service
+            report_service=self.report_service,
+            tenant_service=self.tenant_service
         )
 
     def _instantiate_storage_data_processor(self):
