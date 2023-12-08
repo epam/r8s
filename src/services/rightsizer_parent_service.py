@@ -152,9 +152,9 @@ class RightSizerParentService(ParentService):
         if value:
             shape_rule.value = value
 
-    def remove_shape_rule_from_application(self,
-                                           parent_meta: LicensesParentMeta,
-                                           rule_id: str) -> None:
+    def remove_shape_rule_from_meta(self,
+                                    parent_meta: LicensesParentMeta,
+                                    rule_id: str) -> None:
         shape_rules = self.list_shape_rules(parent_meta=parent_meta)
         if not shape_rules:
             return

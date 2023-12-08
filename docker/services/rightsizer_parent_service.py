@@ -1,4 +1,5 @@
-from typing import List, Union
+from collections import defaultdict
+from typing import List, Union, Dict
 
 from modular_sdk.commons import generate_id
 from modular_sdk.commons.constants import RIGHTSIZER_PARENT_TYPE, \
@@ -92,10 +93,10 @@ class RightSizerParentService(ParentService):
             if excess_attributes:
                 self._excess_attributes_cache[parent.parent_id] = \
                     excess_attributes
-            application_meta_obj = LicensesParentMeta(**meta_dict_filtered)
+            parent_meta_obj = LicensesParentMeta(**meta_dict_filtered)
         else:
-            application_meta_obj = LicensesParentMeta()
-        return application_meta_obj
+            parent_meta_obj = LicensesParentMeta()
+        return parent_meta_obj
 
     def set_parent_meta(self, parent: Parent,
                         meta: LicensesParentMeta):
@@ -197,3 +198,22 @@ class RightSizerParentService(ParentService):
         _LOG.debug(f'Tenants will be excluded from scan: '
                    f'{exclude_tenant_names}')
         return list(set(tenant_names) - exclude_tenant_names)
+
+    def resolve_tenant_parent_meta_map(
+            self, parents: List[Parent]) -> Dict[str, LicensesParentMeta]:
+        all_scoped_parents = [parent for parent in parents
+                              if parent.scope == ParentScope.ALL.value]
+        all_scoped_parent = next(iter(all_scoped_parents), None)
+
+        if all_scoped_parent:
+            meta = self.get_parent_meta(all_scoped_parent)
+            tenant_meta_map = defaultdict(lambda: meta)
+        else:
+            tenant_meta_map = defaultdict(lambda: LicensesParentMeta())
+
+        for parent in parents:
+            if (parent.scope == ParentScope.SPECIFIC.value and
+                    parent.tenant_name):
+                tenant_meta_map[parent.tenant_name] = (
+                    self.get_parent_meta(parent))
+        return tenant_meta_map

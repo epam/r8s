@@ -352,6 +352,8 @@ def main():
             reason=f'Can\'t resolve RIGHTSIZER_LICENSES parents for license '
                    f'application: \'{LICENSED_APPLICATION_ID}\''
         )
+    tenant_meta_map = parent_service.resolve_tenant_parent_meta_map(
+        parents=parents)
 
     _LOG.debug(f'Describing License \'{license_key}\'')
     license_: License = license_service.get_license(license_id=license_key)
@@ -364,7 +366,7 @@ def main():
                 reports_dir=reports_dir,
                 input_storage=input_storage,
                 output_storage=output_storage,
-                parent_meta=LicensesParentMeta(),
+                parent_meta=tenant_meta_map[tenant],
                 licensed_application=licensed_application,
                 algorithm=algorithm,
                 license_=license_,
