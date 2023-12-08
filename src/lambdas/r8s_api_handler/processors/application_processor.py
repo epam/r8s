@@ -11,7 +11,8 @@ from commons.constants import POST_METHOD, GET_METHOD, PATCH_METHOD, \
     DELETE_METHOD, CUSTOMER_ATTR, \
     DESCRIPTION_ATTR, OUTPUT_STORAGE_ATTR, INPUT_STORAGE_ATTR, \
     CONNECTION_ATTR, PORT_ATTR, PROTOCOL_ATTR, HOST_ATTR, USERNAME_ATTR, \
-    PASSWORD_ATTR, APPLICATION_ID_ATTR, MAESTRO_RIGHTSIZER_APPLICATION_TYPE
+    PASSWORD_ATTR, APPLICATION_ID_ATTR, MAESTRO_RIGHTSIZER_APPLICATION_TYPE, \
+    FORCE_ATTR
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -336,6 +337,7 @@ class ApplicationProcessor(AbstractCommandProcessor):
             type_=MAESTRO_RIGHTSIZER_APPLICATION_TYPE
         )
         application_id = event.get(APPLICATION_ID_ATTR)
+
         if not applications:
             _LOG.warning(f'Application with id '
                          f'\'{application_id}\' does not exist.')
@@ -359,14 +361,13 @@ class ApplicationProcessor(AbstractCommandProcessor):
             for parent in parents:
                 _LOG.debug(f'Deleting parent {parent.parent_id}')
                 self.parent_service.mark_deleted(parent=parent)
+
+        force = event.get(FORCE_ATTR)
         try:
-            self.application_service.mark_deleted(application=application)
-            _LOG.debug(
-                f'Application \'{application.application_id}\' has been '
-                f'deleted.')
-            self.application_service.save(application=application)
-            _LOG.debug(f'Application \'{application.application_id}\' '
-                       f'saved')
+            if force:
+                self.application_service.force_delete(application=application)
+            else:
+                self.application_service.mark_deleted(application=application)
         except ModularException as e:
             return build_response(
                 code=e.code,

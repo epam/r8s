@@ -14,7 +14,7 @@ from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
 from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import GET_METHOD, POST_METHOD, DELETE_METHOD, \
     PARENT_ID_ATTR, APPLICATION_ID_ATTR, DESCRIPTION_ATTR, \
-    CLOUD_ALL, SCOPE_ATTR, TENANT_ATTR
+    CLOUD_ALL, SCOPE_ATTR, TENANT_ATTR, FORCE_ATTR
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -183,20 +183,27 @@ class ParentProcessor(AbstractCommandProcessor):
         _LOG.debug(f'Allowed application ids \'{app_ids}\'')
 
         parent_id = event.get(PARENT_ID_ATTR)
+        force = event.get(FORCE_ATTR)
         _LOG.debug(f'Describing parent by id \'{parent_id}\'')
         parent = self.parent_service.get_parent_by_id(parent_id=parent_id)
-        if not parent or parent.is_deleted or parent.application_id \
-                not in app_ids:
-            _LOG.debug(f'Parent \'{parent_id}\' does not exist or '
-                       f'already deleted.')
+
+        if not parent or parent.application_id not in app_ids:
+            _LOG.debug(f'Parent \'{parent_id}\' does not exist.')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'Parent \'{parent_id}\' does not exist or '
-                        f'already deleted.'
+                content=f'Parent \'{parent_id}\' does not exist.'
             )
 
-        _LOG.debug(f'Deleting parent \'{parent.parent_id}\'')
-        self.parent_service.mark_deleted(parent=parent)
+        if force:
+            self.parent_service.force_delete(parent=parent)
+        elif parent.is_deleted:
+            _LOG.debug(f'Parent {parent.parent_id} already marked as deleted')
+            return build_response(
+                code=RESPONSE_OK_CODE,
+                content=f'Parent {parent.parent_id} already marked as deleted'
+            )
+        else:
+            self.parent_service.mark_deleted(parent=parent)
 
         return build_response(
             code=RESPONSE_OK_CODE,

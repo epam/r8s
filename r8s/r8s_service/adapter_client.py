@@ -544,10 +544,12 @@ class AdapterClient:
                                    method=HTTP_PATCH,
                                    payload=request)
 
-    def application_delete(self, application_id):
+    def application_delete(self, application_id, force=None):
         request = {
             PARAM_APPLICATION_ID: application_id
         }
+        if force:
+            request[PARAM_FORCE]: force
 
         return self.__make_request(resource=API_APPLICATION,
                                    method=HTTP_DELETE,
@@ -619,10 +621,12 @@ class AdapterClient:
                                    method=HTTP_POST,
                                    payload=request)
 
-    def parent_licenses_delete(self, parent_id):
+    def parent_licenses_delete(self, parent_id, force=None):
         request = {
             PARAM_PARENT_ID: parent_id
         }
+        if force:
+            request[PARAM_FORCE] = force
 
         return self.__make_request(resource=API_PARENT,
                                    method=HTTP_DELETE,

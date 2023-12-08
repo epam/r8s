@@ -57,13 +57,20 @@ def add(application_id, description, tenant, scope):
 @parent.command(cls=ViewCommand, name='delete')
 @click.option('--parent_id', '-pid', type=str, required=True,
               help='Maestro Parent id to delete.')
+@click.option('--force', '-f', is_flag=True,
+              help='To completely delete Parent from db.')
 @cli_response()
-def delete(parent_id):
+def delete(parent_id, force):
     """
     Deletes Maestro RIGHTSIZER_LICENSES Parent
     """
     from r8s_service.initializer import init_configuration
-
+    if force:
+        click.confirm(
+            f'Do you really want to completely '
+            f'delete parent {parent_id}?',
+            abort=True
+        )
     return init_configuration().parent_licenses_delete(
         parent_id=parent_id
     )
