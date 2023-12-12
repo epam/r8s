@@ -582,8 +582,7 @@ class AdapterClient:
             PARAM_APPLICATION_ID: application_id
         }
         if force:
-            request[PARAM_FORCE]: force
-
+            request[PARAM_FORCE] = force
         return self.__make_request(resource=API_APPLICATION_LICENSES,
                                    method=HTTP_DELETE,
                                    payload=request)
