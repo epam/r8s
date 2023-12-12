@@ -72,7 +72,8 @@ def delete(parent_id, force):
             abort=True
         )
     return init_configuration().parent_licenses_delete(
-        parent_id=parent_id
+        parent_id=parent_id,
+        force=force
     )
 
 
