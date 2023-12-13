@@ -12,8 +12,6 @@ _LOG = get_logger(__name__)
 
 
 class LicenseService:
-    def __init__(self, settings_service: SettingsService):
-        self.settings_service = settings_service
 
     @staticmethod
     def get_license(license_id):

@@ -364,9 +364,7 @@ class ServiceProvider:
             if not self.__license_service:
                 from services.license_service import \
                     LicenseService
-                self.__license_service = LicenseService(
-                    settings_service=self.settings_service()
-                )
+                self.__license_service = LicenseService()
             return self.__license_service
 
     instance = None

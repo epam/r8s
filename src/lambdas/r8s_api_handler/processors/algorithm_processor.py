@@ -85,10 +85,10 @@ class AlgorithmProcessor(AbstractCommandProcessor):
 
         algorithms = [i for i in algorithms if i]
         if not algorithms:
-            _LOG.debug(f'No algorithms found matching given query')
+            _LOG.debug(f'No algorithm found matching given query')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No algorithms found matching given query'
+                content=f'No algorithm found matching given query'
             )
 
         _LOG.debug(f'Got {len(algorithms)} algorithms to describe.'
