@@ -1,5 +1,6 @@
 from modular_sdk.commons.constants import AWS_CLOUD, AZURE_CLOUD, GOOGLE_CLOUD, \
     RIGHTSIZER_LICENSES_TYPE
+from modular_sdk.commons import ModularException
 from modular_sdk.services.customer_service import CustomerService
 
 from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
@@ -9,7 +10,7 @@ from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import GET_METHOD, POST_METHOD, DELETE_METHOD, \
     APPLICATION_ID_ATTR, DESCRIPTION_ATTR, \
     CLOUD_ATTR, CLOUD_ALL, TENANT_LICENSE_KEY_ATTR, \
-    LICENSE_KEY_ATTR, CUSTOMER_ATTR, APPLICATION_TENANTS_ALL
+    LICENSE_KEY_ATTR, CUSTOMER_ATTR, APPLICATION_TENANTS_ALL, FORCE_ATTR
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -219,9 +220,19 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
                 content=f'Application {application_id} not found.'
             )
-
-        _LOG.debug(f'Deleting application \'{application_id}\'')
-        self.application_service.mark_deleted(application=target_application)
+        force = event.get(FORCE_ATTR)
+        try:
+            if force:
+                self.application_service.force_delete(
+                    application=target_application)
+            else:
+                self.application_service.mark_deleted(
+                    application=target_application)
+        except ModularException as e:
+            return build_response(
+                code=e.code,
+                content=e.content
+            )
 
         return build_response(
             code=RESPONSE_OK_CODE,
