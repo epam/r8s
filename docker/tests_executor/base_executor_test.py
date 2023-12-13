@@ -18,9 +18,30 @@ os.environ['r8s_mongodb_connection_uri'] = "mongomock://localhost/testdb"
 
 
 class BaseExecutorTest(TestCase, ABC):
+    @classmethod
     @patch.dict(os.environ,
                 {'AWS_REGION': 'eu-central-1',
                  'r8s_mongodb_connection_uri': "mongomock://localhost/testdb"})
+    def setUpClass(cls):
+        aws_instances_data_path = cls._get_aws_instance_data_path()
+        with open(aws_instances_data_path, 'r') as f:
+            aws_instances_data = json.load(f)
+
+        cls.populate_shapes(
+            aws_instances_data=aws_instances_data
+        )
+
+        cls.settings_service = MagicMock()
+        cls.settings_service.get_aws_instances_data = MagicMock(
+            return_value=aws_instances_data)
+
+    @classmethod
+    def tearDownClass(cls):
+        from models.shape import Shape
+        from models.shape_price import ShapePrice
+        [item.delete() for item in Shape.objects.all()]
+        [item.delete() for item in ShapePrice.objects.all()]
+
     def setUp(self) -> None:
         self.df = None
         self.instance_id = None
@@ -31,6 +52,12 @@ class BaseExecutorTest(TestCase, ABC):
     def tearDown(self) -> None:
         shutil.rmtree(self.reports_path)
         shutil.rmtree(self.metrics_dir_root)
+
+        from models.algorithm import Algorithm
+        from models.recommendation_history import RecommendationHistory
+
+        [item.delete() for item in Algorithm.objects.all()]
+        [item.delete() for item in RecommendationHistory.objects.all()]
 
     def _init_algorithm(self):
         from models.algorithm import Algorithm
@@ -93,18 +120,6 @@ class BaseExecutorTest(TestCase, ABC):
 
         from services.shape_price_service import ShapePriceService
         self.shape_price_service = ShapePriceService()
-
-        aws_instances_data_path = self._get_aws_instance_data_path()
-        with open(aws_instances_data_path, 'r') as f:
-            aws_instances_data = json.load(f)
-
-        self.populate_shapes(
-            aws_instances_data=aws_instances_data
-        )
-
-        settings_service = MagicMock()
-        settings_service.get_aws_instances_data = MagicMock(
-            return_value=aws_instances_data)
 
         from services.customer_preferences_service import \
             CustomerPreferencesService
@@ -210,12 +225,14 @@ class BaseExecutorTest(TestCase, ABC):
             shape_obj = Shape(**shape_obj_data)
             shape_obj.save()
 
-    def _get_aws_instance_data_path(self):
-        root = self.__get_root_dir()
+    @classmethod
+    def _get_aws_instance_data_path(cls):
+        root = cls.__get_root_dir()
         return os.path.join(root, "scripts", 'aws_instances_data.json')
 
-    def _get_aws_instance_pricing_path(self):
-        root = self.__get_root_dir()
+    @classmethod
+    def _get_aws_instance_pricing_path(cls):
+        root = cls.__get_root_dir()
         return os.path.join(root, "scripts", 'aws_instance_prices.json')
 
     @staticmethod

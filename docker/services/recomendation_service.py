@@ -63,7 +63,7 @@ class RecommendationService:
         schedule = None
         recommended_sizes = None
         resize_action = None
-        savings = None
+        savings = {}
         advanced = None
 
         customer, cloud, tenant, region, _, instance_id = self._parse_folders(
