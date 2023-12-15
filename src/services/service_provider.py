@@ -74,7 +74,7 @@ class ServiceProvider:
         __license_service = None
 
         def __str__(self):
-            return id(self)
+            return str(id(self))
 
         # clients
         def s3(self):

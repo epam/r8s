@@ -11,7 +11,7 @@ try:
 except mongoengine.ConnectionFailure:
     from commons.constants import MONGODB_CONNECTION_URI_PARAMETER
 
-    _LOG.debug(f'Initializing mongoDB connection.')
+    _LOG.debug('Initializing mongoDB connection.')
     _LOG.debug(f'Describing connection uri from ssm '
                f'\'{MONGODB_CONNECTION_URI_PARAMETER}\'')
 
@@ -33,10 +33,10 @@ except mongoengine.ConnectionFailure:
         connection_uri = ssm_service.get_secret_value(
             secret_name=MONGODB_CONNECTION_URI_PARAMETER)
     if not connection_uri:
-        _LOG.error(f'Mongodb connection uri must be specified either in env '
-                   f'variable or Parameter Store.')
+        _LOG.error('Mongodb connection uri must be specified either in env '
+                   'variable or Parameter Store.')
         raise_error_response(
             code=RESPONSE_SERVICE_UNAVAILABLE_CODE,
-            content="Improperly Configured. Please contact the support team"
+            content='Improperly Configured. Please contact the support team'
         )
     mongoengine.connect(host=connection_uri)

@@ -84,11 +84,9 @@ class AccessControlService:
         return self.iam_service.policy_get(policy_name=name)
 
     def policy_exists(self, name: str) -> bool:
-        # todo
         return bool(self.get_policy(name=name))
 
     def role_exists(self, name: str) -> bool:
-        # todo
         return bool(self.get_role(name=name))
 
     @staticmethod

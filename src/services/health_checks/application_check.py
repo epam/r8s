@@ -39,10 +39,10 @@ class ApplicationConnectionCheck(AbstractHealthCheck):
         return CHECK_ID_CONNECTION_CHECK
 
     def remediation(self) -> Optional[str]:
-        return f'Update your application with valid r8s connection data'
+        return 'Update your application with valid r8s connection data'
 
     def impact(self) -> Optional[str]:
-        return f'You won\'t be able to submit scans through this application'
+        return 'You won\'t be able to submit scans through this application'
 
     def check(self, application) -> Union[List[CheckResult], CheckResult]:
         application_meta = self.application_service.get_application_meta(
@@ -51,7 +51,7 @@ class ApplicationConnectionCheck(AbstractHealthCheck):
         connection = getattr(application_meta, 'connection', None)
         if not connection:
             return self.not_ok_result(
-                {'error': "\'Connection\' does not exist"}
+                {'error': '\'Connection\' does not exist'}
             )
         if isinstance(connection, ConnectionAttribute):
             connection = connection.as_dict()
@@ -105,10 +105,10 @@ class ApplicationStorageCheck(AbstractHealthCheck):
         return CHECK_ID_STORAGE_CHECK
 
     def remediation(self) -> Optional[str]:
-        return f'Update your application with valid storage name'
+        return 'Update your application with valid storage name'
 
     def impact(self) -> Optional[str]:
-        return f'You won\'t be able to submit scans through this application'
+        return 'You won\'t be able to submit scans through this application'
 
     def check(self, application) -> Union[List[CheckResult], CheckResult]:
         application_meta = self.application_service.get_application_meta(
@@ -152,11 +152,11 @@ class ApplicationCheckHandler:
         ]
 
     def check(self):
-        _LOG.debug(f'Listing applications')
+        _LOG.debug('Listing applications')
         applications = self.application_service.list(
             _type=MAESTRO_RIGHTSIZER_APPLICATION_TYPE, deleted=False)
         if not applications:
-            _LOG.warning(f'No active RIGHTSIZER applications found')
+            _LOG.warning('No active RIGHTSIZER applications found')
             result = CheckCollectionResult(
                 id='NONE',
                 type=CHECK_TYPE_APPLICATION,

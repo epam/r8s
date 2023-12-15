@@ -28,10 +28,10 @@ class MetricFilesCheck(AbstractHealthCheck):
         return CHECK_ID_METRIC_FILES
 
     def remediation(self) -> Optional[str]:
-        return f'Upload metric files with valid folder structure to storage'
+        return 'Upload metric files with valid folder structure to storage'
 
     def impact(self) -> Optional[str]:
-        return f'No instances will be processed with this storage'
+        return 'No instances will be processed with this storage'
 
     def check(self, storage: Storage) -> Union[List[CheckResult], CheckResult]:
         storage_json = storage.get_json()
@@ -39,7 +39,7 @@ class MetricFilesCheck(AbstractHealthCheck):
 
         if not bucket_name:
             return self.not_ok_result(
-                {'error': "\'bucket_name\' does not specified"}
+                {'error': '\'bucket_name\' does not specified'}
             )
 
         if not self.s3_client.is_bucket_exists(bucket_name=bucket_name):
@@ -104,7 +104,6 @@ class MetricFilesCheck(AbstractHealthCheck):
         return items
 
 
-
 class StorageBucketCheck(AbstractHealthCheck):
 
     def __init__(self, storage_service: StorageService,
@@ -116,10 +115,10 @@ class StorageBucketCheck(AbstractHealthCheck):
         return CHECK_ID_STORAGE_BUCKET
 
     def remediation(self) -> Optional[str]:
-        return f'Update storage with valid S3 bucket name'
+        return 'Update storage with valid S3 bucket name'
 
     def impact(self) -> Optional[str]:
-        return f'You won\'t be able to submit scans with this storage'
+        return 'You won\'t be able to submit scans with this storage'
 
     def check(self, storage: Storage) -> Union[List[CheckResult], CheckResult]:
         storage_json = storage.get_json()
@@ -127,7 +126,7 @@ class StorageBucketCheck(AbstractHealthCheck):
 
         if not bucket_name:
             return self.not_ok_result(
-                {'error': "\'bucket_name\' does not specified"}
+                {'error': '\'bucket_name\' does not specified'}
             )
 
         if not self.s3_client.is_bucket_exists(bucket_name=bucket_name):
@@ -151,10 +150,10 @@ class StorageCheckHandler:
         ]
 
     def check(self):
-        _LOG.debug(f'Listing storages')
+        _LOG.debug('Listing storages')
         storages = self.storage_service.list()
         if not storages:
-            _LOG.warning(f'No active storages found')
+            _LOG.warning('No active storages found')
             result = CheckCollectionResult(
                 id='NONE',
                 type=CHECK_TYPE_STORAGE,

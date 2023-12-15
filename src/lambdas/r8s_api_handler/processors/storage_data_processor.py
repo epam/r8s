@@ -106,7 +106,7 @@ class StorageDataProcessor(AbstractCommandProcessor):
             regions = [filter_region]
         else:
             regions = [region.native_name for region in tenant.regions]
-        _LOG.debug(f'Searching for metric files')
+        _LOG.debug('Searching for metric files')
         files = self.storage_service.list_metric_files(
             data_source=data_source,
             customer=customer,
@@ -115,7 +115,7 @@ class StorageDataProcessor(AbstractCommandProcessor):
             regions=regions,
             timestamp=filter_timestamp,
         )
-        _LOG.debug(f'Formatting')
+        _LOG.debug('Formatting')
         result = []
         for file in files:
             file_key = file.get('Key')
@@ -137,7 +137,7 @@ class StorageDataProcessor(AbstractCommandProcessor):
             file_item[INSTANCE_ID_ATTR] = instance_id
             result.append(file_item)
 
-        _LOG.debug(f'Filtering results')
+        _LOG.debug('Filtering results')
         result = self._filter_metric_list(
             metrics=result,
             customer=filter_customer,
@@ -147,10 +147,10 @@ class StorageDataProcessor(AbstractCommandProcessor):
         )
         _LOG.debug(f'Response: {result}')
         if not result:
-            _LOG.debug(f'No metric files found matching given query.')
+            _LOG.debug('No metric files found matching given query.')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No metric files found matching given query.'
+                content='No metric files found matching given query.'
             )
         return build_response(code=RESPONSE_OK_CODE,
                               content=result)

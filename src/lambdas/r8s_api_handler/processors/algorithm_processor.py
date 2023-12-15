@@ -36,6 +36,8 @@ from services.algorithm_service import AlgorithmService
 
 _LOG = get_logger('r8s-algorithm-processor')
 
+NO_ALGORITHM_ERROR = 'No algorithm found matching given query'
+
 
 class AlgorithmProcessor(AbstractCommandProcessor):
     def __init__(self, algorithm_service: AlgorithmService,
@@ -74,7 +76,7 @@ class AlgorithmProcessor(AbstractCommandProcessor):
             _LOG.debug(f'Describing algorithm by name \'{name}\'')
             algorithms = [self.algorithm_service.get_by_name(name=name)]
         else:
-            _LOG.debug(f'Describing all algorithms')
+            _LOG.debug('Describing all algorithms')
             algorithms = self.algorithm_service.list()
 
         if user_customer != 'admin':
@@ -85,10 +87,10 @@ class AlgorithmProcessor(AbstractCommandProcessor):
 
         algorithms = [i for i in algorithms if i]
         if not algorithms:
-            _LOG.debug(f'No algorithm found matching given query')
+            _LOG.debug(NO_ALGORITHM_ERROR)
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No algorithm found matching given query'
+                content=NO_ALGORITHM_ERROR
             )
 
         _LOG.debug(f'Got {len(algorithms)} algorithms to describe.'
@@ -165,7 +167,7 @@ class AlgorithmProcessor(AbstractCommandProcessor):
         algorithm = self.algorithm_service.create(algorithm_data)
 
         try:
-            _LOG.debug(f'Saving algorithm')
+            _LOG.debug('Saving algorithm')
             self.algorithm_service.save(algorithm=algorithm)
         except ValidationError as e:
             _LOG.error(f'Error occurred while saving algorithm: '
@@ -175,7 +177,7 @@ class AlgorithmProcessor(AbstractCommandProcessor):
                 content=e.message
             )
 
-        _LOG.debug(f'Getting algorithm dto')
+        _LOG.debug('Getting algorithm dto')
         algorithm_dto = algorithm.get_dto()
 
         _LOG.debug(f'Response: {algorithm_dto}')
@@ -242,7 +244,7 @@ class AlgorithmProcessor(AbstractCommandProcessor):
             )
 
         if clustering_settings:
-            _LOG.debug(f'Updating algorithm clustering settings')
+            _LOG.debug('Updating algorithm clustering settings')
             self._validate_clustering_settings(
                 clustering_settings=clustering_settings)
             self.algorithm_service.update_clustering_settings(
@@ -251,7 +253,7 @@ class AlgorithmProcessor(AbstractCommandProcessor):
             )
 
         if recommendation_settings:
-            _LOG.debug(f'Updating algorithm recommendation settings')
+            _LOG.debug('Updating algorithm recommendation settings')
             self._validate_recommendation_settings(
                 recommendation_settings=recommendation_settings)
             self.algorithm_service.update_recommendation_settings(
@@ -286,13 +288,13 @@ class AlgorithmProcessor(AbstractCommandProcessor):
         metric_format = {k: v for k, v in metric_format.items()
                          if k in METRIC_FORMAT_ATTRS}
         if metric_format:
-            _LOG.debug(f'Updating algorithm metric format settings')
+            _LOG.debug('Updating algorithm metric format settings')
             self._validate_metric_format_settings(metric_format=metric_format)
             self.algorithm_service.update_metric_format_settings(
                 algorithm=algorithm, metric_format_settings=metric_format)
 
         try:
-            _LOG.debug(f'Saving updated algorithm')
+            _LOG.debug('Saving updated algorithm')
             self.algorithm_service.save(algorithm=algorithm)
         except ValidationError as e:
             _LOG.error(f'Error occurred while saving updated algorithm: '
@@ -301,7 +303,7 @@ class AlgorithmProcessor(AbstractCommandProcessor):
                 code=RESPONSE_BAD_REQUEST_CODE,
                 content=e.message
             )
-        _LOG.debug(f'Describing algorithm dto')
+        _LOG.debug('Describing algorithm dto')
         algorithm_dto = algorithm.get_dto()
 
         _LOG.debug(f'Response: {algorithm_dto}')
@@ -332,10 +334,10 @@ class AlgorithmProcessor(AbstractCommandProcessor):
             algorithm = self.algorithm_service.get_by_name(name=name)
 
         if not algorithm:
-            _LOG.debug(f'No algorithm found matching given query')
+            _LOG.debug(NO_ALGORITHM_ERROR)
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No algorithm found matching given query'
+                content=NO_ALGORITHM_ERROR
             )
 
         user_customer = event.get(PARAM_USER_CUSTOMER)
@@ -345,10 +347,10 @@ class AlgorithmProcessor(AbstractCommandProcessor):
                          f'customer \'{algorithm.customer}\' entities.')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No algorithm found matching given query'
+                content=NO_ALGORITHM_ERROR
             )
 
-        _LOG.debug(f'Deleting algorithm')
+        _LOG.debug('Deleting algorithm')
         self.algorithm_service.delete(algorithm=algorithm)
 
         if alg_id:
@@ -379,10 +381,10 @@ class AlgorithmProcessor(AbstractCommandProcessor):
     @staticmethod
     def _validate_timestamp_attr(required_data_attrs, timestamp_attr):
         if not isinstance(timestamp_attr, str):
-            _LOG.error(f'Timestamp attribute must be a string')
+            _LOG.error('Timestamp attribute must be a string')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Timestamp attribute must be a string'
+                content='Timestamp attribute must be a string'
             )
         if timestamp_attr not in required_data_attrs:
             _LOG.error(f'Specified timestamp attribute \'{timestamp_attr}\' '
@@ -530,11 +532,11 @@ class AlgorithmProcessor(AbstractCommandProcessor):
         thresholds = recommendation_settings.get(THRESHOLDS_ATTR)
         if thresholds is not None:
             if len(thresholds) != 3:
-                errors.append(f'Exactly 3 threshold values '
-                              f'must be provided')
+                errors.append('Exactly 3 threshold values '
+                              'must be provided')
             if not all([isinstance(i, int) for i in thresholds]):
-                errors.append(f'All of the specified threshold values must '
-                              f'be a valid integers.')
+                errors.append('All of the specified threshold values must '
+                              'be a valid integers.')
 
         compatibility_rule = recommendation_settings.get(
             SHAPE_COMPATIBILITY_RULE_ATTR)
@@ -555,7 +557,7 @@ class AlgorithmProcessor(AbstractCommandProcessor):
             target_timezone_name = recommendation_settings.get(
                 TARGET_TIMEZONE_NAME_ATTR)
             if not target_timezone_name:
-                errors.append(f'target_timezone_name can not be empty.')
+                errors.append('Target_timezone_name can not be empty.')
 
         errors = [i for i in errors if i]
         if errors:

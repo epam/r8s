@@ -45,13 +45,13 @@ class LicenseProcessor(AbstractCommandProcessor):
         licenses = self.license_service.list_licenses(license_key=license_key)
 
         if not licenses:
-            _LOG.error(f'No licensed found matching given query')
+            _LOG.error('No licensed found matching given query')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No licensed found matching given query'
+                content='No licensed found matching given query'
             )
 
-        _LOG.debug(f'Describing license dto')
+        _LOG.debug('Describing license dto')
         response = [self.license_service.get_dto(license_)
                     for license_ in licenses]
         _LOG.debug(f'Response: {response}')

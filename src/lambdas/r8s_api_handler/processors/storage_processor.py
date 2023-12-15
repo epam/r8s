@@ -49,18 +49,18 @@ class StorageProcessor(AbstractCommandProcessor):
             _LOG.debug(f'Describing storage by id \'{storage_id}\'')
             storages = [self.storage_service.get_by_id(object_id=storage_id)]
         else:
-            _LOG.debug(f'Describing all storages')
+            _LOG.debug('Describing all storages')
             storages = self.storage_service.list()
 
         if not storages or storages and \
                 all([storage is None for storage in storages]):
-            _LOG.debug(f'No storages matching given query')
+            _LOG.debug('No storages matching given query')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No storages matching given query'
+                content='No storages matching given query'
             )
 
-        _LOG.debug(f'Describing storages dto')
+        _LOG.debug('Describing storages dto')
         storages_dto = [storage.get_dto() for storage in storages]
 
         _LOG.debug(f'Response: {storages_dto}')
@@ -90,13 +90,13 @@ class StorageProcessor(AbstractCommandProcessor):
         storage_type = self._validate_storage_type(storage_type=storage_type)
 
         access = event.get(ACCESS_ATTR)
-        _LOG.debug(f'Validating storage type access')
+        _LOG.debug('Validating storage type access')
         access = self.storage_service.validate_storage_access(
             service=service,
             access=access
         )
 
-        _LOG.debug(f'Creating storage')
+        _LOG.debug('Creating storage')
         storage_data = {
             NAME_ATTR: name,
             SERVICE_ATTR: service,
@@ -106,10 +106,10 @@ class StorageProcessor(AbstractCommandProcessor):
         storage: Storage = self.storage_service.create(
             storage_data=storage_data
         )
-        _LOG.debug(f'Saving storage')
+        _LOG.debug('Saving storage')
         self.storage_service.save(storage=storage)
 
-        _LOG.debug(f'Describing storage dto')
+        _LOG.debug('Describing storage dto')
         storage_dto = storage.get_dto()
 
         _LOG.debug(f'Response: {storage_dto}')
@@ -167,7 +167,7 @@ class StorageProcessor(AbstractCommandProcessor):
                     PREFIX_ATTR: access.get(PREFIX_ATTR)
                 }
             if access_doc:
-                _LOG.debug(f'Validating storage type access')
+                _LOG.debug('Validating storage type access')
                 access_doc = self.storage_service.validate_storage_access(
                     service=storage.service,
                     access=access_doc
@@ -179,7 +179,7 @@ class StorageProcessor(AbstractCommandProcessor):
                 elif isinstance(storage, S3Storage):
                     storage.access = access_doc
 
-        _LOG.debug(f'Saving updated storage')
+        _LOG.debug('Saving updated storage')
         self.storage_service.save(storage=storage)
 
         _LOG.debug('Describing storage dto')
@@ -213,13 +213,13 @@ class StorageProcessor(AbstractCommandProcessor):
             storage = self.storage_service.get_by_name(name=name)
 
         if not storage:
-            _LOG.debug(f'No storage found matching given query')
+            _LOG.debug('No storage found matching given query')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No storage found matching given query'
+                content='No storage found matching given query'
             )
 
-        _LOG.debug(f'Deleting storage')
+        _LOG.debug('Deleting storage')
         self.storage_service.delete(storage=storage)
 
         if storage_id:

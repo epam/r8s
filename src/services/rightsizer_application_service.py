@@ -150,9 +150,11 @@ class RightSizerApplicationService(ApplicationService):
                 filtered.append(application)
         return filtered
 
-    def resolve_application(self, event: dict,
-                            type_=MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE) -> \
-            List[Application]:
+    def resolve_application(
+            self, event: dict,
+            type_=MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE
+    ) -> List[Application]:
+        _LOG.debug(f'Resolving application from event {event}, type: {type_}')
         user_customer = event.get(PARAM_USER_CUSTOMER)
         event_application = event.get(APPLICATION_ID_ATTR)
 

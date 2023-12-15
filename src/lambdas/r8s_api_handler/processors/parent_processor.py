@@ -29,6 +29,8 @@ _LOG = get_logger('r8s-parent-licenses-processor')
 
 CLOUDS = [AWS_CLOUD, AZURE_CLOUD, GOOGLE_CLOUD, CLOUD_ALL]
 
+NO_APPLICATION_ERROR = 'No application found matching given query.'
+
 
 class ParentProcessor(AbstractCommandProcessor):
     def __init__(self, algorithm_service: AlgorithmService,
@@ -66,15 +68,14 @@ class ParentProcessor(AbstractCommandProcessor):
     def get(self, event):
         _LOG.debug(f'Describe parent licenses event: {event}')
 
-        _LOG.debug(f'Resolving applications')
         applications = self.application_service.resolve_application(
             event=event, type_=RIGHTSIZER_LICENSES_TYPE)
 
         if not applications:
-            _LOG.warning(f'No application found matching given query.')
+            _LOG.warning(NO_APPLICATION_ERROR)
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No application found matching given query.'
+                content=NO_APPLICATION_ERROR
             )
 
         parents: List[Parent] = []
@@ -94,10 +95,10 @@ class ParentProcessor(AbstractCommandProcessor):
             parents = [parent for parent in parents if
                        parent.parent_id == parent_id]
         if not parents:
-            _LOG.error(f'No Parents found matching given query.')
+            _LOG.error('No Parents found matching given query.')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No Parents found matching given query.'
+                content='No Parents found matching given query.'
             )
 
         response = [self.parent_service.get_dto(parent) for parent in parents]
@@ -113,21 +114,20 @@ class ParentProcessor(AbstractCommandProcessor):
         validate_params(event, (APPLICATION_ID_ATTR,
                                 DESCRIPTION_ATTR, SCOPE_ATTR))
 
-        _LOG.debug(f'Resolving applications')
         applications = self.application_service.resolve_application(
             event=event, type_=RIGHTSIZER_LICENSES_TYPE)
 
         if not applications:
-            _LOG.warning(f'No application found matching given query.')
+            _LOG.warning(NO_APPLICATION_ERROR)
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No application found matching given query.'
+                content=NO_APPLICATION_ERROR
             )
         if len(applications) > 1:
-            _LOG.error(f'Exactly one application must be identified.')
+            _LOG.error('Exactly one application must be identified.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Exactly one application must be identified.'
+                content='Exactly one application must be identified.'
             )
         application = applications[0]
         _LOG.debug(f'Target application \'{application.application_id}\'')
@@ -140,7 +140,7 @@ class ParentProcessor(AbstractCommandProcessor):
         scope = event.get(SCOPE_ATTR)
         tenant_name = event.get(TENANT_ATTR)
 
-        _LOG.debug(f'Creating parent')
+        _LOG.debug('Creating parent')
         parent = self.parent_service.create(
             application_id=application.application_id,
             customer_id=application.customer_id,
@@ -153,10 +153,10 @@ class ParentProcessor(AbstractCommandProcessor):
             cloud=cloud
         )
 
-        _LOG.debug(f'Saving parent')
+        _LOG.debug('Saving parent')
         self.parent_service.save(parent=parent)
 
-        _LOG.debug(f'Preparing response')
+        _LOG.debug('Preparing response')
         response = self.parent_service.get_dto(parent=parent)
 
         _LOG.debug(f'Response: {response}')
@@ -169,15 +169,14 @@ class ParentProcessor(AbstractCommandProcessor):
         _LOG.debug(f'Delete licenses parent event: {event}')
         validate_params(event, (PARENT_ID_ATTR,))
 
-        _LOG.debug(f'Resolving applications')
         applications = self.application_service.resolve_application(
             event=event, type_=RIGHTSIZER_LICENSES_TYPE)
 
         if not applications:
-            _LOG.warning(f'No application found matching given query.')
+            _LOG.warning(NO_APPLICATION_ERROR)
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No application found matching given query.'
+                content=NO_APPLICATION_ERROR
             )
         app_ids = [app.application_id for app in applications]
         _LOG.debug(f'Allowed application ids \'{app_ids}\'')

@@ -93,9 +93,11 @@ class SSMClient(AbstractSSMClient):
                        f'error code: \'{error_code}\'')
 
     def enable_secrets_engine(self, mount_point=None):
+        """ Not available in SSM """
         pass
 
     def is_secrets_engine_enabled(self, mount_point=None) -> bool:
+        """ Not available in SSM """
         pass
 
 

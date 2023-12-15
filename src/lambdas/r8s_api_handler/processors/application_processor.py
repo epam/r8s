@@ -68,16 +68,15 @@ class ApplicationProcessor(AbstractCommandProcessor):
     def get(self, event):
         _LOG.debug(f'Describe application event: {event}')
 
-        _LOG.debug(f'Resolving applications')
         applications = self.application_service.resolve_application(
             event=event, type_=MAESTRO_RIGHTSIZER_APPLICATION_TYPE
         )
 
         if not applications:
-            _LOG.warning(f'No application found matching given query.')
+            _LOG.warning('No application found matching given query.')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No application found matching given query.'
+                content='No application found matching given query.'
             )
 
         application_dtos = [self.application_service.get_dto(application)
@@ -120,12 +119,12 @@ class ApplicationProcessor(AbstractCommandProcessor):
                        f'resolved automatically')
             r8s_host = self.api_gateway_client.get_r8s_api_host()
             if not r8s_host:
-                _LOG.error(f'No RightSizer API found. Please contact '
-                           f'the support team.')
+                _LOG.error('No RightSizer API found. Please contact '
+                           'the support team.')
                 return build_response(
                     code=RESPONSE_SERVICE_UNAVAILABLE_CODE,
-                    content=f'No RightSizer API found. Please contact '
-                            f'the support team.'
+                    content='No RightSizer API found. Please contact '
+                            'the support team.'
                 )
             _LOG.debug(f'Setting host \'{r8s_host}\' into connection')
             connection[HOST_ATTR] = r8s_host
@@ -178,7 +177,7 @@ class ApplicationProcessor(AbstractCommandProcessor):
         connection_obj = ConnectionAttribute(**connection)
 
         try:
-            _LOG.debug(f'Creating application')
+            _LOG.debug('Creating application')
             application = self.application_service. \
                 create_rightsizer_application(
                 customer_id=customer,
@@ -196,12 +195,12 @@ class ApplicationProcessor(AbstractCommandProcessor):
                 content=e.content
             )
 
-        _LOG.debug(f'Creating RIGHTSIZER parent with ALL scope')
+        _LOG.debug('Creating RIGHTSIZER parent with ALL scope')
         parent = self.parent_service.create(
             application_id=application.application_id,
             customer_id=application.customer_id,
             parent_type=ParentType.RIGHTSIZER_PARENT,
-            description=f'Automatically created RIGHTSIZER parent',
+            description='Automatically created RIGHTSIZER parent',
             meta={},
             scope=ParentScope.ALL
         )
@@ -213,7 +212,7 @@ class ApplicationProcessor(AbstractCommandProcessor):
         _LOG.debug(f'Saving parent: {parent.parent_id}')
         self.parent_service.save(parent=parent)
 
-        _LOG.debug(f'Extracting created application dto')
+        _LOG.debug('Extracting created application dto')
         application_dto = self.application_service.get_dto(
             application=application)
 
@@ -301,10 +300,10 @@ class ApplicationProcessor(AbstractCommandProcessor):
                             f'must be a string.'
                 )
             if not description:
-                _LOG.error(f'Description must not be empty.')
+                _LOG.error('Description must not be empty.')
                 return build_response(
                     code=RESPONSE_BAD_REQUEST_CODE,
-                    content=f'Description must not be empty.'
+                    content='Description must not be empty.'
                 )
 
         _LOG.debug(f'Updating application \'{application.application_id}\'')
@@ -316,7 +315,7 @@ class ApplicationProcessor(AbstractCommandProcessor):
             connection=connection_obj,
             password=password
         )
-        _LOG.debug(f'Saving application')
+        _LOG.debug('Saving application')
         self.application_service.save(application=application)
 
         application_dto = self.application_service.get_dto(
@@ -357,7 +356,7 @@ class ApplicationProcessor(AbstractCommandProcessor):
             type_=ParentType.RIGHTSIZER_PARENT
         )
         if parents:
-            _LOG.debug(f'Active linked parents found, deleting')
+            _LOG.debug('Active linked parents found, deleting')
             for parent in parents:
                 _LOG.debug(f'Deleting parent {parent.parent_id}')
                 self.parent_service.mark_deleted(parent=parent)

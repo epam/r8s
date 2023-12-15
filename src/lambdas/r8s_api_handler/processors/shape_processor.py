@@ -56,17 +56,17 @@ class ShapeProcessor(AbstractCommandProcessor):
             _LOG.debug(f'Describing shapes by cloud \'{cloud.upper()}\'')
             shapes = self.shape_service.list(cloud=cloud)
         else:
-            _LOG.debug(f'Describing all shapes')
+            _LOG.debug('Describing all shapes')
             shapes = self.shape_service.list()
 
         if not shapes:
-            _LOG.error(f'No shapes found matching given query.')
+            _LOG.error('No shapes found matching given query.')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No shapes found matching given query.'
+                content='No shapes found matching given query.'
             )
 
-        _LOG.debug(f'Describing shapes dto')
+        _LOG.debug('Describing shapes dto')
         response = [self.shape_service.get_dto(shape=shape)
                     for shape in shapes]
 
@@ -107,13 +107,13 @@ class ShapeProcessor(AbstractCommandProcessor):
         _LOG.debug(f'Validating shape data: {shape_data}')
         self._validate(shape_data=shape_data)
 
-        _LOG.debug(f'Creating shape')
+        _LOG.debug('Creating shape')
         shape = self.shape_service.create(shape_data=shape_data)
 
         _LOG.debug(f'Saving shape \'{shape.name}\'')
         self.shape_service.save(shape=shape)
 
-        _LOG.debug(f'Describing shape dto')
+        _LOG.debug('Describing shape dto')
         response = self.shape_service.get_dto(shape=shape)
 
         _LOG.debug(f'Response: {response}')
@@ -151,13 +151,13 @@ class ShapeProcessor(AbstractCommandProcessor):
                 content=f'At least one of the following attributes must be '
                         f'specified: \'{", ".join(update_attributes)}\''
             )
-        _LOG.debug(f'Updating shape items')
+        _LOG.debug('Updating shape items')
         self.shape_service.update(shape=shape, update_data=update_shape_data)
 
         _LOG.debug(f'Saving shape \'{shape.name}\'')
         self.shape_service.save(shape=shape)
 
-        _LOG.debug(f'Describing shape dto')
+        _LOG.debug('Describing shape dto')
         response = self.shape_service.get_dto(shape=shape)
 
         _LOG.debug(f'Response: {response}')

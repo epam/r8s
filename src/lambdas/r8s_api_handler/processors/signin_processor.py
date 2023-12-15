@@ -38,14 +38,14 @@ class SignInProcessor(AbstractCommandProcessor):
                 code=RESPONSE_BAD_REQUEST_CODE,
                 content='You must specify both username and password')
 
-        _LOG.debug(f'Going to initiate the authentication flow')
+        _LOG.debug('Going to initiate the authentication flow')
         auth_result = self.user_service.initiate_auth(
             username=username,
             password=password)
         if not auth_result:
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Incorrect username or password')
+                content='Incorrect username or password')
 
         _state = "contains" if auth_result.get(
             "ChallengeName") else "does not contain"

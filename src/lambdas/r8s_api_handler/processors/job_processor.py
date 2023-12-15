@@ -95,10 +95,10 @@ class JobProcessor(AbstractCommandProcessor):
         )
         limit = event.get(LIMIT_ATTR)
         if not applications:
-            _LOG.error(f'No suitable application found to describe jobs.')
+            _LOG.error('No suitable application found to describe jobs.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No suitable application found to describe jobs.'
+                content='No suitable application found to describe jobs.'
             )
 
         if limit:
@@ -118,14 +118,14 @@ class JobProcessor(AbstractCommandProcessor):
             _LOG.debug(f'Describing job by name \'{job_name}\'')
             jobs = [self.job_service.get_by_name(name=job_name)]
         else:
-            _LOG.debug(f'Describing all jobs')
+            _LOG.debug('Describing all jobs')
             jobs = self.job_service.list(limit=limit)
 
         if not jobs or jobs and all([job is None for job in jobs]):
-            _LOG.debug(f'No jobs found matching given query')
+            _LOG.debug('No jobs found matching given query')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No jobs found matching given query'
+                content='No jobs found matching given query'
             )
 
         _LOG.debug(f'Converting \'{len(jobs)}\' jobs to dto')
@@ -274,10 +274,10 @@ class JobProcessor(AbstractCommandProcessor):
             event=event
         )
         if not applications:
-            _LOG.error(f'No suitable applications found matching user.')
+            _LOG.error('No suitable applications found matching user.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No suitable applications found matching user.'
+                content='No suitable applications found matching user.'
             )
 
         job_id = event.get(ID_ATTR)
@@ -317,11 +317,11 @@ class JobProcessor(AbstractCommandProcessor):
         job.status = JobStatusEnum.JOB_FAILED_STATUS
         job.fail_reason = f'Terminated by user \'{user}\''
 
-        _LOG.debug(f'Terminating Batch job')
+        _LOG.debug('Terminating Batch job')
         self.job_service.terminate_job(
             job_id=job_id,
             reason=job.fail_reason)
-        _LOG.debug(f'Saving job')
+        _LOG.debug('Saving job')
         self.job_service.save(job=job)
 
         return build_response(
@@ -336,11 +336,11 @@ class JobProcessor(AbstractCommandProcessor):
             error_message = None
             if not parent:
                 error_message = f'Parent {parent_id} does not exist'
-            elif not parent.type == RIGHTSIZER_LICENSES_PARENT_TYPE:
+            elif parent.type != RIGHTSIZER_LICENSES_PARENT_TYPE:
                 error_message = (f'Parent {parent_id} must have '
                                  f'{RIGHTSIZER_LICENSES_PARENT_TYPE} type')
 
-            elif not parent.application_id == application_id:
+            elif parent.application_id != application_id:
                 error_message = (f'Parent {parent_id} is not linked '
                                  f'to application {application_id}')
             if error_message:
@@ -360,10 +360,10 @@ class JobProcessor(AbstractCommandProcessor):
         parents = [parent for parent in parents
                    if parent.scope != ParentScope.DISABLED]
         if not parents:
-            _LOG.error(f'No matching parents found.')
+            _LOG.error('No matching parents found.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No matching parents found.'
+                content='No matching parents found.'
             )
         return parents
 
@@ -399,14 +399,14 @@ class JobProcessor(AbstractCommandProcessor):
 
     def _validate_licensed_job(self, application: Application, license_key: str,
                                scan_tenants: List[str]):
-        _LOG.debug(f'Resolving Tenant list')
+        _LOG.debug('Resolving Tenant list')
         if not scan_tenants:
-            _LOG.error(f'At least 1 tenant must be specified '
-                       f'for licensed jobs.')
+            _LOG.error('At least 1 tenant must be specified '
+                       'for licensed jobs.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'At least 1 tenant must be specified '
-                        f'for licensed jobs.'
+                content='At least 1 tenant must be specified '
+                        'for licensed jobs.'
             )
         _license = self.license_service.get_license(license_key)
         if self.license_service.is_expired(_license):
@@ -416,7 +416,7 @@ class JobProcessor(AbstractCommandProcessor):
             )
         tenant_license_key = _license.customers.get(
             application.customer_id, {}).get(TENANT_LICENSE_KEY_ATTR)
-        _LOG.debug(f'Validating permission to submit licensed job.')
+        _LOG.debug('Validating permission to submit licensed job.')
         return self._ensure_job_is_allowed(
             customer=application.customer_id,
             tenant_names=scan_tenants,

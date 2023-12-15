@@ -18,8 +18,9 @@ CHECK_PERMISSION_PATH = '/jobs/check-permission'
 JOB_PATH = '/jobs'
 SET_CUSTOMER_ACTIVATION_DATE_PATH = '/customers/set-activation-date'
 
-CONNECTION_ERROR_MESSAGE = f'Can\'t establish connection with ' \
-                           f'License Manager. Please contact the support team.'
+CONNECTION_ERROR_MESSAGE = 'Can\'t establish connection with ' \
+                           'License Manager. Please contact the support team.'
+TOKEN_ERROR_MESSAGE = 'Client authorization token could be established.'
 
 CLIENT_TYPE_SAAS = 'SAAS'
 CLIENT_TYPE_ONPREM = 'ONPREM'
@@ -53,7 +54,7 @@ class LicenseManagerService:
             customer=customer
         )
         if not auth:
-            _LOG.warning('Client authorization token could be established.')
+            _LOG.warning(TOKEN_ERROR_MESSAGE)
             return None
 
         try:
@@ -78,14 +79,14 @@ class LicenseManagerService:
             customer=customer
         )
         if not auth:
-            _LOG.warning('Client authorization token could be established.')
+            _LOG.warning(TOKEN_ERROR_MESSAGE)
             return None
 
         response = self.license_manager_client.job_get_allowance_map(
             customer=customer, tenants=tenants,
             tenant_license_keys=tenant_license_keys, auth=auth
         )
-        if not response.status_code == RESPONSE_OK_CODE:
+        if response.status_code != RESPONSE_OK_CODE:
             return
         _json = self.license_manager_client.retrieve_json(response=response)
         _json = _json or dict()
@@ -99,7 +100,7 @@ class LicenseManagerService:
             customer=customer
         )
         if not auth:
-            _LOG.warning('Client authorization token could be established.')
+            _LOG.warning(TOKEN_ERROR_MESSAGE)
             return None
 
         response = self.license_manager_client.update_job(
@@ -115,7 +116,7 @@ class LicenseManagerService:
             customer=customer
         )
         if not auth:
-            _LOG.warning('Client authorization token could be established.')
+            _LOG.warning(TOKEN_ERROR_MESSAGE)
             return None
 
         _empty_response = {}
@@ -133,7 +134,7 @@ class LicenseManagerService:
     def activate_customer(self, customer: str, tlk: str) -> Optional[dict]:
         auth = self._get_client_token(customer=customer)
         if not auth:
-            _LOG.warning('Client authorization token could be established.')
+            _LOG.warning(TOKEN_ERROR_MESSAGE)
             return None
         _empty_response = {}
         response = self.license_manager_client.activate_customer(
@@ -156,10 +157,10 @@ class LicenseManagerService:
 
         if (cached_token and cached_token_expiration and
                 not self.is_expired(expiration=cached_token_expiration)):
-            _LOG.debug(f'Using cached lm auth token.')
+            _LOG.debug('Using cached lm auth token.')
             return cached_token
-        _LOG.debug(f'Cached lm auth token are not found or expired. '
-                   f'Generating new token.')
+        _LOG.debug('Cached lm auth token are not found or expired. '
+                   'Generating new token.')
         lifetime_minutes = self.environment_service.lm_token_lifetime_minutes()
         token = self._generate_client_token(
             expires=dict(
@@ -170,7 +171,7 @@ class LicenseManagerService:
         if not token:
             return
 
-        _LOG.debug(f'Updating lm auth token in SSM.')
+        _LOG.debug('Updating lm auth token in SSM.')
         expiration_timestamp = int((datetime.utcnow() +
                                     timedelta(minutes=30)).timestamp())
         secret_data = {
@@ -227,7 +228,7 @@ class LicenseManagerService:
         encoder.expire(utc_datetime() + timedelta(**expires))
         try:
             token = encoder.product
-        except (Exception, BaseException) as e:
+        except Exception as e:
             _LOG.error(f'{t_head} could not be encoded, due to: {e}.')
             token = None
 

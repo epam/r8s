@@ -52,7 +52,7 @@ class RoleProcessor(AbstractCommandProcessor):
             _LOG.debug(f'Extracting role with name \'{role_name}\'')
             roles = [self.iam_service.role_get(role_name=role_name)]
         else:
-            _LOG.debug(f'Extracting all available roles')
+            _LOG.debug('Extracting all available roles')
             roles = self.iam_service.list_roles()
 
         if not roles:
@@ -129,10 +129,10 @@ class RoleProcessor(AbstractCommandProcessor):
 
         _LOG.debug(f'Creating role from data: {role_data}')
         role = self.access_control_service.create_role(role_data=role_data)
-        _LOG.debug(f'Role has been created. Saving.')
+        _LOG.debug('Role has been created. Saving.')
         self.access_control_service.save(role)
 
-        _LOG.debug(f'Extracting role dto')
+        _LOG.debug('Extracting role dto')
         role_dto = role.get_dto()
         _LOG.debug(f'Response: {role_dto}')
         return build_response(
@@ -197,10 +197,10 @@ class RoleProcessor(AbstractCommandProcessor):
             _LOG.debug(f'Setting role policies: {role_policies}')
             role.policies = role_policies
 
-        _LOG.debug(f'Saving role')
+        _LOG.debug('Saving role')
         self.access_control_service.save(role)
 
-        _LOG.debug(f'Extracting role dto')
+        _LOG.debug('Extracting role dto')
         role_dto = role.get_dto()
 
         _LOG.debug(f'Response: {role_dto}')
@@ -222,7 +222,8 @@ class RoleProcessor(AbstractCommandProcessor):
             )
         _LOG.debug(f'Extracting role with name \'{role_name}\'')
         role = self.access_control_service.get_role(name=role_name)
-        _LOG.debug(f'Deleting role')
+
+        _LOG.debug('Deleting role')
         self.access_control_service.delete_entity(role)
         _LOG.debug(f'Role with name \'{role_name}\' has been deleted.')
         return build_response(

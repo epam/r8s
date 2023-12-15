@@ -72,10 +72,10 @@ class ShapePriceProcessor(AbstractCommandProcessor):
         shape_prices = self.shape_price_service.list(**query_data)
 
         if not shape_prices:
-            _LOG.error(f'No shape prices found matching given query.')
+            _LOG.error('No shape prices found matching given query.')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No shape prices found matching given query.'
+                content='No shape prices found matching given query.'
             )
         _LOG.debug(f'Describing dto for {len(shape_prices)} shape prices.')
         response = [self.shape_price_service.get_dto(shape_price)
@@ -153,10 +153,10 @@ class ShapePriceProcessor(AbstractCommandProcessor):
             os=os, name=event.get(NAME_ATTR),
             use_default_if_missing=False)
         if shape_price_exists:
-            _LOG.error(f'Shape price for the given query already exists.')
+            _LOG.error('Shape price for the given query already exists.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Shape price for the given query already exists.'
+                content='Shape price for the given query already exists.'
             )
 
         shape_price_data = {
@@ -172,10 +172,10 @@ class ShapePriceProcessor(AbstractCommandProcessor):
         shape_price = self.shape_price_service.create(
             shape_price_data=shape_price_data)
 
-        _LOG.debug(f'Saving shape price item')
+        _LOG.debug('Saving shape price item')
         self.shape_price_service.save(shape_price=shape_price)
 
-        _LOG.debug(f'Describing shape price dto')
+        _LOG.debug('Describing shape price dto')
         response = self.shape_price_service.get_dto(shape_price)
 
         _LOG.debug(f'Response: {response}')
@@ -217,10 +217,10 @@ class ShapePriceProcessor(AbstractCommandProcessor):
             use_default_if_missing=False
         )
         if not shape_price:
-            _LOG.error(f'No shape price found matching given query.')
+            _LOG.error('No shape price found matching given query.')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No shape price found matching given query.'
+                content='No shape price found matching given query.'
             )
 
         on_demand = event.get(ON_DEMAND_ATTR)
@@ -233,10 +233,10 @@ class ShapePriceProcessor(AbstractCommandProcessor):
         _LOG.debug(f'Setting shape price to \'{on_demand}\'')
         shape_price.on_demand = on_demand
 
-        _LOG.debug(f'Saving updated shape price item')
+        _LOG.debug('Saving updated shape price item')
         self.shape_price_service.save(shape_price=shape_price)
 
-        _LOG.debug(f'Describing shape price dto')
+        _LOG.debug('Describing shape price dto')
         response = self.shape_price_service.get_dto(shape_price)
 
         _LOG.debug(f'Response: {response}')
@@ -280,13 +280,13 @@ class ShapePriceProcessor(AbstractCommandProcessor):
             **query, use_default_if_missing=False)
 
         if not shape_price:
-            _LOG.error(f'Shape price with the given query does not exist.')
+            _LOG.error('Shape price with the given query does not exist.')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'Shape price with the given query does not exist.'
+                content='Shape price with the given query does not exist.'
             )
 
-        _LOG.debug(f'Deleting shape price')
+        _LOG.debug('Deleting shape price')
         self.shape_price_service.delete(shape_price=shape_price)
 
         _LOG.debug(f'Shape price for query \'{query}\' has been deleted.')

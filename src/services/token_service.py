@@ -31,20 +31,20 @@ class TokenService:
         _LOG.debug(f'Going to instantiate a {t_head} encoder.')
 
         reference_map = self._token_type_builder_map()
-        _Encoder: Type[AbstractTokenEncoder] = reference_map.get(token_type)
-        if not _Encoder:
+        encoder_cls: Type[AbstractTokenEncoder] = reference_map.get(token_type)
+        if not encoder_cls:
             _LOG.warning(f'{t_head.capitalize()} encoder does not exist.')
             return None
 
-        encoder, key = _Encoder(), None
+        encoder, key = encoder_cls(), None
         encoder.key_management = self._client
         encoder.typ = token_type
         for key, value in payload.items():
             encoder[key] = value
-        else:
-            if key:
-                _LOG.debug(f'{t_head} encoder has been attached '
-                           f'with {payload} claims.')
+
+        if key:
+            _LOG.debug(f'{t_head} encoder has been attached '
+                       f'with {payload} claims.')
         return encoder
 
     @staticmethod

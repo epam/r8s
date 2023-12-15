@@ -52,7 +52,7 @@ class CognitoUserService:
         if not symbol:
             errors.append('Password must have symbol characters')
         if len(password) < 8:
-            errors.append(f'Invalid length. Valid min length: 8')
+            errors.append('Invalid length. Valid min length: 8')
 
         if errors:
             return errors

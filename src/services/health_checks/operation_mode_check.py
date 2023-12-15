@@ -34,11 +34,11 @@ class OperationModeConfigurationCheck(AbstractHealthCheck):
         return CHECK_ID_OPERATION_MODE_CONFIGURATION
 
     def remediation(self) -> Optional[str]:
-        return f'Update your parent/application meta with valid values'
+        return 'Update your parent/application meta with valid values'
 
     def impact(self) -> Optional[str]:
-        return f'You won\'t be able to submit scans with this ' \
-               f'parent/application pair'
+        return 'You won\'t be able to submit scans with this ' \
+               'parent/application pair'
 
     def check(self, application: Application, parent: Parent) -> \
             Union[List[CheckResult], CheckResult]:
@@ -76,18 +76,18 @@ class OperationModeConfigurationCompatibilityCheck(AbstractHealthCheck):
         return CHECK_ID_OPERATION_MODE_COMPATIBILITY
 
     def remediation(self) -> Optional[str]:
-        return f'Update your parents/applications meta get rid of ' \
-               f'overlapped tenant linkage'
+        return 'Update your parents/applications meta get rid of ' \
+               'overlapped tenant linkage'
 
     def impact(self) -> Optional[str]:
-        return f'RIGHTSIZER may not work as expected due to ' \
-               f'Application/Parent misconfiguration'
+        return 'RIGHTSIZER may not work as expected due to ' \
+               'Application/Parent misconfiguration'
 
     def check(self, pairs: list) -> Union[List[CheckResult], CheckResult]:
         tenant_parent_mapping = {}
         errors = []
         for pair in pairs:
-            application, parent = pair
+            _, parent = pair
             covered_tenants = self._get_covered_tenants(pair=pair)
 
             for tenant_name in covered_tenants:
@@ -168,7 +168,7 @@ class OperationModeCheckHandler:
         ]
 
     def check(self):
-        _LOG.debug(f'Listing applications')
+        _LOG.debug('Listing applications')
         applications = list(self.application_service.list(
             _type=MAESTRO_RIGHTSIZER_APPLICATION_TYPE, deleted=False))
 
@@ -181,7 +181,7 @@ class OperationModeCheckHandler:
             )
             parents.extend(application_parents)
         if not applications or not parents:
-            _LOG.warning(f'No active parents/applications found')
+            _LOG.warning('No active parents/applications found')
             result = CheckCollectionResult(
                 id='NONE',
                 type=CHECK_TYPE_OPERATION_MODE
@@ -212,8 +212,9 @@ class OperationModeCheckHandler:
             for application, parent in cloud_pairs:
                 checks = []
                 for check_instance in self.checks:
-                    check_result = check_instance.check(application=application,
-                                                        parent=parent)
+                    check_result = check_instance.check(
+                        application=application,
+                        parent=parent)
 
                     checks.append(check_result)
 

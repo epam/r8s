@@ -60,6 +60,7 @@ class StandaloneKeyManagementClient(AbstractKeyManagementClient):
         Such extended formatting approach would allow to provide stateless,
         verification if required.
     """
+
     def __init__(self, ssm_client: SSMClient):
         self._ssm_client = ssm_client
 
@@ -105,8 +106,8 @@ class StandaloneKeyManagementClient(AbstractKeyManagementClient):
             return None
 
         if not self.is_signature_scheme_accessible(
-            sig_scheme=sig_scheme, key_type=key_type, key_std=key_std,
-            hash_type=hash_type, hash_std=hash_std
+                sig_scheme=sig_scheme, key_type=key_type, key_std=key_std,
+                hash_type=hash_type, hash_std=hash_std
         ):
             _LOG.warning(
                 f'\'{algorithm}\' signature-protocol is not supported.'
@@ -178,8 +179,8 @@ class StandaloneKeyManagementClient(AbstractKeyManagementClient):
             return False
 
         if not self.is_signature_scheme_accessible(
-            sig_scheme=sig_scheme, key_type=key_type, key_std=key_std,
-            hash_type=hash_type, hash_std=hash_std
+                sig_scheme=sig_scheme, key_type=key_type, key_std=key_std,
+                hash_type=hash_type, hash_std=hash_std
         ):
             _LOG.warning(
                 f'\'{algorithm}\' verification-protocol is not supported.'
@@ -235,13 +236,12 @@ class StandaloneKeyManagementClient(AbstractKeyManagementClient):
             return
         try:
             return generator(key_std, **data)
-        except (TypeError, Exception) as e:
+        except Exception as e:
             _LOG.warning(f'\'{key_type}\' generator could not be invoked, '
                          f'due to: "{e}".')
-        return
 
     def save(
-        self, key_id: str, key: IKey, key_format: str = 'PEM', **data
+            self, key_id: str, key: IKey, key_format: str = 'PEM', **data
     ) -> bool:
         """
         Persists given key within a parameter store, under a given key_id
@@ -252,7 +252,7 @@ class StandaloneKeyManagementClient(AbstractKeyManagementClient):
         """
         try:
             exported: Union[str, bytes] = key.export_key(format=key_format)
-        except (ValueError, Exception) as e:
+        except Exception as e:
             _LOG.warning(f'Key:\'{key_id}\' could not be exported into '
                          f'{key_format} format, due to: "{e}".')
             return False
@@ -263,7 +263,8 @@ class StandaloneKeyManagementClient(AbstractKeyManagementClient):
         mapped = data.copy()
         mapped.update({VALUE_ATTR: exported})
         return self._ssm_client.create_secret(
-            secret_name=key_id, secret_value=mapped
+            secret_name=key_id,
+            secret_value=mapped
         )
 
     def delete(self, key_id: str):
@@ -285,7 +286,7 @@ class StandaloneKeyManagementClient(AbstractKeyManagementClient):
                 key_type=key_type, key_std=key_std, key_value=key_value,
                 **key_data
             )
-        except (ValueError, Exception) as e:
+        except Exception as e:
             _LOG.error(
                 f'Could not instantiate {key_type}:{key_std} due to "{e}".')
             return None
@@ -311,7 +312,7 @@ class StandaloneKeyManagementClient(AbstractKeyManagementClient):
 
     @classmethod
     def construct(
-        cls, key_type: str, key_std: str, key_value: str, **data
+            cls, key_type: str, key_std: str, key_value: str, **data
     ):
         """
         Head cryptographic key construction mediator, which derives a
@@ -336,7 +337,7 @@ class StandaloneKeyManagementClient(AbstractKeyManagementClient):
 
         try:
             built = mediator(value=key_value, key_std=key_std, **data)
-        except (ValueError, Exception) as e:
+        except Exception as e:
             _LOG.warning(f'Key of {key_type}:{key_std} standard '
                          f'could not be constructed due to: "{e}".')
             built = None
@@ -344,8 +345,8 @@ class StandaloneKeyManagementClient(AbstractKeyManagementClient):
 
     @classmethod
     def is_signature_scheme_accessible(
-        cls, sig_scheme: str, key_type: str, key_std: str, hash_type: str,
-        hash_std: str
+            cls, sig_scheme: str, key_type: str, key_std: str, hash_type: str,
+            hash_std: str
     ):
         ref = cls._signature_scheme_reference().get(sig_scheme, {})
         return hash_std in ref.get(key_type, {}).get(key_std, {}).get(
@@ -354,7 +355,7 @@ class StandaloneKeyManagementClient(AbstractKeyManagementClient):
 
     @classmethod
     def _get_hash_client(
-        cls, message: bytes, hash_type: str, hash_std: str, **data
+            cls, message: bytes, hash_type: str, hash_std: str, **data
     ):
         """
         Mandates message-hash resolution based on provided type and
@@ -511,13 +512,13 @@ class StandaloneKeyManagementClient(AbstractKeyManagementClient):
         raw_mode = data.get(DSS_MODE_ATTR, default)
         try:
             parameters['mode'] = str(raw_mode)
-        except (ValueError, Exception) as e:
+        except Exception as e:
             _LOG.warning(f'Improper DSS mode value: \'{raw_mode}\'.')
             return None
 
         try:
             signer = DSS.new(**parameters)
-        except (TypeError, ValueError, Exception) as e:
+        except Exception as e:
             _LOG.warning(f'Could not instantiate a DSS signer: {e}')
             signer = None
 
@@ -529,9 +530,9 @@ def _filter_items(source: dict, include_list: list) -> dict:
 
 
 def _load_json(data: str):
-    from json import loads, JSONDecodeError
+    from json import loads
     try:
         loaded = loads(data)
-    except (ValueError, JSONDecodeError):
+    except ValueError:
         loaded = data
     return loaded

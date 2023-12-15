@@ -33,14 +33,14 @@ class JobService:
             job_queue=self.environment_service.get_batch_job_queue(),
             job_definition=self.environment_service.get_batch_job_def(),
             environment_variables=envs,
-            command=f'python /home/r8s/executor.py'
+            command='python /home/r8s/executor.py'
         )
         _LOG.debug(f'Batch response: {response}')
         if not response:
             return build_response(
                 code=RESPONSE_INTERNAL_SERVER_ERROR,
                 content='AWS Batch failed to respond')
-        _LOG.debug(f'Creating Job')
+        _LOG.debug('Creating Job')
         job = Job(
             id=response[PARAM_NATIVE_JOB_ID],
             name=job_name,
@@ -50,7 +50,7 @@ class JobService:
             application_id=application_id,
             parent_id=parent_id,
             tenant_status_map=tenant_status_map)
-        _LOG.debug(f'Saving job')
+        _LOG.debug('Saving job')
         self.save(job=job)
         return job.get_dto()
 

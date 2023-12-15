@@ -47,7 +47,7 @@ class PolicyProcessor(AbstractCommandProcessor):
             _LOG.debug(f'Extracting policy with name \'{policy_name}\'')
             policies = [self.iam_service.policy_get(policy_name=policy_name)]
         else:
-            _LOG.debug(f'Extracting all available policies')
+            _LOG.debug('Extracting all available policies')
             policies = self.iam_service.list_policies()
 
         if not policies or policies \
@@ -112,7 +112,7 @@ class PolicyProcessor(AbstractCommandProcessor):
         policy = self.access_control_service.create_policy(
             policy_data=policy_data)
 
-        _LOG.debug(f'Saving policy')
+        _LOG.debug('Saving policy')
         self.access_control_service.save(policy)
 
         policy_dto = policy.get_dto()
@@ -195,7 +195,7 @@ class PolicyProcessor(AbstractCommandProcessor):
                         _LOG.debug(f'Permission \'{permission}\' does not '
                                    f'exist in policy.')
                 policy.permissions = policy_permissions
-        _LOG.debug(f'Saving policy')
+        _LOG.debug('Saving policy')
         self.access_control_service.save(policy)
 
         policy_dto = policy.get_dto()
@@ -218,7 +218,7 @@ class PolicyProcessor(AbstractCommandProcessor):
             )
         _LOG.debug(f'Extracting policy with name \'{policy_name}\'')
         policy = self.access_control_service.get_policy(name=policy_name)
-        _LOG.debug(f'Deleting policy')
+        _LOG.debug('Deleting policy')
         self.access_control_service.delete_entity(policy)
         _LOG.debug(f'Policy with name \'{policy_name}\' has been deleted.')
         return build_response(

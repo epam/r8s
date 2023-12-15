@@ -21,12 +21,12 @@ class ShapeLastUpdateDateCheckCheck(AbstractHealthCheck):
         return SHAPE_CHECK_UPDATE_DATE_ID
 
     def remediation(self) -> Optional[str]:
-        return f'Please contact the support team to ' \
-               f'update shapes/pricing info for the specified clouds.'
+        return 'Please contact the support team to ' \
+               'update shapes/pricing info for the specified clouds.'
 
     def impact(self) -> Optional[str]:
-        return f'RIGHTSIZER recommendations may contain outdated info about ' \
-               f'available shapes/their prices.'
+        return 'RIGHTSIZER recommendations may contain outdated info about ' \
+               'available shapes/their prices.'
 
     def check(self) -> Union[List[CheckResult], CheckResult]:
         _LOG.debug(f'Describing setting \'{SETTING_LAST_SHAPE_UPDATE}\'')
@@ -37,9 +37,9 @@ class ShapeLastUpdateDateCheckCheck(AbstractHealthCheck):
         if not setting:
             return self.not_ok_result(
                 details={
-                    f'message': f'None of the shapes haven\'t been updated yet. '
-                                f'Please contact the support team to '
-                                f'update shapes/pricing info for all clouds.'}
+                    'message': 'None of the shapes haven\'t been updated yet. '
+                               'Please contact the support team to '
+                               'update shapes/pricing info for all clouds.'}
             )
 
         outdated_clouds = {}
