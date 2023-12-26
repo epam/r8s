@@ -4,6 +4,13 @@ import os
 import sys
 from pathlib import Path
 
+ALLOWED_REGIONS = ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2',
+                   'ca-central-1', 'eu-west-1', 'eu-central-1', 'eu-west-2',
+                   'eu-west-3', 'eu-north-1', 'ap-northeast-1',
+                   'ap-northeast-2', 'ap-southeast-1', 'ap-southeast-2',
+                   'ap-south-1', 'sa-east-1']
+ALLOWED_OS = ['Linux', 'Windows']
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -15,14 +22,17 @@ def parse_args():
                         required=True)
     parser.add_argument('-t', '--session_token', help='AWS Session Token',
                         required=True)
-    parser.add_argument('-r', '--region', help='AWS Region', required=True)
+    parser.add_argument('-r', '--region', help='AWS Region',
+                        required=True, choices=ALLOWED_REGIONS)
     parser.add_argument('-uri', '--r8s_mongodb_connection_uri',
                         help='MongoDB Connection string', required=True)
-    parser.add_argument('-pr', '--price_region', action='append', required=True,
+    parser.add_argument('-pr', '--price_region', action='append',
+                        required=True, choices=ALLOWED_REGIONS,
                         help='List of AWS regions to populate price for')
     parser.add_argument('-os', '--operating_system', action='append',
-                        required=True,
-                        help='List of AWS operation systems to populate price for')
+                        required=True, choices=ALLOWED_OS,
+                        help='List of AWS operation systems '
+                             'to populate price for')
     return vars(parser.parse_args())
 
 
