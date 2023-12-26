@@ -98,14 +98,24 @@ def export_args(**kwargs):
 def get_virtual_machine_info():
     from azure.identity import EnvironmentCredential
     from azure.mgmt.compute import ComputeManagementClient
-    _LOG.debug(f'Initializing Azure Credentials')
+
+    subscription_id = os.environ.get('AZURE_SUBSCRIPTION_ID')
+
+    if not subscription_id:
+        _LOG.error('Missing request AZURE_SUBSCRIPTION_ID env')
+        sys.exit(1)
+
+    _LOG.debug('Initializing Azure Credentials')
     client = ComputeManagementClient(
         credential=EnvironmentCredential(),
-        subscription_id=os.environ.get('AZURE_SUBSCRIPTION_ID'),
+        subscription_id=subscription_id,
     )
     result = []
     _LOG.debug(f'Querying for Azure VM data')
     response = client.resource_skus.list()
+    if not response:
+        _LOG.warning('Failed to obtain vms info.')
+        sys.exit(1)
     for index, item in enumerate(response):
         result.append(item)
     return [item for item in result if item.resource_type == 'virtualMachines']
