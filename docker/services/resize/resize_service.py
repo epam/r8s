@@ -2,7 +2,7 @@ from math import inf
 from typing import List
 
 from commons.constants import JOB_STEP_GENERATE_REPORTS, ACTION_SPLIT, \
-    CLOUD_ATTR
+    CLOUD_ATTR, PROBABILITY
 from commons.exception import ExecutorException
 from commons.log_helper import get_logger
 from models.algorithm import ShapeSorting
@@ -12,6 +12,7 @@ from models.recommendation_history import RecommendationHistory, \
     FeedbackStatusEnum
 from models.shape import Shape
 from services.customer_preferences_service import CustomerPreferencesService
+from services.resize.resize_trend import MIN_LIMIT_PERC, MAX_LIMIT_PERC
 from services.resize.shape_compatibility_filter import ShapeCompatibilityFilter
 from services.shape_price_service import ShapePriceService
 from services.shape_service import ShapeService
@@ -32,12 +33,12 @@ class ResizeService:
         self.shape_price_service = shape_price_service
 
     def recommend_size(self, trend, instance_type, resize_action,
-                       cloud, algorithm, instance_meta=None, allow_recursion=True,
+                       cloud, algorithm, instance_meta=None,
+                       allow_recursion=True,
                        max_results=5, parent_meta=None,
                        shape_compatibility_rule=None,
                        past_resize_recommendations: List[
                            RecommendationHistory] = None):
-        # todo process instance meta
         current_shape: Shape = self.shape_service.get(
             name=instance_type)
 
@@ -51,7 +52,7 @@ class ResizeService:
         if not trend.requires_resize():
             if resize_action == ACTION_SPLIT:
                 result_shape = current_shape.get_dto()
-                result_shape['probability'] = trend.probability
+                result_shape[PROBABILITY] = trend.probability
                 return [result_shape]
             return []
 
@@ -97,9 +98,9 @@ class ResizeService:
                 shapes=all_shapes,
                 recommendations=past_resize_recommendations)
 
-        forbid_change_series = algorithm.recommendation_settings.\
+        forbid_change_series = algorithm.recommendation_settings. \
             forbid_change_series
-        forbid_change_family = algorithm.recommendation_settings.\
+        forbid_change_family = algorithm.recommendation_settings. \
             forbid_change_family
         prioritized_shapes = self.divide_by_priority(
             sizes=all_shapes,
@@ -124,9 +125,9 @@ class ResizeService:
             shapes=suitable_shapes)
         if not suitable_shapes or len(suitable_shapes) < max_results:
             if allow_recursion:
-                _LOG.warning(f'No suitable same-series shape found. '
-                             f'Going to discard requirement for metric '
-                             f'with scale down.')
+                _LOG.warning('No suitable same-series shape found. '
+                             'Going to discard requirement for metric '
+                             'with scale down.')
 
                 trend.discard_optional_requirements()
                 recs = self.recommend_size(
@@ -146,20 +147,59 @@ class ResizeService:
                     max_results=max_results
                 )
             elif suitable_shapes and len(suitable_shapes) < max_results:
-                _LOG.warning(f'Not enough suitable shapes found.')
+                _LOG.warning('Not enough suitable shapes found.')
                 return suitable_shapes
             else:
-                _LOG.warning(f'No suitable shapes found')
+                _LOG.warning('No suitable shapes found')
                 return []
         if resize_action == ACTION_SPLIT:
             probability = trend.probability
             for shape in suitable_shapes:
-                shape['probability'] = probability
+                shape[PROBABILITY] = probability
 
         result = self._remove_shape_duplicates(
             shapes=suitable_shapes,
             max_results=max_results)
+
+        for shape in result:
+            prob = self.calculate_shape_probability(
+                current_shape=current_shape,
+                shape=shape, trend=trend
+            )
+            shape[PROBABILITY] = prob
         return result
+
+    def calculate_shape_probability(self, current_shape, shape, trend):
+        metric_to_shape_key = {
+            'cpu_load': 'cpu',
+            'memory_load': 'memory',
+            'net_output_load': 'network_throughput',
+            'avg_disk_iops': 'iops',
+        }
+        shape_prob = []
+        for metric_name, metric_trend in trend.metric_trends.items():
+            if metric_trend.mean == -1:
+                continue
+            shape_key = metric_to_shape_key.get(metric_name)
+            metric_prob = self.calculate_shape_metric_probability(
+                current_value=current_shape.get_json().get(shape_key),
+                expected_value=shape.get(shape_key),
+                percentiles=metric_trend.percentiles
+            )
+            shape_prob.append(metric_prob)
+        return round(sum(shape_prob) / len(shape_prob) / 100, 2)
+
+    @staticmethod
+    def calculate_shape_metric_probability(current_value: float,
+                                           expected_value: float,
+                                           percentiles: list[float]):
+        percentiles_abs = [current_value * i / 100 for i in percentiles]
+
+        min_abs = MIN_LIMIT_PERC * expected_value / 100
+        max_abs = MAX_LIMIT_PERC * expected_value / 100
+
+        matching = [i for i in percentiles_abs if min_abs <= i <= max_abs]
+        return round(len(matching) / len(percentiles) * 100)
 
     @staticmethod
     def _remove_shape_duplicates(shapes, max_results: int = None):
