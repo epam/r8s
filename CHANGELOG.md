@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0] - 2024-01-09
+* add ability to skip contradictory recommendations inside set of resources, using `r8s_group_id` tag:
+  - Skip SHUTDOWN recommendations if it's not applicable for all resources in a group;
+  - Skip SCALE_DOWN/SHUTDOWN recommendations if there are SCALE_UP recommendations available for some resources in group;
+  - Skip custom SCHEDULE recommendations if there are resources in group with "always-run" schedule recommendations;
+  - If all resources in a group have custom SCHEDULE recommendation, leave only the most common (if possible) or most complete
+
 ## [3.2.0] - 2024-01-02
 * add recommended shapes probability: expected percentage of optimal load time on a new shape
 
