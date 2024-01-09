@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.1] - 2024-01-09
+* update obsolete data model in mocked data generator
+
 ## [3.3.0] - 2024-01-09
 * add ability to skip contradictory recommendations inside set of resources, using `r8s_group_id` tag:
   - Skip SHUTDOWN recommendations if it's not applicable for all resources in a group;
