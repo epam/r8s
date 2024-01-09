@@ -19,6 +19,7 @@ from services.recommendation_history_service import \
     RecommendationHistoryService
 from services.reformat_service import ReformatService
 from services.resize.resize_service import ResizeService
+from services.resource_group_service import ResourceGroupService
 from services.rightsizer_application_service import \
     RightSizerApplicationService
 from services.rightsizer_parent_service import RightSizerParentService
@@ -63,6 +64,7 @@ class ServiceProvider:
         __shape_price_service = None
         __meta_service = None
         __recommendation_history_service = None
+        __resource_group_service = None
 
         # modular services
         __customer_service = None
@@ -277,6 +279,13 @@ class ServiceProvider:
                 self.__recommendation_history_service = \
                     RecommendationHistoryService()
             return self.__recommendation_history_service
+
+        def resource_group_service(self):
+            if not self.__resource_group_service:
+                self.__resource_group_service = ResourceGroupService(
+                    schedule_service=self.schedule_service()
+                )
+            return self.__resource_group_service
 
         def token_service(self):
             if not self.__token_service:
