@@ -3,6 +3,7 @@ import copy
 from typing import List
 import itertools
 
+from commons.constants import TAG_GROUP_ID
 from commons.exception import ProcessingPostponedException
 from commons.log_helper import get_logger
 from models.recommendation_history import RecommendationHistory, \
@@ -151,3 +152,9 @@ class MetaService:
                 active_settings.append(postpone_setting)
 
         return active_settings
+
+    def get_resource_group_id(self, instance_meta: dict):
+        if not instance_meta:
+            return
+        tags = self.parse_tags(instance_meta=instance_meta)
+        return tags.get(TAG_GROUP_ID)

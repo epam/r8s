@@ -224,3 +224,19 @@ class ScheduleService:
             'stop': '00:00',
             'weekdays': WEEK_DAYS
         }]
+
+    def get_runtime_minutes(self, schedule: list):
+        runtime_minutes = 0
+        day_time_points = self._get_day_time_points(record_step_minutes=5)
+        for schedule_part in schedule:
+            start = schedule_part.get('start')
+            stop = schedule_part.get('stop')
+
+            start_index = day_time_points.index(start)
+            stop_index = day_time_points.index(stop)
+
+            covered_points = len(day_time_points[start_index: stop_index])
+            runtime_minutes_day = covered_points * 5
+            runtime_minutes += (runtime_minutes_day *
+                                len(schedule_part.get('weekdays')))
+        return runtime_minutes

@@ -10,7 +10,7 @@ import pandas as pd
 from commons.constants import STATUS_ERROR, STATUS_OK, OK_MESSAGE, \
     ACTION_SHUTDOWN, ACTION_SCHEDULE, ACTION_SPLIT, ACTION_EMPTY, \
     STATUS_POSTPONED, CURRENT_INSTANCE_TYPE_ATTR, CURRENT_MONTHLY_PRICE_ATTR, \
-    SAVING_OPTIONS_ATTR
+    SAVING_OPTIONS_ATTR, PROBABILITY
 from commons.exception import ExecutorException, ProcessingPostponedException
 from commons.log_helper import get_logger
 from commons.profiler import profiler
@@ -65,8 +65,9 @@ class RecommendationService:
         resize_action = None
         savings = None
         advanced = None
+        history_items = None
 
-        customer, cloud, tenant, region, _, instance_id = self._parse_folders(
+        customer, cloud, tenant, region, _, instance_id = self.parse_folders(
             metric_file_path=metric_file_path
         )
         if cloud.upper() != CloudEnum.CLOUD_GOOGLE.value:
@@ -256,14 +257,9 @@ class RecommendationService:
                     instance_meta=instance_meta,
                     last_metric_capture_date=df.index.max().date()
                 )
-                if history_items:
-                    _LOG.debug(
-                        f'Saving \'{len(history_items)}\' history items')
-                    self.recommendation_history_service.batch_save(
-                        recommendations=history_items)
             except Exception as e:
-                _LOG.error(f'Exception occurred while saving recommendation '
-                           f'to history: {str(e)}')
+                _LOG.error(f'Exception occurred while processing history '
+                           f'items: {str(e)}')
         except Exception as e:
             _LOG.debug(f'Calculate instance stats with exception')
             stats = self.calculate_instance_stats(df=df, exception=e)
@@ -274,47 +270,45 @@ class RecommendationService:
                 stats=stats)
 
         _LOG.debug(f'Dumping instance results')
-        item = self.dump_reports(
-            reports_dir=reports_dir,
+        item = self.format_recommendation(
             instance_id=instance_id,
             schedule=schedule,
             recommended_sizes=recommended_sizes,
             stats=stats,
-            customer=customer,
-            cloud=cloud,
-            tenant=tenant,
-            region=region,
             meta=instance_meta,
             general_action=general_action,
             savings=savings,
             advanced=advanced
         )
-        return item
+        return item, history_items
 
     def dump_error_report(self, reports_dir, metric_file_path,
                           exception):
-        customer, cloud, tenant, region, _, instance_id = self._parse_folders(
+        customer, cloud, tenant, region, _, instance_id = self.parse_folders(
             metric_file_path=metric_file_path
         )
         stats = self.calculate_instance_stats(exception=exception)
-        return self.dump_reports(
-            reports_dir=reports_dir,
+        item = self.format_recommendation(
             instance_id=instance_id,
             schedule=[],
             recommended_sizes=[],
             stats=stats,
+            meta={},
+            general_action=STATUS_ERROR
+        )
+        return self.save_report(
+            reports_dir=reports_dir,
             customer=customer,
             cloud=cloud,
             tenant=tenant,
             region=region,
-            meta={},
-            general_action=STATUS_ERROR
+            item=item
         )
 
-    def dump_reports(self, reports_dir, customer, cloud, tenant, region, stats,
-                     instance_id=None, schedule=None, recommended_sizes=None,
-                     meta=None, general_action=None,
-                     savings=None, advanced=None):
+    def format_recommendation(self, stats, instance_id=None, schedule=None,
+                              recommended_sizes=None, meta=None,
+                              general_action=None,
+                              savings=None, advanced=None):
         if general_action and not isinstance(general_action, list):
             general_action = [general_action]
         item = {
@@ -333,15 +327,25 @@ class RecommendationService:
             'general_actions': general_action
         }
         self.prettify_recommendation(recommendation_item=item)
+        return item
 
+    @staticmethod
+    def save_report(reports_dir, customer, cloud, tenant, region, item):
         dir_path = os.path.join(reports_dir, customer, cloud, tenant)
         os.makedirs(dir_path, exist_ok=True)
         file_path = os.path.join(dir_path, f'{region}.jsonl')
-
         with open(file_path, 'a') as f:
             f.write(json.dumps(item))
             f.write('\n')
-        return item
+
+    def save_history_items(self, history_items: List[RecommendationHistory]):
+        _LOG.debug(f'Saving \'{len(history_items)}\' history items')
+        try:
+            self.recommendation_history_service.batch_save(
+                recommendations=history_items)
+        except Exception as e:
+            _LOG.error(f'Exception occurred while saving recommendation '
+                       f'to history: {str(e)}')
 
     def dump_reports_from_recommendations(
             self, reports_dir, cloud,
@@ -378,12 +382,7 @@ class RecommendationService:
         if schedule is None:
             schedule = self.schedule_service.get_always_run_schedule()
 
-        return self.dump_reports(
-            reports_dir=reports_dir,
-            customer=recommendations[0].customer,
-            cloud=cloud,
-            tenant=recommendations[0].tenant,
-            region=recommendations[0].region,
+        item = self.format_recommendation(
             instance_id=recommendations[0].instance_id,
             stats=stats,
             schedule=schedule,
@@ -391,6 +390,14 @@ class RecommendationService:
             meta=recommendations[0].instance_meta,
             general_action=actions,
             savings=savings
+        )
+        return self.save_report(
+            reports_dir=reports_dir,
+            customer=recommendations[0].customer,
+            cloud=cloud,
+            tenant=recommendations[0].tenant,
+            region=recommendations[0].region,
+            item=item
         )
 
     @staticmethod
@@ -475,7 +482,7 @@ class RecommendationService:
         return result
 
     @staticmethod
-    def _parse_folders(metric_file_path):
+    def parse_folders(metric_file_path):
         """
         Extracts customer, tenant, region, timestamp and instance id from
         metric file path
@@ -491,6 +498,11 @@ class RecommendationService:
         customer = folders[-6]
 
         return customer, cloud, tenant, region, timestamp, instance_id
+
+    @staticmethod
+    def get_instance_id(metric_file_path: str):
+        file_name = metric_file_path.split(os.sep)[-1]
+        return file_name[0:file_name.rindex('.')]
 
     def get_general_action(self, schedule, shapes, stats, resize_action,
                            past_recommendations: list = None):
@@ -515,8 +527,10 @@ class RecommendationService:
             actions.append(ACTION_SCHEDULE)
 
         if shapes:
-            shape = shapes[0]
-            if 'probability' in shape:
+            is_split = np.isclose(
+                sum([shape.get(PROBABILITY, 0.0) for shape in shapes]),
+                1.0, rtol=1e-09, atol=1e-09)
+            if is_split:
                 actions.append(ACTION_SPLIT)
             else:
                 actions.append(resize_action)
