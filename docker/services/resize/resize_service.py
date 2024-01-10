@@ -123,6 +123,14 @@ class ResizeService:
         )
         suitable_shapes = self._remove_shape_duplicates(
             shapes=suitable_shapes)
+
+        for shape in suitable_shapes:
+            prob = self.calculate_shape_probability(
+                current_shape=current_shape,
+                shape=shape, trend=trend
+            )
+            shape[PROBABILITY] = prob
+
         if not suitable_shapes or len(suitable_shapes) < max_results:
             if allow_recursion:
                 _LOG.warning('No suitable same-series shape found. '
@@ -161,12 +169,6 @@ class ResizeService:
             shapes=suitable_shapes,
             max_results=max_results)
 
-        for shape in result:
-            prob = self.calculate_shape_probability(
-                current_shape=current_shape,
-                shape=shape, trend=trend
-            )
-            shape[PROBABILITY] = prob
         return result
 
     def calculate_shape_probability(self, current_shape, shape, trend):
@@ -181,9 +183,14 @@ class ResizeService:
             if metric_trend.mean == -1:
                 continue
             shape_key = metric_to_shape_key.get(metric_name)
+
+            current_value = current_shape.get_json().get(shape_key)
+            expected_value = shape.get(shape_key)
+            if not current_value or not expected_value:
+                continue
             metric_prob = self.calculate_shape_metric_probability(
-                current_value=current_shape.get_json().get(shape_key),
-                expected_value=shape.get(shape_key),
+                current_value=current_value,
+                expected_value=expected_value,
                 percentiles=metric_trend.percentiles
             )
             shape_prob.append(metric_prob)

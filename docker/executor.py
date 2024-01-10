@@ -19,6 +19,7 @@ from services.environment_service import EnvironmentService
 from services.job_service import JobService
 from services.license_manager_service import LicenseManagerService
 from services.license_service import LicenseService
+from services.meta_service import MetaService
 from services.metrics_service import MetricsService, \
     INSUFFICIENT_DATA_ERROR_TEMPLATE
 from services.mocked_data_service import MockedDataService
@@ -28,6 +29,7 @@ from services.recommendation_history_service import \
     RecommendationHistoryService
 from services.reformat_service import ReformatService
 from services.resize.resize_service import ResizeService
+from services.resource_group_service import ResourceGroupService
 from services.rightsizer_application_service import \
     RightSizerApplicationService
 from services.rightsizer_parent_service import RightSizerParentService
@@ -56,6 +58,9 @@ license_manager_service: LicenseManagerService = SERVICE_PROVIDER. \
     license_manager_service()
 recommendation_history_service: RecommendationHistoryService = (
     SERVICE_PROVIDER.recommendation_history_service())
+meta_service: MetaService = SERVICE_PROVIDER.meta_service()
+resource_group_service: ResourceGroupService = (
+    SERVICE_PROVIDER.resource_group_service())
 
 _LOG = get_logger('r8s-executor')
 
@@ -226,13 +231,16 @@ def process_tenant_instances(metrics_dir, reports_dir,
                 recommendations=past_recommendations
             )
 
+    group_results = {}
+    group_history_items = []
+    instance_region_mapping = {}
     _LOG.info(f'Tenant {tenant} metric file paths to '
               f'process: \'{metric_file_paths}\'')
     for index, metric_file_path in enumerate(metric_file_paths, start=1):
         _LOG.debug(
             f'Processing {index}/{len(metric_file_paths)} instance: '
             f'\'{metric_file_path}\'')
-        result = recommendation_service.process_instance(
+        result, history_items = recommendation_service.process_instance(
             metric_file_path=metric_file_path,
             algorithm=algorithm,
             reports_dir=reports_dir,
@@ -240,6 +248,58 @@ def process_tenant_instances(metrics_dir, reports_dir,
             parent_meta=parent_meta
         )
         _LOG.debug(f'Result: {result}')
+
+        _, _, _, region, _, resource_id = (
+            recommendation_service.parse_folders(
+                metric_file_path=metric_file_path
+            ))
+        instance_region_mapping[resource_id] = region
+
+        instance_meta = instance_meta_mapping.get(resource_id)
+        if group_id := meta_service.get_resource_group_id(
+                instance_meta=instance_meta):
+            _LOG.debug(f'Group item detected. Recommendations wont be '
+                       f'saved until comparison.')
+            if group_id not in group_results:
+                group_results[group_id] = [result]
+            else:
+                group_results[group_id].append(result)
+            if history_items:
+                group_history_items.extend(history_items)
+        else:
+            _LOG.debug(f'Saving independent resource recommendation')
+            recommendation_service.save_report(
+                reports_dir=reports_dir,
+                customer=licensed_application.customer_id,
+                cloud=cloud,
+                tenant=tenant,
+                region=region,
+                item=result
+            )
+            if history_items:
+                recommendation_service.save_history_items(
+                    history_items=history_items)
+
+    if group_results:
+        _LOG.debug(f'Filtering contradictory recommendations '
+                   f'inside resource groups')
+        filtered_reports, filtered_history = resource_group_service.filter(
+            group_results=group_results,
+            group_history_items=group_history_items
+        )
+        _LOG.debug(f'Saving group results')
+        for report in filtered_reports:
+            recommendation_service.save_report(
+                reports_dir=reports_dir,
+                customer=licensed_application.customer_id,
+                cloud=cloud,
+                tenant=tenant,
+                region=instance_region_mapping.get(report.get('resource_id')),
+                item=report
+            )
+        _LOG.debug('Saving group result recommendation')
+        recommendation_service.save_history_items(
+            history_items=filtered_history)
 
     _LOG.debug(f'Uploading job results to storage \'{output_storage.name}\'')
     storage_service.upload_job_results(
