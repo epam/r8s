@@ -111,7 +111,7 @@ class TestComplexCustomerPreferences(BaseExecutorTest):
             }
         ]
         parent_meta = LicensesParentMeta(shape_rules=shape_rules)
-        result = self.recommendation_service.process_instance(
+        result, _ = self.recommendation_service.process_instance(
             metric_file_path=self.metrics_file_path,
             algorithm=self.algorithm,
             reports_dir=self.reports_path,
