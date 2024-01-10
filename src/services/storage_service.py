@@ -12,6 +12,8 @@ from services.clients.s3 import S3Client
 
 _LOG = get_logger('r8s-storage-service')
 
+NO_RESULTS_ERROR = 'No job results available'
+
 
 class StorageService:
     def __init__(self, s3_client: S3Client):
@@ -28,12 +30,12 @@ class StorageService:
     def get(self, identifier: str):
         _LOG.debug(f'Describing storage by identifier: \'{identifier}\'')
         try:
-            _LOG.debug(f'Trying to convert to bson id')
+            _LOG.debug('Trying to convert to bson id')
             ObjectId(identifier)
-            _LOG.debug(f'Describing storage by id')
+            _LOG.debug('Describing storage by id')
             return self.get_by_id(object_id=identifier)
         except InvalidId:
-            _LOG.debug(f'Describing storage by name')
+            _LOG.debug('Describing storage by name')
             return self.get_by_name(name=identifier)
 
     @staticmethod
@@ -110,7 +112,7 @@ class StorageService:
         if not downloader:
             return build_response(
                 code=RESPONSE_INTERNAL_SERVER_ERROR,
-                content=f'Internal Server Error'
+                content='Internal Server Error'
             )
         return downloader(storage, job_id, *args, **kwargs)
 
@@ -131,10 +133,10 @@ class StorageService:
                                               prefix=prefix)
 
         if not objects:
-            _LOG.error(f'No job results available')
+            _LOG.error(NO_RESULTS_ERROR)
             return build_response(
                 content=RESPONSE_BAD_REQUEST_CODE,
-                code=f'No job results available'
+                code=NO_RESULTS_ERROR
             )
 
         object_keys = [obj.get('Key') for obj in objects if
@@ -184,10 +186,10 @@ class StorageService:
                                               prefix=prefix)
 
         if not objects:
-            _LOG.error(f'No job results available')
+            _LOG.error(NO_RESULTS_ERROR)
             return build_response(
                 content=RESPONSE_BAD_REQUEST_CODE,
-                code=f'No job results available'
+                code=NO_RESULTS_ERROR
             )
 
         objects = [obj for obj in objects if

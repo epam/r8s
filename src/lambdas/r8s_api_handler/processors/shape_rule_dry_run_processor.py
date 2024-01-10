@@ -48,7 +48,7 @@ class ShapeRuleDryRunProcessor(AbstractCommandProcessor):
         _LOG.debug(f'Dry run shape rule event: {event}')
         validate_params(event, (PARENT_ID_ATTR,))
 
-        parent, application = self.resolve_parent_application(
+        parent, _ = self.resolve_parent_application(
             event=event
         )
 
@@ -103,13 +103,12 @@ class ShapeRuleDryRunProcessor(AbstractCommandProcessor):
 
         filtered_shapes = self.shape_rules_filter_service. \
             get_allowed_instance_types(
-            cloud=cloud,
             parent_meta=parent_meta,
             instances_data=shapes
         )
         _LOG.debug(f'Got {len(filtered_shapes)} filtered shapes')
 
-        _LOG.debug(f'Describing shapes dto')
+        _LOG.debug('Describing shapes dto')
         shape_names = [shape.name for shape in filtered_shapes]
         shape_names.sort()
 
@@ -127,15 +126,14 @@ class ShapeRuleDryRunProcessor(AbstractCommandProcessor):
         )
 
     def resolve_parent_application(self, event):
-        _LOG.debug(f'Resolving applications')
         applications = self.application_service.resolve_application(
             event=event)
 
         if not applications:
-            _LOG.warning(f'No application found matching given query.')
+            _LOG.warning('No application found matching given query.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No application found matching given query.'
+                content='No application found matching given query.'
             )
         parent_id = event.get(PARENT_ID_ATTR)
 

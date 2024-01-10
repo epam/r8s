@@ -63,7 +63,7 @@ class RecommendationService:
         schedule = None
         recommended_sizes = None
         resize_action = None
-        savings = None
+        savings = {}
         advanced = None
         history_items = None
 

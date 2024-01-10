@@ -19,7 +19,7 @@ class TestOverlappingSchedule(BaseExecutorTest):
 
         self.instance_id = 'schedule_overlap'
 
-        length = POINTS_IN_DAY * 14
+        length = POINTS_IN_DAY * 28
         instance_id_series = constant_to_series(
             value=self.instance_id,
             length=length
@@ -94,7 +94,7 @@ class TestOverlappingSchedule(BaseExecutorTest):
 
     @patch.dict(os.environ, {'KMP_DUPLICATE_LIB_OK': "TRUE"})
     def test_overlapping_schedule(self):
-        result = self.recommendation_service.process_instance(
+        result, _ = self.recommendation_service.process_instance(
             metric_file_path=self.metrics_file_path,
             algorithm=self.algorithm,
             reports_dir=self.reports_path

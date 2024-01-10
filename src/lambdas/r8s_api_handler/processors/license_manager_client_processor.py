@@ -88,10 +88,10 @@ class LicenseManagerClientProcessor(AbstractCommandProcessor):
                         value_attr=PUBLIC_KEY_ATTR
                     )
         if not response:
-            _LOG.warning(f'No valid License Manager Client-Key found.')
+            _LOG.warning('No valid License Manager Client-Key found.')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No valid License Manager Client-Key found.'
+                content='No valid License Manager Client-Key found.'
             )
         return build_response(
             code=RESPONSE_OK_CODE,
@@ -244,7 +244,7 @@ class LicenseManagerClientProcessor(AbstractCommandProcessor):
     def _derive_puk(prk: IKey):
         try:
             puk = prk.public_key()
-        except (Exception, ValueError) as e:
+        except Exception as e:
             message = 'Public-Key could not be derived out of a ' \
                       f'private one, due to: "{e}".'
             _LOG.warning(message)
@@ -252,13 +252,13 @@ class LicenseManagerClientProcessor(AbstractCommandProcessor):
         return puk
 
     @staticmethod
-    def check_properly_encoded_key(values):
+    def check_properly_encoded_key(values: dict):
         is_encoded = values.get('b64_encoded')
         key: str = values.get('private_key')
         if is_encoded:
             try:
                 key = standard_b64decode(key).decode()
-            except (TypeError, BaseException):
+            except Exception:
                 raise ValueError(
                     '\'private_key\' must be a safe to decode'
                     ' base64-string.'

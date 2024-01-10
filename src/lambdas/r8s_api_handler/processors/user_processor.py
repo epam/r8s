@@ -52,7 +52,7 @@ class UserProcessor(AbstractCommandProcessor):
             _LOG.debug(f'Extracting user with id \'{target_user}\'')
             users = [self.user_service.get_user(user_id=target_user)]
         elif user_customer == 'admin':
-            _LOG.debug(f'Extracting all users')
+            _LOG.debug('Extracting all users')
             users = self.user_service.list_users(
                 attributes_to_get=attributes_to_get)
         else:
@@ -64,12 +64,12 @@ class UserProcessor(AbstractCommandProcessor):
         users = [user for user in users if user]
 
         if not users:
-            _LOG.warning(f'No users found matching given query')
+            _LOG.warning('No users found matching given query')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No users found matching given query'
+                content='No users found matching given query'
             )
-        _LOG.debug(f'Formatting users')
+        _LOG.debug('Formatting users')
         formatted_users = self._format_users(users=users)
         _LOG.debug(f'Formatted users: {formatted_users}')
         return build_response(
@@ -78,7 +78,7 @@ class UserProcessor(AbstractCommandProcessor):
         )
 
     def patch(self, event):
-        _LOG.debug(f'Update user event')
+        _LOG.debug('Update user event')
         validate_params(event, (PARAM_TARGET_USER, PASSWORD_ATTR))
 
         current_user_id = event.get(USER_ID_ATTR)

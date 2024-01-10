@@ -26,12 +26,12 @@ class AlgorithmService:
     def get(self, identifier: str):
         _LOG.debug(f'Describing algorithm by identifier: \'{identifier}\'')
         try:
-            _LOG.debug(f'Trying to convert to bson id')
+            _LOG.debug('Trying to convert to bson id')
             ObjectId(identifier)
-            _LOG.debug(f'Describing algorithm by id')
+            _LOG.debug('Describing algorithm by id')
             return self.get_by_id(object_id=identifier)
         except InvalidId:
-            _LOG.debug(f'Describing algorithm by name')
+            _LOG.debug('Describing algorithm by name')
             return self.get_by_name(name=identifier)
 
     @staticmethod
@@ -71,7 +71,7 @@ class AlgorithmService:
             name=name)
 
         if not algorithm_obj:
-            _LOG.debug(f'Creating new licensed algorithm')
+            _LOG.debug('Creating new licensed algorithm')
             parameters = {
                 NAME_ATTR: name,
                 LICENSED_ATTR: True,
@@ -88,7 +88,7 @@ class AlgorithmService:
             algorithm_obj = self.create(parameters)
             self.save(algorithm=algorithm_obj)
             return algorithm_obj
-        _LOG.debug(f'Updating existing licensed algorithm')
+        _LOG.debug('Updating existing licensed algorithm')
         self.update_recommendation_settings(
             algorithm=algorithm_obj,
             recommendation_settings=algorithm_sync_data.get(

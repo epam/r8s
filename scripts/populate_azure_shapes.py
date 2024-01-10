@@ -73,10 +73,12 @@ def parse_args():
                         help='AZURE Tenant id. Required for \'SHAPE\' action',
                         required=False)
     parser.add_argument('-acs', '--AZURE_CLIENT_SECRET',
-                        help='AZURE Client secret. Required for \'SHAPE\' action',
+                        help='AZURE Client secret. '
+                             'Required for \'SHAPE\' action',
                         required=False)
     parser.add_argument('-asid', '--AZURE_SUBSCRIPTION_ID',
-                        help='AZURE Subscription id. Required for \'SHAPE\' action',
+                        help='AZURE Subscription id. '
+                             'Required for \'SHAPE\' action',
                         required=False)
     parser.add_argument('-pr', '--price_region', action='append',
                         required=False, default=AZURE_REGIONS,
@@ -111,7 +113,7 @@ def get_virtual_machine_info():
         subscription_id=subscription_id,
     )
     result = []
-    _LOG.debug(f'Querying for Azure VM data')
+    _LOG.debug('Querying for Azure VM data')
     response = client.resource_skus.list()
     if not response:
         _LOG.warning('Failed to obtain vms info.')
@@ -124,10 +126,10 @@ def get_virtual_machine_info():
 def populate_shapes():
     from models.shape import Shape
     from mongoengine import NotUniqueError
-    _LOG.debug(f'Loading VM Info')
+    _LOG.debug('Loading VM Info')
     virtual_machine_info = get_virtual_machine_info()
 
-    _LOG.debug(f'Removing duplicated vm data')
+    _LOG.debug('Removing duplicated vm data')
     virtual_machine_info_unique = get_unique_by_name(virtual_machine_info)
     for index, virtual_machine in enumerate(virtual_machine_info_unique):
         _LOG.debug(
@@ -146,8 +148,9 @@ def populate_shapes():
 def populate_prices(region, connection_uri):
     os.environ['r8s_mongodb_connection_uri'] = connection_uri
     _LOG.debug(f'Querying for Azure VM Pricing data for region: {region}')
-    url = f"https://prices.azure.com/api/retail/prices?$filter=serviceName " \
-          f"eq 'Virtual Machines' and priceType eq 'Consumption' and armRegionName eq '{region}'"
+    url = (f"https://prices.azure.com/api/retail/prices?$filter=serviceName "
+           f"eq 'Virtual Machines' and priceType eq 'Consumption' "
+           f"and armRegionName eq '{region}'")
 
     _LOG.debug(f'Processing page 1 for region: {region}')
     response = requests.get(url)
@@ -214,7 +217,7 @@ def get_shape_price(resource: dict):
 
 
 def run_populate_prices(regions: list, workers: int, connection_uri: str):
-    _LOG.debug(f'Populating Azure Prices data')
+    _LOG.debug('Populating Azure Prices data')
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) \
             as executor:
         futures = []
@@ -224,7 +227,7 @@ def run_populate_prices(regions: list, workers: int, connection_uri: str):
                                 region=region,
                                 connection_uri=connection_uri))
         for future in concurrent.futures.as_completed(futures):
-            _LOG.debug(f"Thread finished: {future.result()}")
+            _LOG.debug(f'Thread finished: {future.result()}')
 
 
 def get_unique_by_name(resources: list):
@@ -261,11 +264,11 @@ def update_last_update_date():
     setting = setting_service.update_shape_update_date(
         cloud=CloudEnum.CLOUD_AZURE.value
     )
-    print(f"Updated setting: {setting.value}")
+    print(f'Updated setting: {setting.value}')
 
 
 def main():
-    _LOG.info("Parsing arguments")
+    _LOG.info('Parsing arguments')
     parameters = parse_args()
 
     _LOG.info('Exporting env variables')

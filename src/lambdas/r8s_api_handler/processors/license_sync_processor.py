@@ -68,7 +68,7 @@ class LicenseSyncProcessor(AbstractCommandProcessor):
             license_key=license_obj.license_key,
             customer=customer
         )
-        if not response.status_code == 200:
+        if response.status_code != RESPONSE_OK_CODE:
             return
 
         license_data = response.json()['items'][0]
@@ -78,7 +78,7 @@ class LicenseSyncProcessor(AbstractCommandProcessor):
             license_obj=license_obj,
             license_data=license_data
         )
-        _LOG.debug(f'Updating licensed algorithm')
+        _LOG.debug('Updating licensed algorithm')
         for customer in license_obj.customers.keys():
             self.algorithm_service.sync_licensed_algorithm(
                 license_data=license_data,

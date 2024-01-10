@@ -120,13 +120,13 @@ def create_admin_role():
 
     script_dir_path = resolve_scripts_path()
     if not iam_service.policy_get('admin_policy'):
-        _LOG.debug(f'Creating admin policy')
+        _LOG.debug('Creating admin policy')
         admin_policy_data = read_json(dir_path=script_dir_path,
                                       file_name='admin_policy.json')
         Policy(**admin_policy_data).save()
 
     if not iam_service.role_get('admin_role'):
-        _LOG.debug(f'Creating admin role')
+        _LOG.debug('Creating admin role')
         admin_role = Role(name='admin_role',
                           policies=['admin_policy'],
                           expiration=datetime.now() + timedelta(days=365),
@@ -140,7 +140,7 @@ def create_admin_user():
     auth_client = SERVICE_PROVIDER.cognito()
     password = generate_password()
     if auth_client._get_user('SYSTEM_ADMIN'):
-        _LOG.debug(f'Admin user already exist')
+        _LOG.debug('Admin user already exist')
         return
     auth_client.sign_up(
         username='SYSTEM_ADMIN',
@@ -155,7 +155,7 @@ def create_admin_user():
 def create_customer():
     customer_name = os.environ.get('CUSTOMER_NAME')
     if not customer_name:
-        _LOG.debug(f'Customer ')
+        _LOG.debug('Customer name not specified')
         return
     from modular_sdk.services.customer_service import CustomerService
     if CustomerService().get(customer_name):

@@ -1,13 +1,13 @@
 from unittest.mock import MagicMock
 
-from tests.test_handlers.test_storage_handler import TestStorageHandler
-from tests.import_helper import add_src_to_path
+from commons.constants import POST_METHOD, PATCH_METHOD, \
+    DELETE_METHOD
+from tests.test_handlers.test_storage import TestStorageHandler
 
-add_src_to_path()
+ERROR_NO_STORAGES = 'No storages matching given query'
 
 
 class TestsStorageDescribe(TestStorageHandler):
-    TESTED_METHOD_NAME = 'get'
 
     def test_list_storages(self):
         event = {}
@@ -28,7 +28,7 @@ class TestsStorageDescribe(TestStorageHandler):
         event = {}
 
         self.assert_exception_with_content(
-            event, 'No storages matching given query')
+            event, ERROR_NO_STORAGES)
 
     def test_get_storage_by_name(self):
         event = {
@@ -42,21 +42,21 @@ class TestsStorageDescribe(TestStorageHandler):
 
         self.assertEqual(response_items[0].get('name'), event.get('name'))
 
-    def test_get_nonexisting_storage_by_name(self):
+    def test_get_non_existing_storage_by_name(self):
         event = {
-            'name': 'nonexistingstorage'
+            'name': 'non_existing_storage'
         }
 
         self.assert_exception_with_content(
-            event, 'No storages matching given query')
+            event, ERROR_NO_STORAGES)
 
-    def test_get_nonexisting_storage_by_id(self):
+    def test_get_non_existing_storage_by_id(self):
         event = {
-            'id': 'nonexistingstorage'
+            'id': 'non_existing_storage'
         }
 
         self.assert_exception_with_content(
-            event, 'No storages matching given query')
+            event, ERROR_NO_STORAGES)
 
     def test_get_storage_by_id(self):
         event = {
@@ -72,7 +72,9 @@ class TestsStorageDescribe(TestStorageHandler):
 
 
 class TestsStorageCreate(TestStorageHandler):
-    TESTED_METHOD_NAME = 'post'
+    @property
+    def test_method(self):
+        return POST_METHOD
 
     def test_storage_post_empty_event(self):
         event = {}
@@ -114,7 +116,9 @@ class TestsStorageCreate(TestStorageHandler):
 
 
 class TestsStorageUpdate(TestStorageHandler):
-    TESTED_METHOD_NAME = 'patch'
+    @property
+    def test_method(self):
+        return PATCH_METHOD
 
     def test_storage_update_empty_event(self):
         event = {}
@@ -142,9 +146,9 @@ class TestsStorageUpdate(TestStorageHandler):
         self.assertEqual(item.get('type'), event.get('type'))
         self.assertEqual(item.get('access'), event.get('access'))
 
-    def test_storage_update_nonexisting(self):
+    def test_storage_update_non_existing(self):
         event = {
-            'name': 'nonexisting-storage',
+            'name': 'non_existing-storage',
             'service': 'S3_BUCKET',
             'type': 'DATA_SOURCE',
             'access': {'bucket_name': 'test_bucket', 'prefix': 'test/updated'}
@@ -155,7 +159,9 @@ class TestsStorageUpdate(TestStorageHandler):
 
 
 class TestsStorageDelete(TestStorageHandler):
-    TESTED_METHOD_NAME = 'delete'
+    @property
+    def test_method(self):
+        return DELETE_METHOD
 
     def test_storage_delete_empty_event(self):
         event = {}

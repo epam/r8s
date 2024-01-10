@@ -32,8 +32,7 @@ class CustomerPreferencesService:
             CONDITION_EQUAL: self._equal_condition,
         }
 
-    def get_allowed_instance_types(self, cloud: str,
-                                   parent_meta: LicensesParentMeta,
+    def get_allowed_instance_types(self, parent_meta: LicensesParentMeta,
                                    instances_data: List[Shape]):
         shape_rules = parent_meta.shape_rules
 
@@ -66,7 +65,8 @@ class CustomerPreferencesService:
             matching_instances = self._find_matching(
                 instances_data=instances_data, filter_=filter_
             )
-            filter_allowed_mapping[filter_.get(RULE_ID_ATTR)] = len(matching_instances)
+            filter_allowed_mapping[filter_.get(RULE_ID_ATTR)] = (
+                len(matching_instances))
             allowed_instances.extend(matching_instances)
         return allowed_instances, filter_allowed_mapping
 
@@ -81,7 +81,8 @@ class CustomerPreferencesService:
             )
             filter_names_to_exclude = [item.name for item in
                                        matching_instances]
-            filter_excluded_count[filter_.get(RULE_ID_ATTR)] = len(filter_names_to_exclude)
+            filter_excluded_count[filter_.get(RULE_ID_ATTR)] = (
+                len(filter_names_to_exclude))
             names_to_exclude.update(filter_names_to_exclude)
 
         result = [instance for instance in instances_data

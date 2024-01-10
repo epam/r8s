@@ -108,7 +108,7 @@ class ParentResizeInsightsProcessor(AbstractCommandProcessor):
             )
         allowed_instances, filter_allowed_mapping, filter_excluded_mapping = \
             self.customer_preferences_service.get_allowed_instance_types(
-                cloud=cloud, parent_meta=parent_meta, instances_data=shapes)
+                parent_meta=parent_meta, instances_data=shapes)
         _LOG.debug(f'Shapes allowed by shape rules: {len(allowed_instances)}')
         forbid_change_series = algorithm.recommendation_settings. \
             forbid_change_series
@@ -129,7 +129,7 @@ class ParentResizeInsightsProcessor(AbstractCommandProcessor):
             },
         }
         if forbid_change_family:
-            _LOG.debug(f'Counting shape that will be excluded by family')
+            _LOG.debug('Counting shape that will be excluded by family')
             same_family_shapes = self.resize_service.get_same_family(
                 sizes=allowed_instances,
                 current_shape=current_shape,
@@ -144,7 +144,7 @@ class ParentResizeInsightsProcessor(AbstractCommandProcessor):
             _LOG.debug(f'Excluded by family: {excluded_by_family}')
 
         if forbid_change_series:
-            _LOG.debug(f'Counting shape that will be excluded by series')
+            _LOG.debug('Counting shape that will be excluded by series')
             series_prefix = self.resize_service.get_series_prefix(
                 shape_name=instance_type_name,
                 cloud=cloud

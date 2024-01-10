@@ -36,7 +36,7 @@ class ReportService:
 
     def get_job_report(self, job: Job, detailed=None, customer=None,
                        cloud=None, tenant=None, region=None, instance_id=None):
-        _LOG.debug(f'Describing job storage')
+        _LOG.debug('Describing job storage')
         job_storage = self.get_storage(customer=customer)
 
         job_results = self.storage_service.download_job_results(
@@ -55,10 +55,10 @@ class ReportService:
                            if item.get('instance_id') == instance_id]
 
         if detailed:
-            _LOG.debug(f'Returning detailed results')
+            _LOG.debug('Returning detailed results')
             return job_results
 
-        _LOG.debug(f'Reformatting job results')
+        _LOG.debug('Reformatting job results')
         reformatted = []
         for instance_data in job_results:
             instance_data = {k: v for k, v in instance_data.items()
@@ -86,7 +86,7 @@ class ReportService:
         return reformatted
 
     def get_download_report(self, job: Job, customer, tenant, region):
-        _LOG.debug(f'Describing job storage')
+        _LOG.debug('Describing job storage')
         storage = self.get_storage(customer=customer)
 
         objects = self.storage_service.list_object_with_presigned_urls(

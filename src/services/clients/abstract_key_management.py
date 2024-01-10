@@ -37,38 +37,38 @@ class AbstractKeyManagementClient(ABC):
     @abstractmethod
     def sign(self, key_id, message: Union[str, bytes], algorithm: str,
              encoding='utf-8') -> Optional[bytes]:
-        raise NotImplemented
+        raise NotImplementedError
 
     @abstractmethod
     def verify(self, key_id: str, message: Union[str, bytes], algorithm: str,
                signature: bytes, encoding='utf-8') -> bool:
-        raise NotImplemented
+        raise NotImplementedError
 
     @abstractmethod
     def generate(self, key_type: str, key_std: str, **data) -> IKey:
-        raise NotImplemented
+        raise NotImplementedError
 
     @abstractmethod
     def save(self, key_id: str, key: IKey, key_format: str, **data):
-        raise NotImplemented
+        raise NotImplementedError
 
     @abstractmethod
     def delete(self, key_id: str):
-        raise NotImplemented
+        raise NotImplementedError
 
     @abstractmethod
     def get_key(self, key_type: str, key_std: str, key_data: dict) -> \
             Optional[IKey]:
-        raise NotImplemented
+        raise NotImplementedError
 
     @abstractmethod
     def get_key_data(self, key_id: str) -> Optional[dict]:
-        raise NotImplemented
+        raise NotImplementedError
 
     @classmethod
     @abstractmethod
     def construct(cls, key_type: str, key_std: str, key_value: str, **data):
-        raise NotImplemented
+        raise NotImplementedError
 
     @classmethod
     @abstractmethod
@@ -76,7 +76,7 @@ class AbstractKeyManagementClient(ABC):
         cls, sig_scheme: str, key_type: str, key_std: str, hash_type: str,
         hash_std: str
     ):
-        raise NotImplemented
+        raise NotImplementedError
 
     @staticmethod
     def dissect_alg(alg: str) -> Optional[Dict[str, str]]:
@@ -93,6 +93,6 @@ class AbstractKeyManagementClient(ABC):
         try:
             m = match(pattern=ALG_PATTERN, string=alg)
             mapped = m.groupdict()
-        except (ValueError, Exception) as e:
+        except Exception as e:
             _LOG.warning(f'Alg:\'{alg}\' could not be dissected due to "{e}".')
         return mapped

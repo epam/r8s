@@ -26,11 +26,11 @@ class ShapeCountCheck(AbstractHealthCheck):
         return CHECK_ID_COUNT_CHECK
 
     def remediation(self) -> Optional[str]:
-        return f'Upload shapes data for clouds that have no shapes'
+        return 'Upload shapes data for clouds that have no shapes'
 
     def impact(self) -> Optional[str]:
-        return f'You won\'t be able to submit scans for clouds/regions ' \
-               f'with no shapes'
+        return 'You won\'t be able to submit scans for clouds/regions ' \
+               'with no shapes'
 
     def check(self, aws_shapes, azure_shapes, gcp_shapes, *args, **kwargs) \
             -> Union[List[CheckResult], CheckResult]:
@@ -52,10 +52,10 @@ class RegionPriceCheck(AbstractHealthCheck):
         return CHECK_ID_REGION_PRICE_CHECK
 
     def remediation(self) -> Optional[str]:
-        return f'Upload shape price data for clouds that have no prices'
+        return 'Upload shape price data for clouds that have no prices'
 
     def impact(self) -> Optional[str]:
-        return f'You won\'t be able to submit scans for clouds with no prices'
+        return 'You won\'t be able to submit scans for clouds with no prices'
 
     def check(self, prices: List[ShapePrice], *args, **kwargs) \
             -> Union[List[CheckResult], CheckResult]:
@@ -78,7 +78,7 @@ class RegionPriceCheck(AbstractHealthCheck):
             }
         }
 
-        _LOG.debug(f'Counting prices by customer/cloud/region')
+        _LOG.debug('Counting prices by customer/cloud/region')
         for price in prices:
             customer = price.customer
 
@@ -104,11 +104,11 @@ class MissingPricesCheck(AbstractHealthCheck):
         return CHECK_ID_MISSING_PRICE_CHECK
 
     def remediation(self) -> Optional[str]:
-        return f'Upload shape price data for shapes with missing linked prices'
+        return 'Upload shape price data for shapes with missing linked prices'
 
     def impact(self) -> Optional[str]:
-        return f'You won\'t be able to receive savings estimation for ' \
-               f'shapes with missing linked prices'
+        return 'You won\'t be able to receive savings estimation for ' \
+               'shapes with missing linked prices'
 
     def check(self, aws_shapes, azure_shapes, gcp_shapes,
               prices: List[ShapePrice], *args, **kwargs) \
@@ -116,14 +116,14 @@ class MissingPricesCheck(AbstractHealthCheck):
         price_name_mapping = {price.name: price for price in prices}
 
         shapes_with_missing_prices = []
-        _LOG.debug(f'Searching for shapes without prices')
+        _LOG.debug('Searching for shapes without prices')
         for shape in itertools.chain(aws_shapes, azure_shapes, gcp_shapes):
             if not price_name_mapping.get(shape.name):
                 shapes_with_missing_prices.append(shape.name)
 
         if shapes_with_missing_prices:
             return self.not_ok_result(
-                details={"missing_prices": shapes_with_missing_prices}
+                details={'missing_prices': shapes_with_missing_prices}
             )
         return self.ok_result()
 
@@ -137,18 +137,19 @@ class SuspiciousPriceCheck(AbstractHealthCheck):
         return CHECK_ID_SUSPICIOUS_PRICE_CHECK
 
     def remediation(self) -> Optional[str]:
-        return f'Upload shape price data with realistic prices'
+        return 'Upload shape price data with realistic prices'
 
     def impact(self) -> Optional[str]:
-        return f'R8s may work incorrectly due to the difference in ' \
-               f'shape specs in comparison to price'
+        return 'R8s may work incorrectly due to the difference in ' \
+               'shape specs in comparison to price'
 
     def check(self, aws_shapes: List[Shape], azure_shapes: List[Shape],
               gcp_shapes: List[Shape], prices: List[ShapePrice]) \
             -> Union[List[CheckResult], CheckResult]:
 
         shape_name_cpu_mapping = self._shape_cpu_mapping(
-            shapes=itertools.chain(aws_shapes, azure_shapes, gcp_shapes))
+            shapes=list(itertools.chain(
+                aws_shapes, azure_shapes, gcp_shapes)))
         suspicious_prices = []
 
         for price in prices:
@@ -192,13 +193,13 @@ class ShapeCheckHandler:
         ]
 
     def check(self):
-        _LOG.debug(f'Describing aws shapes')
+        _LOG.debug('Describing aws shapes')
         aws_shapes = list(self.shape_service.list(cloud=CLOUD_AWS))
 
-        _LOG.debug(f'Describing azure shapes')
+        _LOG.debug('Describing azure shapes')
         azure_shapes = list(self.shape_service.list(cloud=CLOUD_AZURE))
 
-        _LOG.debug(f'Describing google shapes')
+        _LOG.debug('Describing google shapes')
         gcp_shapes = list(self.shape_service.list(cloud=CLOUD_GOOGLE))
 
         _LOG.debug(f'Got {len(aws_shapes)} AWS, {len(azure_shapes)} azure and '

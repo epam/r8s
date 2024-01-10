@@ -31,8 +31,7 @@ class CustomerPreferencesService:
             CONDITION_EQUAL: self._equal_condition,
         }
 
-    def get_allowed_instance_types(self, cloud: str,
-                                   parent_meta: LicensesParentMeta,
+    def get_allowed_instance_types(self, parent_meta: LicensesParentMeta,
                                    instances_data: List[Shape]):
         shape_rules = parent_meta.shape_rules
 

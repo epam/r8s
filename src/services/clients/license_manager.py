@@ -29,6 +29,9 @@ STOPPED_AT_ATTR = 'stopped_at'
 
 _LOG = get_logger(__name__)
 
+LM_DATA_NOT_AVAILABLE_ERROR = ('LicenceManager access data '
+                               'has not been provided.')
+
 
 class LicenseManagerClient:
 
@@ -63,8 +66,7 @@ class LicenseManagerClient:
         :return: Union[Response, Type[None]]
         """
         if not self.host:
-            _LOG.warning('LicenceManager access data has not been'
-                         ' provided.')
+            _LOG.warning(LM_DATA_NOT_AVAILABLE_ERROR)
             return None
         url = self.host + SYNC_LICENSE_PATH
         payload = {
@@ -93,8 +95,7 @@ class LicenseManagerClient:
         """
         host, method = self.host, POST_METHOD
         if not host:
-            _LOG.error('LicenceManager access data has not been'
-                       ' provided.')
+            _LOG.error(LM_DATA_NOT_AVAILABLE_ERROR)
             return None
 
         host = host.strip('/')
@@ -129,8 +130,7 @@ class LicenseManagerClient:
         """
         host, method = self.host, PATCH_METHOD
         if not host:
-            _LOG.error('LicenceManager access data has not been'
-                       ' provided.')
+            _LOG.error(LM_DATA_NOT_AVAILABLE_ERROR)
             return None
         url = host.strip('/') + JOBS_PATH
         payload = {
@@ -151,8 +151,7 @@ class LicenseManagerClient:
         self, tenant: str, tlk: str, auth: str
     ) -> Optional[Response]:
         if not self.host:
-            _LOG.warning('LicenceManager access data has not been'
-                         ' provided.')
+            _LOG.warning(LM_DATA_NOT_AVAILABLE_ERROR)
             return None
         url = self.host + SET_TENANT_ACTIVATION_DATE_PATH
         payload = {TENANT_ATTR: tenant, TENANT_LICENSE_KEY_ATTR: tlk}
@@ -166,8 +165,7 @@ class LicenseManagerClient:
     def activate_customer(self, customer: str, tlk: str, auth: str
                           ) -> Optional[Response]:
         if not self.host:
-            _LOG.warning('LicenceManager access data has not been'
-                         ' provided.')
+            _LOG.warning(LM_DATA_NOT_AVAILABLE_ERROR)
             return None
         url = self.host + SET_CUSTOMER_ACTIVATION_DATE_PATH
         payload = {CUSTOMER_ATTR: customer, TENANT_LICENSE_KEY_ATTR: tlk}
@@ -206,7 +204,7 @@ class LicenseManagerClient:
             )
             _LOG.debug(f'Response from {url}: {response}')
             return response
-        except (RequestException, Exception) as e:
+        except Exception as e:
             _LOG.error(f'Error occurred while executing request. Error: {e}')
             return
 

@@ -85,7 +85,6 @@ class ResizeService:
                        f'{parent_meta.as_dict()}')
             all_shapes = self.customer_preferences_service. \
                 get_allowed_instance_types(
-                cloud=current_shape.cloud.value,
                 instances_data=all_shapes,
                 parent_meta=parent_meta
             )

@@ -14,7 +14,6 @@ ALG_ATTR = 'alg'
 KID_ATTR = 'kid'
 FORMAT_ATTR = 'format'
 
-
 _LOG = get_logger(__name__)
 
 
@@ -27,7 +26,7 @@ class ManagedKey:
     def export_key(self, frmt: str, base64encode: bool = False):
         try:
             value = self.key.export_key(format=frmt)
-        except (TypeError, Exception) as e:
+        except Exception as e:
             _LOG.warning(f'Key:\'{self.kid}\' could not be exported into '
                          f'{frmt} format, due to: "{e}".')
             value = None
@@ -55,7 +54,7 @@ class ManagedKey:
 
             try:
                 pending[VALUE_ATTR] = value.decode()
-            except (TypeError, Exception) as e:
+            except Exception as e:
                 _LOG.warning(f'Key:\'{self.kid}\' could not be decoded into'
                              f' a string, due to: "{e}".')
                 pending = {}
@@ -75,7 +74,7 @@ class KeyPair:
 class KeyManagementService:
 
     def __init__(
-        self, key_management_client: AbstractKeyManagementClient
+            self, key_management_client: AbstractKeyManagementClient
     ):
         self._key_management_client = key_management_client
 
@@ -116,8 +115,8 @@ class KeyManagementService:
         )
 
         if not self._key_management_client.is_signature_scheme_accessible(
-            sig_scheme=sig_scheme, key_type=key_type, key_std=key_std,
-            hash_type=hash_type, hash_std=hash_std
+                sig_scheme=sig_scheme, key_type=key_type, key_std=key_std,
+                hash_type=hash_type, hash_std=hash_std
         ):
             return
         return self._key_management_client.construct(
@@ -138,8 +137,8 @@ class KeyManagementService:
         )
 
         if not self._key_management_client.is_signature_scheme_accessible(
-            sig_scheme=sig_scheme, key_type=key_type, key_std=key_std,
-            hash_type=hash_type, hash_std=hash_std
+                sig_scheme=sig_scheme, key_type=key_type, key_std=key_std,
+                hash_type=hash_type, hash_std=hash_std
         ):
             return
         prk = self._key_management_client.construct(
@@ -158,10 +157,9 @@ class KeyManagementService:
 
         try:
             return KeyPair(prk=prk, typ=key_type, std=key_std)
-        except (TypeError, Exception) as e:
+        except Exception as e:
             _LOG.warning(f'KeyPair of {key_type}:{key_std} standard'
                          f' could not be instantiated, due to "{e}".')
-        return
 
     def save_key(self, kid: str, key: IKey, frmt: str) -> bool:
         _log = _LOG.info
@@ -188,12 +186,12 @@ class KeyManagementService:
         return removed
 
     def derive_alg(
-        self, key_type: str, key_std: str, hash_type: str, hash_std: str,
-        sig_scheme: str
+            self, key_type: str, key_std: str, hash_type: str, hash_std: str,
+            sig_scheme: str
     ) -> Optional[str]:
         if self._key_management_client.is_signature_scheme_accessible(
-            sig_scheme=sig_scheme, hash_type=hash_type, hash_std=hash_std,
-            key_type=key_type, key_std=key_std
+                sig_scheme=sig_scheme, hash_type=hash_type, hash_std=hash_std,
+                key_type=key_type, key_std=key_std
         ):
             return f'{key_type}:{key_std}_{sig_scheme}_{hash_type}:{hash_std}'
 

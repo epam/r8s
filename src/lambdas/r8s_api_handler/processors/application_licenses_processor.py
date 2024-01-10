@@ -64,15 +64,14 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
     def get(self, event):
         _LOG.debug(f'Describe application licenses event: {event}')
 
-        _LOG.debug(f'Resolving applications')
         applications = self.application_service.resolve_application(
             event=event, type_=RIGHTSIZER_LICENSES_TYPE)
 
         if not applications:
-            _LOG.warning(f'No application found matching given query.')
+            _LOG.warning('No application found matching given query.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No application found matching given query.'
+                content='No application found matching given query.'
             )
 
         response = [self.application_service.get_dto(application)
@@ -180,7 +179,7 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
         )
         _LOG.debug(f'Application meta {meta.as_dict()}')
 
-        _LOG.debug(f'Creating application')
+        _LOG.debug('Creating application')
         application = self.application_service.create(
             customer_id=customer_obj.name,
             type=RIGHTSIZER_LICENSES_TYPE,
@@ -188,10 +187,10 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
             is_deleted=False,
             meta=meta.as_dict()
         )
-        _LOG.debug(f'Saving application')
+        _LOG.debug('Saving application')
         self.application_service.save(application=application)
 
-        _LOG.debug(f'Preparing response')
+        _LOG.debug('Preparing response')
         response = self.application_service.get_dto(application=application)
 
         _LOG.debug(f'Response: {response}')
@@ -205,7 +204,7 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
         validate_params(event, (APPLICATION_ID_ATTR,))
 
         application_id = event.get(APPLICATION_ID_ATTR)
-        _LOG.debug(f'Resolving applications')
+
         applications = self.application_service.resolve_application(
             event=event, type_=RIGHTSIZER_LICENSES_TYPE)
 
@@ -274,7 +273,7 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
             license_key=license_obj.license_key,
             customer=customer
         )
-        if not response.status_code == 200:
+        if response.status_code != RESPONSE_OK_CODE:
             return
 
         license_data = response.json()['items'][0]
@@ -284,7 +283,7 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
             license_obj=license_obj,
             license_data=license_data
         )
-        _LOG.debug(f'Updating licensed algorithm')
+        _LOG.debug('Updating licensed algorithm')
         self.algorithm_service.sync_licensed_algorithm(
             license_data=license_data,
             customer=customer

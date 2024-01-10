@@ -1,5 +1,8 @@
+from modular_sdk.models.tenant import Tenant
+from modular_sdk.services.tenant_service import TenantService
+
 from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
+    build_response, RESPONSE_OK_CODE, \
     validate_params
 from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import GET_METHOD, ID_ATTR, REPORT_TYPE_ATTR, \
@@ -10,14 +13,12 @@ from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
 from models.job import Job, JobStatusEnum
 from services.abstract_api_handler_lambda import PARAM_USER_CUSTOMER
-
 from services.job_service import JobService
 from services.report_service import ReportService
 
-from modular_sdk.services.tenant_service import TenantService
-from modular_sdk.models.tenant import Tenant
-
 _LOG = get_logger('r8s-report-processor')
+
+NO_RESULTS_ERROR = 'No results found matching given query'
 
 
 class ReportProcessor(AbstractCommandProcessor):
@@ -34,7 +35,7 @@ class ReportProcessor(AbstractCommandProcessor):
 
     def process(self, event) -> dict:
         method = event.get(PARAM_HTTP_METHOD)
-        if not method == GET_METHOD:
+        if method != GET_METHOD:
             message = f'Unable to handle command {method} in ' \
                       f'report processor'
             _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
@@ -83,7 +84,7 @@ class ReportProcessor(AbstractCommandProcessor):
             )
 
         if not customer:
-            _LOG.debug(f'Event customer not specified, resolving')
+            _LOG.debug('Event customer not specified, resolving')
             customer = self.resolve_customer(
                 user_customer=event.get(PARAM_USER_CUSTOMER),
                 job=job
@@ -96,10 +97,10 @@ class ReportProcessor(AbstractCommandProcessor):
             tenant=tenant, region=region, instance_id=instance_id)
         _LOG.debug(f'Report: {reports}')
         if not reports:
-            _LOG.error(f'No results found matching given query')
+            _LOG.error(NO_RESULTS_ERROR)
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No results found matching given query'
+                content=NO_RESULTS_ERROR
             )
         return build_response(
             code=RESPONSE_OK_CODE,
@@ -133,7 +134,7 @@ class ReportProcessor(AbstractCommandProcessor):
                 content=f'Job \'{job_id}\' must have SUCCEEDED status.'
             )
         if not customer:
-            _LOG.debug(f'Event customer not specified, resolving')
+            _LOG.debug('Event customer not specified, resolving')
             customer = self.resolve_customer(
                 user_customer=event.get(PARAM_USER_CUSTOMER),
                 job=job
@@ -144,10 +145,10 @@ class ReportProcessor(AbstractCommandProcessor):
             job=job, customer=customer, tenant=tenant, region=region)
         _LOG.debug(f'Response: {report}')
         if not report:
-            _LOG.debug(f'No results found matching given query')
+            _LOG.debug(NO_RESULTS_ERROR)
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No results found matching given query'
+                content=NO_RESULTS_ERROR
             )
         return build_response(
             code=RESPONSE_OK_CODE,

@@ -34,10 +34,10 @@ class ParentShapeRuleCheck(AbstractHealthCheck):
         return CHECK_ID_SHAPE_RULE_CHECK
 
     def remediation(self) -> Optional[str]:
-        return f'Update your shape rules with valid values.'
+        return 'Update your shape rules with valid values.'
 
     def impact(self) -> Optional[str]:
-        return f'Shape rules won\'t be applied'
+        return 'Shape rules won\'t be applied'
 
     def check(self, parent: Parent) -> Union[List[CheckResult], CheckResult]:
         parent_meta = self.parent_service.get_parent_meta(parent=parent)
@@ -46,7 +46,7 @@ class ParentShapeRuleCheck(AbstractHealthCheck):
 
         if not shape_rules:
             return self.ok_result(
-                details={'message': "No Shape Rules found."}
+                details={'message': 'No Shape Rules found.'}
             )
 
         result = {}
@@ -96,7 +96,7 @@ class ParentCheckHandler:
         ]
 
     def check(self):
-        _LOG.debug(f'Listing parents')
+        _LOG.debug('Listing parents')
         applications = self.application_service.list(
             _type=RIGHTSIZER_PARENT_TYPE)
         parents = []
@@ -108,7 +108,7 @@ class ParentCheckHandler:
             )
             parents.extend(application_parents)
         if not parents:
-            _LOG.warning(f'No active RIGHTSIZER parents found')
+            _LOG.warning('No active RIGHTSIZER parents found')
             result = CheckCollectionResult(
                 id='NONE',
                 type=CHECK_TYPE_PARENT,
