@@ -35,7 +35,7 @@ class RightSizerApplicationService(ApplicationService):
                                       output_storage: Storage,
                                       connection: ConnectionAttribute,
                                       password: str):
-        application = self.create(
+        application = self.build(
             customer_id=customer_id,
             type=MAESTRO_RIGHTSIZER_APPLICATION_TYPE,
             description=description
@@ -55,13 +55,18 @@ class RightSizerApplicationService(ApplicationService):
         return application
 
     def update_rightsizer_application(
-            self, application: Application, description=None,
-            input_storage=None, output_storage=None,
+            self, application: Application, updated_by: str,
+            description=None, input_storage=None, output_storage=None,
             connection=None, password=None):
+        update_attributes = []
+
         if description is not None:
             application.description = description
+            update_attributes.append(Application.description)
         meta: RightsizerApplicationMeta = self.get_application_meta(
             application=application)
+        if input_storage or output_storage or connection:
+            update_attributes.append(Application.meta)
         if input_storage:
             meta.input_storage = input_storage.name
         if output_storage:
@@ -77,10 +82,16 @@ class RightSizerApplicationService(ApplicationService):
                 password=password
             )
             application.secret = secret_name
+            update_attributes.append(Application.secret)
 
         self.set_application_meta(
             application=application,
             meta=meta
+        )
+        self.update(
+            application=application,
+            attributes=update_attributes,
+            updated_by=updated_by
         )
         return application
 

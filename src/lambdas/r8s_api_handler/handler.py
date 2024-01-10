@@ -259,7 +259,8 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             algorithm_service=self.algorithm_service,
             storage_service=self.storage_service,
             customer_service=self.customer_service,
-            api_gateway_client=self.api_gateway_client
+            api_gateway_client=self.api_gateway_client,
+            user_service=self.user_service
         )
 
     def _instantiate_application_licenses_processor(self):
@@ -269,7 +270,8 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             application_service=self.application_service,
             parent_service=self.parent_service,
             license_service=self.license_service,
-            license_manager_service=self.license_manager_service
+            license_manager_service=self.license_manager_service,
+            user_service=self.user_service
         )
 
     def _instantiate_job_processor(self):
@@ -324,7 +326,8 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             parent_service=self.parent_service,
             tenant_service=self.tenant_service,
             license_service=self.license_service,
-            license_manager_service=self.license_manager_service
+            license_manager_service=self.license_manager_service,
+            user_service=self.user_service
         )
 
     def _instantiate_shape_processor(self):

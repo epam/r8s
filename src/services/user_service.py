@@ -39,6 +39,9 @@ class CognitoUserService:
     def get_user_role_name(self, user):
         return self.client.get_user_role(user)
 
+    def get_user_id(self, user: str):
+        return self.client.get_user_id(user)
+
     @staticmethod
     def __validate_password(password):
         errors = []

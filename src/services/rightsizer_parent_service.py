@@ -35,25 +35,6 @@ class RightSizerParentService(ParentService):
             customer_service=customer_service
         )
 
-    def create_rightsizer_licenses_parent(self, application_id, customer_id,
-                                          description, cloud: str,
-                                          algorithm: Algorithm,
-                                          scope: str, license_key: str = None):
-        meta = LicensesParentMeta(
-            cloud=cloud,
-            algorithm=algorithm.name,
-            license_key=license_key,
-        )
-        parent = self.create(
-            application_id=application_id,
-            customer_id=customer_id,
-            description=description,
-            is_deleted=False,
-            parent_type=RIGHTSIZER_LICENSES_PARENT_TYPE,
-            meta=meta.as_dict()
-        )
-        return parent
-
     @staticmethod
     def list_application_parents(application_id, type_: str,
                                  only_active=True):

@@ -1,6 +1,7 @@
 import json
 import time
 from typing import Optional, Any, TypedDict
+from uuid import uuid4
 
 import bcrypt
 import jwt
@@ -119,6 +120,7 @@ class MongoAndSSMAuthClient(BaseAuthClient):
         self._set_password(user, password)
         user.customer = customer
         user.role = role
+        user.sub = str(uuid4())
         User.save(user)
 
     @staticmethod
@@ -133,6 +135,9 @@ class MongoAndSSMAuthClient(BaseAuthClient):
 
     def is_user_exists(self, username: str) -> bool:
         return bool(self._get_user(username))
+
+    def get_user_id(self, username: str):
+        return self._get_user_attr(username, 'sub')
 
     def get_user_role(self, username: str):
         return self._get_user_attr(username, 'role')

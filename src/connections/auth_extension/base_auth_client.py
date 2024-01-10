@@ -23,6 +23,10 @@ class BaseAuthClient(ABC):
         ...
 
     @abstractmethod
+    def get_user_id(self, username: str):
+        ...
+
+    @abstractmethod
     def get_user_role(self, username: str):
         ...
 

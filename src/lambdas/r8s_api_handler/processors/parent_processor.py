@@ -14,7 +14,7 @@ from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
 from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import GET_METHOD, POST_METHOD, DELETE_METHOD, \
     PARENT_ID_ATTR, APPLICATION_ID_ATTR, DESCRIPTION_ATTR, \
-    CLOUD_ALL, SCOPE_ATTR, TENANT_ATTR, FORCE_ATTR
+    CLOUD_ALL, SCOPE_ATTR, TENANT_ATTR, FORCE_ATTR, USER_ID_ATTR
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -24,6 +24,7 @@ from services.license_service import LicenseService
 from services.rightsizer_application_service import \
     RightSizerApplicationService
 from services.rightsizer_parent_service import RightSizerParentService
+from services.user_service import CognitoUserService
 
 _LOG = get_logger('r8s-parent-licenses-processor')
 
@@ -37,7 +38,8 @@ class ParentProcessor(AbstractCommandProcessor):
                  parent_service: RightSizerParentService,
                  tenant_service: TenantService,
                  license_service: LicenseService,
-                 license_manager_service: LicenseManagerService):
+                 license_manager_service: LicenseManagerService,
+                 user_service: CognitoUserService):
         self.algorithm_service = algorithm_service
         self.customer_service = customer_service
         self.application_service = application_service
@@ -45,6 +47,7 @@ class ParentProcessor(AbstractCommandProcessor):
         self.tenant_service = tenant_service
         self.license_service = license_service
         self.license_manager_service = license_manager_service
+        self.user_service = user_service
 
         self.method_to_handler = {
             GET_METHOD: self.get,
@@ -66,15 +69,15 @@ class ParentProcessor(AbstractCommandProcessor):
     def get(self, event):
         _LOG.debug(f'Describe parent licenses event: {event}')
 
-        _LOG.debug(f'Resolving applications')
+        _LOG.debug('Resolving applications')
         applications = self.application_service.resolve_application(
             event=event, type_=RIGHTSIZER_LICENSES_TYPE)
 
         if not applications:
-            _LOG.warning(f'No application found matching given query.')
+            _LOG.warning('No application found matching given query.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No application found matching given query.'
+                content='No application found matching given query.'
             )
 
         parents: List[Parent] = []
@@ -94,10 +97,10 @@ class ParentProcessor(AbstractCommandProcessor):
             parents = [parent for parent in parents if
                        parent.parent_id == parent_id]
         if not parents:
-            _LOG.error(f'No Parents found matching given query.')
+            _LOG.error('No Parents found matching given query.')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No Parents found matching given query.'
+                content='No Parents found matching given query.'
             )
 
         response = [self.parent_service.get_dto(parent) for parent in parents]
@@ -113,21 +116,21 @@ class ParentProcessor(AbstractCommandProcessor):
         validate_params(event, (APPLICATION_ID_ATTR,
                                 DESCRIPTION_ATTR, SCOPE_ATTR))
 
-        _LOG.debug(f'Resolving applications')
+        _LOG.debug('Resolving applications')
         applications = self.application_service.resolve_application(
             event=event, type_=RIGHTSIZER_LICENSES_TYPE)
 
         if not applications:
-            _LOG.warning(f'No application found matching given query.')
+            _LOG.warning('No application found matching given query.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No application found matching given query.'
+                content='No application found matching given query.'
             )
         if len(applications) > 1:
-            _LOG.error(f'Exactly one application must be identified.')
+            _LOG.error('Exactly one application must be identified.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Exactly one application must be identified.'
+                content='Exactly one application must be identified.'
             )
         application = applications[0]
         _LOG.debug(f'Target application \'{application.application_id}\'')
@@ -140,8 +143,11 @@ class ParentProcessor(AbstractCommandProcessor):
         scope = event.get(SCOPE_ATTR)
         tenant_name = event.get(TENANT_ATTR)
 
-        _LOG.debug(f'Creating parent')
-        parent = self.parent_service.create(
+        user_id = self.user_service.get_user_id(
+            user=event.get(USER_ID_ATTR))
+
+        _LOG.debug('Creating parent')
+        parent = self.parent_service.build(
             application_id=application.application_id,
             customer_id=application.customer_id,
             parent_type=ParentType.RIGHTSIZER_LICENSES_PARENT,
@@ -150,13 +156,14 @@ class ParentProcessor(AbstractCommandProcessor):
             meta={},
             scope=scope,
             tenant_name=tenant_name,
-            cloud=cloud
+            cloud=cloud,
+            created_by=user_id
         )
 
-        _LOG.debug(f'Saving parent')
+        _LOG.debug('Saving parent')
         self.parent_service.save(parent=parent)
 
-        _LOG.debug(f'Preparing response')
+        _LOG.debug('Preparing response')
         response = self.parent_service.get_dto(parent=parent)
 
         _LOG.debug(f'Response: {response}')
@@ -169,15 +176,15 @@ class ParentProcessor(AbstractCommandProcessor):
         _LOG.debug(f'Delete licenses parent event: {event}')
         validate_params(event, (PARENT_ID_ATTR,))
 
-        _LOG.debug(f'Resolving applications')
+        _LOG.debug('Resolving applications')
         applications = self.application_service.resolve_application(
             event=event, type_=RIGHTSIZER_LICENSES_TYPE)
 
         if not applications:
-            _LOG.warning(f'No application found matching given query.')
+            _LOG.warning('No application found matching given query.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No application found matching given query.'
+                content='No application found matching given query.'
             )
         app_ids = [app.application_id for app in applications]
         _LOG.debug(f'Allowed application ids \'{app_ids}\'')

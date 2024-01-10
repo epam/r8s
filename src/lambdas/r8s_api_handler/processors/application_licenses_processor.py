@@ -10,7 +10,8 @@ from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import GET_METHOD, POST_METHOD, DELETE_METHOD, \
     APPLICATION_ID_ATTR, DESCRIPTION_ATTR, \
     CLOUD_ATTR, CLOUD_ALL, TENANT_LICENSE_KEY_ATTR, \
-    LICENSE_KEY_ATTR, CUSTOMER_ATTR, APPLICATION_TENANTS_ALL, FORCE_ATTR
+    LICENSE_KEY_ATTR, CUSTOMER_ATTR, APPLICATION_TENANTS_ALL, FORCE_ATTR, \
+    USER_ID_ATTR
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -24,6 +25,7 @@ from services.license_service import LicenseService
 from services.rightsizer_application_service import \
     RightSizerApplicationService
 from services.rightsizer_parent_service import RightSizerParentService
+from services.user_service import CognitoUserService
 
 _LOG = get_logger('r8s-application-licenses-processor')
 
@@ -36,13 +38,15 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
                  application_service: RightSizerApplicationService,
                  parent_service: RightSizerParentService,
                  license_service: LicenseService,
-                 license_manager_service: LicenseManagerService):
+                 license_manager_service: LicenseManagerService,
+                 user_service: CognitoUserService):
         self.algorithm_service = algorithm_service
         self.customer_service = customer_service
         self.application_service = application_service
         self.parent_service = parent_service
         self.license_service = license_service
         self.license_manager_service = license_manager_service
+        self.user_service = user_service
 
         self.method_to_handler = {
             GET_METHOD: self.get,
@@ -64,15 +68,15 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
     def get(self, event):
         _LOG.debug(f'Describe application licenses event: {event}')
 
-        _LOG.debug(f'Resolving applications')
+        _LOG.debug('Resolving applications')
         applications = self.application_service.resolve_application(
             event=event, type_=RIGHTSIZER_LICENSES_TYPE)
 
         if not applications:
-            _LOG.warning(f'No application found matching given query.')
+            _LOG.warning('No application found matching given query.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No application found matching given query.'
+                content='No application found matching given query.'
             )
 
         response = [self.application_service.get_dto(application)
@@ -180,18 +184,22 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
         )
         _LOG.debug(f'Application meta {meta.as_dict()}')
 
-        _LOG.debug(f'Creating application')
-        application = self.application_service.create(
+        user_id = self.user_service.get_user_id(
+            user=event.get(USER_ID_ATTR))
+
+        _LOG.debug('Creating application')
+        application = self.application_service.build(
             customer_id=customer_obj.name,
             type=RIGHTSIZER_LICENSES_TYPE,
             description=description,
             is_deleted=False,
-            meta=meta.as_dict()
+            meta=meta.as_dict(),
+            created_by=user_id
         )
-        _LOG.debug(f'Saving application')
+        _LOG.debug('Saving application')
         self.application_service.save(application=application)
 
-        _LOG.debug(f'Preparing response')
+        _LOG.debug('Preparing response')
         response = self.application_service.get_dto(application=application)
 
         _LOG.debug(f'Response: {response}')
@@ -205,7 +213,7 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
         validate_params(event, (APPLICATION_ID_ATTR,))
 
         application_id = event.get(APPLICATION_ID_ATTR)
-        _LOG.debug(f'Resolving applications')
+        _LOG.debug('Resolving applications')
         applications = self.application_service.resolve_application(
             event=event, type_=RIGHTSIZER_LICENSES_TYPE)
 
@@ -274,7 +282,7 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
             license_key=license_obj.license_key,
             customer=customer
         )
-        if not response.status_code == 200:
+        if response.status_code != 200:
             return
 
         license_data = response.json()['items'][0]
@@ -284,7 +292,7 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
             license_obj=license_obj,
             license_data=license_data
         )
-        _LOG.debug(f'Updating licensed algorithm')
+        _LOG.debug('Updating licensed algorithm')
         self.algorithm_service.sync_licensed_algorithm(
             license_data=license_data,
             customer=customer
