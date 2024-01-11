@@ -12,6 +12,7 @@ _LOG = get_logger('cognitoclient')
 CUSTOM_ROLE_ATTR = 'custom:r8s_role'
 CUSTOM_CUSTOMER_ATTR = 'custom:customer'
 CUSTOM_LATEST_LOGIN_ATTR = 'custom:latest_login'
+SUB_ATTR = 'sub'
 
 PARAM_USER_POOLS = 'UserPools'
 
@@ -148,6 +149,9 @@ class CognitoClient(BaseAuthClient):
 
     def get_user_role(self, username):
         return self._get_user_attr(username, CUSTOM_ROLE_ATTR)
+
+    def get_user_id(self, username):
+        return self._get_user_attr(username, SUB_ATTR)
 
     def update_role(self, username, role):
         user_pool_id = self.__get_user_pool_id()
