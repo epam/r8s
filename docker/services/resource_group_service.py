@@ -38,12 +38,15 @@ class ResourceGroupService:
                 )
         return processed_reports, group_history_items
 
-    def sync_history_item(self, recommendation_history: 'RecommendationHistory',
+    @staticmethod
+    def sync_history_item(recommendation_history: RecommendationHistory,
                           report: Dict):
-        recommendation_history.recommendation_type = (
-            report)[RECOMMENDATION][GENERAL_ACTIONS][0]
-        if report[RECOMMENDATION].get(SAVINGS, {}).get(SAVING_OPTIONS_ATTR):
-            recommendation_history.savings = report[RECOMMENDATION][SAVINGS][SAVING_OPTIONS_ATTR]
+        recommendation_history.recommendation_type = report[GENERAL_ACTIONS][0]
+
+        saving_options = report[RECOMMENDATION].get(SAVINGS, {}).get(
+            SAVING_OPTIONS_ATTR)
+        if saving_options:
+            recommendation_history.savings = saving_options
         else:
             recommendation_history.savings = None
 
@@ -76,7 +79,7 @@ class ResourceGroupService:
 
         filtered.extend(self._filter_resize(resize_resources))
         filtered.extend(self._filter_schedule(schedule_resources))
-        return filtered
+        return [*filtered, *split_resources]
 
     def _filter_schedule(self, results: list):
         _LOG.debug(f'Filtering schedule results in group: {results}')
