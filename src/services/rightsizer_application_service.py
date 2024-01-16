@@ -34,11 +34,12 @@ class RightSizerApplicationService(ApplicationService):
                                       input_storage: Storage,
                                       output_storage: Storage,
                                       connection: ConnectionAttribute,
-                                      password: str):
+                                      password: str, created_by: str):
         application = self.build(
             customer_id=customer_id,
             type=MAESTRO_RIGHTSIZER_APPLICATION_TYPE,
-            description=description
+            description=description,
+            created_by=created_by
         )
         application_meta = RightsizerApplicationMeta(
             input_storage=input_storage.name,
