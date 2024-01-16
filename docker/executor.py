@@ -4,7 +4,8 @@ from modular_sdk.models.application import Application
 
 from commons.constants import (JOB_STEP_INITIALIZATION,
                                TENANT_LICENSE_KEY_ATTR, PROFILE_LOG_PATH,
-                               JOB_STEP_INITIALIZE_ALGORITHM)
+                               JOB_STEP_INITIALIZE_ALGORITHM, RESOURCE_TYPE_VM,
+                               RESOURCE_TYPE_ATTR)
 from commons.exception import ExecutorException, LicenseForbiddenException
 from commons.log_helper import get_logger
 from commons.profiler import profiler
@@ -91,7 +92,7 @@ def submit_licensed_job(application: Application, tenant_name: str,
     customer = application.customer_id
     tenant_license_key = license_.customers.get(customer, {}).get(
         TENANT_LICENSE_KEY_ATTR)
-    algorithm_name = application.meta.algorithm
+    algorithm_name = application.meta.algorithm_map[RESOURCE_TYPE_VM]
 
     algorithm_map = {
         tenant_license_key: algorithm_name
@@ -129,8 +130,8 @@ def process_tenant_instances(metrics_dir, reports_dir,
         recommendations_map = (recommendation_history_service.
                                get_tenant_recommendation(tenant=tenant))
     else:
-        _LOG.debug(f'Force rescan enabled, querying for past tenant '
-                   f'recommendations is omitted')
+        _LOG.debug('Force rescan enabled, querying for past tenant '
+                   'recommendations is omitted')
         recommendations_map = {}
 
     cloud = licensed_application.meta.cloud.lower()
@@ -153,20 +154,20 @@ def process_tenant_instances(metrics_dir, reports_dir,
         cloud,
         tenant)
 
-    _LOG.info(f'Loading instances meta for tenant')
+    _LOG.info('Loading instances meta for tenant')
     instance_meta_mapping = metrics_service.read_meta(
         metrics_folder=tenant_folder_path)
 
-    _LOG.info(f'Merging metric files by date')
+    _LOG.info('Merging metric files by date')
     metrics_service.merge_metric_files(
         metrics_folder_path=tenant_folder_path,
         algorithm=algorithm)
 
-    _LOG.info(f'Extracting tenant metric files')
+    _LOG.info('Extracting tenant metric files')
     metric_file_paths = os_service.extract_metric_files(
         algorithm=algorithm, metrics_folder_path=tenant_folder_path)
 
-    _LOG.debug(f'Reformatting metrics to relative metric values')
+    _LOG.debug('Reformatting metrics to relative metric values')
     for metric_file_path in metric_file_paths.copy():
         try:
             _LOG.debug(f'Validating metric file: \'{metric_file_path}\'')
@@ -185,7 +186,7 @@ def process_tenant_instances(metrics_dir, reports_dir,
                 exception=e)
 
     if environment_service.is_debug():
-        _LOG.info(f'Searching for instances to replace with mocked data')
+        _LOG.info('Searching for instances to replace with mocked data')
         mocked_data_service.process(
             instance_meta_mapping=instance_meta_mapping,
             metric_file_paths=metric_file_paths
@@ -258,8 +259,8 @@ def process_tenant_instances(metrics_dir, reports_dir,
         instance_meta = instance_meta_mapping.get(resource_id)
         if group_id := meta_service.get_resource_group_id(
                 instance_meta=instance_meta):
-            _LOG.debug(f'Group item detected. Recommendations wont be '
-                       f'saved until comparison.')
+            _LOG.debug('Group item detected. Recommendations wont be '
+                       'saved until comparison.')
             if group_id not in group_results:
                 group_results[group_id] = [result]
             else:
@@ -267,7 +268,7 @@ def process_tenant_instances(metrics_dir, reports_dir,
             if history_items:
                 group_history_items.extend(history_items)
         else:
-            _LOG.debug(f'Saving independent resource recommendation')
+            _LOG.debug('Saving independent resource recommendation')
             recommendation_service.save_report(
                 reports_dir=reports_dir,
                 customer=licensed_application.customer_id,
@@ -281,13 +282,13 @@ def process_tenant_instances(metrics_dir, reports_dir,
                     history_items=history_items)
 
     if group_results:
-        _LOG.debug(f'Filtering contradictory recommendations '
-                   f'inside resource groups')
+        _LOG.debug('Filtering contradictory recommendations '
+                   'inside resource groups')
         filtered_reports, filtered_history = resource_group_service.filter(
             group_results=group_results,
             group_history_items=group_history_items
         )
-        _LOG.debug(f'Saving group results')
+        _LOG.debug('Saving group results')
         for report in filtered_reports:
             recommendation_service.save_report(
                 reports_dir=reports_dir,
@@ -319,7 +320,7 @@ def process_tenant_instances(metrics_dir, reports_dir,
 
 
 def main():
-    _LOG.debug(f'Creating directories')
+    _LOG.debug('Creating directories')
     work_dir, metrics_dir, reports_dir = \
         os_service.create_work_dirs(job_id=JOB_ID)
 
@@ -333,7 +334,7 @@ def main():
             reason=f'Job with id \'{JOB_ID}\' does not exist'
         )
 
-    _LOG.debug(f'Setting job status to RUNNING')
+    _LOG.debug('Setting job status to RUNNING')
     job = job_service.set_status(
         job=job,
         status=JobStatusEnum.JOB_RUNNING_STATUS.value)
@@ -366,15 +367,19 @@ def main():
     host_application_meta = application_service.get_application_meta(
         application=host_application
     )
-    algorithm_name = licensed_application_meta.algorithm
-    algorithm = algorithm_service.get_by_name(name=algorithm_name)
-    _LOG.debug(f'Algorithm: \'{algorithm_name}\'')
-    if not algorithm:
-        _LOG.error(f'Algorithm \'{algorithm_name}\' not found')
-        raise ExecutorException(
-            step_name=JOB_STEP_INITIALIZATION,
-            reason=f'Algorithm \'{algorithm_name}\' not found'
-        )
+    algorithm_name_map = licensed_application_meta.algorithm_map.as_dict()
+    algorithm_map = {}
+
+    for resource_type, algorithm_name in algorithm_name_map.items():
+        algorithm_obj = algorithm_service.get_by_name(name=algorithm_name)
+        _LOG.debug(f'Algorithm: \'{algorithm_name}\'')
+        if not algorithm_obj:
+            _LOG.error(f'Algorithm \'{algorithm_name}\' not found')
+            raise ExecutorException(
+                step_name=JOB_STEP_INITIALIZATION,
+                reason=f'Algorithm \'{algorithm_name}\' not found'
+            )
+        algorithm_map[resource_type] = algorithm_obj
 
     input_storage_name = host_application_meta.input_storage
     _LOG.debug(f'Input storage: \'{input_storage_name}\'')
@@ -428,7 +433,7 @@ def main():
                 output_storage=output_storage,
                 parent_meta=tenant_meta_map[tenant],
                 licensed_application=licensed_application,
-                algorithm=algorithm,
+                algorithm=algorithm_map[RESOURCE_TYPE_VM],
                 license_=license_,
                 tenant=tenant,
                 job=job
@@ -450,18 +455,18 @@ def main():
             )
 
     _LOG.debug(f'Job {JOB_ID} has finished successfully')
-    _LOG.debug(f'Setting job state to SUCCEEDED')
+    _LOG.debug('Setting job state to SUCCEEDED')
     job_service.set_status(job=job,
                            status=JobStatusEnum.JOB_SUCCEEDED_STATUS.value)
 
     if os.path.exists(PROFILE_LOG_PATH):
-        _LOG.debug(f'Uploading profile log')
+        _LOG.debug('Uploading profile log')
         storage_service.upload_profile_log(
             storage=output_storage,
             job_id=JOB_ID,
             file_path=PROFILE_LOG_PATH
         )
-    _LOG.debug(f'Cleaning workdir')
+    _LOG.debug('Cleaning workdir')
     os_service.clean_workdir(work_dir=work_dir)
 
 

@@ -224,3 +224,7 @@ RECOMMENDATION = 'recommendation'
 SAVINGS = 'savings'
 RECOMMENDED_SHAPES = 'recommended_shapes'
 TAG_GROUP_ID = 'r8s_group_id'
+
+RESOURCE_TYPE_ATTR = 'resource_type'
+RESOURCE_TYPE_VM = 'VM'
+ALGORITHM_MAPPING_ATTR = 'algorithm_mapping'
