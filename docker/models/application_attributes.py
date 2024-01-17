@@ -17,6 +17,6 @@ class RightsizerApplicationMeta(MapAttribute):
 
 class RightsizerLicensesApplicationMeta(MapAttribute):
     cloud = UnicodeAttribute(null=True)
-    algorithm = UnicodeAttribute(null=True)
+    algorithm_map = MapAttribute(null=True)
     license_key = UnicodeAttribute(null=True)
     tenants = ListAttribute(of=UnicodeAttribute, default=[])

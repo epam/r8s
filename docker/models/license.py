@@ -18,6 +18,6 @@ class License(BaseModel):
     license_key = StringField(unique=True)
     customers = DictField(null=True)
     expiration = StringField(null=True)  # ISO8601
-    algorithm_id = StringField(null=True)
+    algorithm_mapping = DictField(null=True)
     latest_sync = StringField(null=True)  # ISO8601
     allowance = EmbeddedDocumentField(AllowanceAttribute, null=True)

@@ -139,26 +139,13 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
             customer=customer
         )
         license_key = license_obj.license_key
-        algorithm = license_obj.algorithm_id
+        algorithm_map = license_obj.algorithm_mapping
 
-        _LOG.debug(f'Validating algorithm \'{algorithm}\'')
-        algorithm_obj: Algorithm = self.algorithm_service.get_by_name(
-            name=algorithm)
-        if not algorithm_obj or algorithm_obj.customer != customer:
-            _LOG.error(f'Algorithm \'{algorithm}\' does not exist.')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Algorithm \'{algorithm}\' does not exist.'
-            )
-        if cloud != CLOUD_ALL and cloud != algorithm_obj.cloud.value:
-            _LOG.error(f'Algorithm \'{algorithm}\' is not suitable for '
-                       f'cloud \'{cloud}\'. Algorithm\'s cloud: '
-                       f'{algorithm_obj.cloud.value}')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Algorithm \'{algorithm}\' is not suitable for '
-                        f'cloud \'{cloud}\'. Algorithm\'s cloud: '
-                        f'{algorithm_obj.cloud.value}'
+        for resource_type, algorithm_name in algorithm_map.items():
+            self._validate_algorithm(
+                algorithm_name=algorithm_name,
+                customer=customer,
+                cloud=cloud
             )
 
         description = event.get(DESCRIPTION_ATTR)
@@ -178,7 +165,7 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
 
         meta = RightsizerLicensesApplicationMeta(
             cloud=cloud,
-            algorithm=algorithm_obj.name,
+            algorithm_map=algorithm_map,
             license_key=license_key,
             tenants=tenants
         )
@@ -292,7 +279,7 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
             license_obj=license_obj,
             license_data=license_data
         )
-        _LOG.debug('Updating licensed algorithm')
+        _LOG.debug('Updating licensed algorithms')
         self.algorithm_service.sync_licensed_algorithm(
             license_data=license_data,
             customer=customer
@@ -306,3 +293,25 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
         if user_customer == customer:
             return True
         return False
+
+    def _validate_algorithm(self, algorithm_name: str, customer: str,
+                            cloud: str):
+        _LOG.debug(f'Validating algorithm \'{algorithm_name}\'')
+        algorithm_obj: Algorithm = self.algorithm_service.get_by_name(
+            name=algorithm_name)
+        if not algorithm_obj or algorithm_obj.customer != customer:
+            _LOG.error(f'Algorithm \'{algorithm_name}\' does not exist.')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'Algorithm \'{algorithm_name}\' does not exist.'
+            )
+        if cloud != CLOUD_ALL and cloud != algorithm_obj.cloud.value:
+            _LOG.error(f'Algorithm \'{algorithm_name}\' is not suitable for '
+                       f'cloud \'{cloud}\'. Algorithm\'s cloud: '
+                       f'{algorithm_obj.cloud.value}')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'Algorithm \'{algorithm_name}\' is not suitable for '
+                        f'cloud \'{cloud}\'. Algorithm\'s cloud: '
+                        f'{algorithm_obj.cloud.value}'
+            )

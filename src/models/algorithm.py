@@ -85,6 +85,7 @@ class RecommendationSettings(EmbeddedDocument):
     use_instance_tags = BooleanField(default=True)
     analysis_price = EnumField(AnalysisPriceEnum,
                                default=AnalysisPriceEnum.DEFAULT)
+    allowed_actions = ListField(StringField(null=True))
     ignore_actions = ListField(StringField(null=True))
     discard_initial_zeros = BooleanField(default=True)
     target_timezone_name = StringField(default="Europe/London")
@@ -98,6 +99,7 @@ class Algorithm(BaseModel):
     dto_skip_attrs = ['_id', 'md5', 'format_version']
 
     name = StringField(unique=True)
+    resource_type = StringField(null=True)
     customer = StringField(null=True)
     cloud = EnumField(CloudEnum)
     licensed = BooleanField(default=False)

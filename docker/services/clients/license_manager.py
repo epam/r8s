@@ -10,7 +10,7 @@ from requests.exceptions import RequestException
 from commons import secure_event
 from commons.constants import POST_METHOD, PATCH_METHOD, \
     STATUS_ATTR, TENANT_ATTR, AUTHORIZATION_PARAM, CUSTOMER_ATTR, \
-    SERVICE_TYPE_ATTR, SERVICE_TYPE_RIGHTSIZER, ALGORITHMS_ATTR
+    SERVICE_TYPE_ATTR, SERVICE_TYPE_RIGHTSIZER, ALGORITHM_MAPPING_ATTR
 from commons.log_helper import get_logger
 from services.setting_service import SettingsService
 
@@ -80,7 +80,7 @@ class LicenseManagerClient:
             JOB_ID: job_id,
             CUSTOMER_ATTR: customer,
             TENANT_ATTR: tenant,
-            ALGORITHMS_ATTR: algorithm_map
+            ALGORITHM_MAPPING_ATTR: algorithm_map
         }
 
         headers = {

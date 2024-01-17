@@ -67,6 +67,8 @@ class RecommendationService:
         advanced = None
         history_items = None
 
+        allowed_actions = algorithm.recommendation_settings.allowed_actions
+
         customer, cloud, tenant, region, _, instance_id = self.parse_folders(
             metric_file_path=metric_file_path
         )
@@ -82,19 +84,19 @@ class RecommendationService:
 
         _LOG.debug(f'Instance meta: {instance_meta}')
 
-        _LOG.debug(f'Loading past recommendation with feedback')
+        _LOG.debug('Loading past recommendation with feedback')
         past_recommendations_feedback = self.recommendation_history_service. \
             get_recommendation_with_feedback(instance_id=instance_id)
 
         applied_recommendations = self.recommendation_history_service. \
             filter_applied(recommendations=past_recommendations_feedback)
         try:
-            _LOG.debug(f'Loading adjustments from meta')
+            _LOG.debug('Loading adjustments from meta')
             meta_adjustments = self.meta_service.to_adjustments(
                 instance_meta=instance_meta
             )
             applied_recommendations.extend(meta_adjustments)
-            _LOG.debug(f'Loading df')
+            _LOG.debug('Loading df')
             df = self.metrics_service.load_df(
                 path=metric_file_path,
                 algorithm=algorithm,
@@ -102,12 +104,12 @@ class RecommendationService:
                 instance_meta=instance_meta
             )
 
-            _LOG.debug(f'Extracting instance type name')
+            _LOG.debug('Extracting instance type name')
             instance_type = self.metrics_service.get_instance_type(
                 metric_file_path=metric_file_path,
                 algorithm=algorithm
             )
-            _LOG.debug(f'Dividing into periods with different load')
+            _LOG.debug('Dividing into periods with different load')
             shutdown_periods, low_periods, medium_periods, \
                 high_periods, centroids = \
                 self.metrics_service.divide_on_periods(
@@ -120,8 +122,9 @@ class RecommendationService:
                 df=df,
                 grouped_periods=(low_periods, medium_periods, high_periods)
             )
-            if non_straight_periods and total_length:
-                _LOG.debug(f'Calculating resize trends for several loads')
+            if (non_straight_periods and total_length and
+                    ACTION_SPLIT in allowed_actions):
+                _LOG.debug('Calculating resize trends for several loads')
                 trends = self.metrics_service. \
                     calculate_instance_trend_multiple(
                     algorithm=algorithm,
@@ -129,7 +132,7 @@ class RecommendationService:
                     total_length=total_length
                 )
             else:
-                _LOG.debug(f'Generating resize trend')
+                _LOG.debug('Generating resize trend')
                 if any((low_periods, medium_periods, high_periods)):
                     df_ = pd.concat([*low_periods, *medium_periods,
                                      *high_periods])
@@ -148,7 +151,7 @@ class RecommendationService:
             _LOG.debug(f'Generating schedule for instance \'{instance_id}\'')
             if not low_periods and not medium_periods and not high_periods:
                 schedule = []
-            else:
+            elif ACTION_SCHEDULE in allowed_actions:
                 schedule = self.schedule_service.generate_schedule(
                     shutdown_periods=shutdown_periods,
                     recommendation_settings=algorithm.recommendation_settings,
@@ -157,10 +160,13 @@ class RecommendationService:
                     instance_meta=instance_meta,
                     past_recommendations=applied_recommendations
                 )
-            _LOG.debug(f'Searching for resize action')
+            else:
+                schedule = self.schedule_service.get_always_run_schedule()
+
+            _LOG.debug('Searching for resize action')
             resize_action = ResizeTrend.get_resize_action(trends=trends)
 
-            _LOG.debug(f'Searching for better-fix instance types')
+            _LOG.debug('Searching for better-fix instance types')
             compatibility_rule = algorithm.recommendation_settings. \
                 shape_compatibility_rule
 
@@ -505,6 +511,7 @@ class RecommendationService:
         return file_name[0:file_name.rindex('.')]
 
     def get_general_action(self, schedule, shapes, stats, resize_action,
+                           allowed_actions: list,
                            past_recommendations: list = None):
         actions = []
         status = stats.get('status', '')
@@ -513,8 +520,8 @@ class RecommendationService:
         if status != STATUS_OK:
             return [STATUS_ERROR]
 
-        shutdown_forbidden = False
-        if past_recommendations:
+        shutdown_forbidden = ACTION_SHUTDOWN in allowed_actions
+        if not shutdown_forbidden and past_recommendations:
             shutdown_forbidden = self.recommendation_history_service. \
                 is_shutdown_forbidden(
                 recommendations=past_recommendations
@@ -523,7 +530,8 @@ class RecommendationService:
         if not schedule and not shutdown_forbidden:
             return [ACTION_SHUTDOWN]
 
-        if schedule and not self._is_schedule_always_run(schedule=schedule):
+        if (schedule and not ACTION_SCHEDULE in allowed_actions and
+                self._is_schedule_always_run(schedule=schedule)):
             actions.append(ACTION_SCHEDULE)
 
         if shapes:
@@ -532,7 +540,7 @@ class RecommendationService:
                 1.0, rtol=1e-09, atol=1e-09)
             if is_split:
                 actions.append(ACTION_SPLIT)
-            else:
+            elif resize_action in allowed_actions:
                 actions.append(resize_action)
 
         if not actions:

@@ -6,7 +6,7 @@ from bson.errors import InvalidId
 from mongoengine import DoesNotExist, ValidationError, EmbeddedDocument
 
 from commons.constants import CLUSTERING_SETTINGS_ATTR, METRIC_FORMAT_ATTR, \
-    RECOMMENDATION_SETTINGS_ATTR, ALGORITHM_ATTR
+    RECOMMENDATION_SETTINGS_ATTR, RESOURCE_TYPE_VM, ALGORITHM_MAPPING_ATTR
 from commons.log_helper import get_logger
 from models.algorithm import Algorithm, RecommendationSettings, \
     ClusteringSettings, MetricFormatSettings
@@ -61,7 +61,8 @@ class AlgorithmService:
 
     def update_from_licensed_job(self, algorithm: Algorithm,
                                  licensed_job: dict):
-        licensed_algorithm_data = licensed_job.get(ALGORITHM_ATTR)
+        licensed_algorithm_data = licensed_job.get(ALGORITHM_MAPPING_ATTR)[
+            RESOURCE_TYPE_VM]
         cur_clust_settings = dict(algorithm.clustering_settings.to_mongo())
         cur_rec_settings = dict(algorithm.recommendation_settings.to_mongo())
 

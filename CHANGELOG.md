@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.0] - 2024-01-16
+* extend algorithm with `resource_type` and `allowed_actions` attributes
+* Switch to LM linkage of license to algorithm by resource type
+* Implement skipping recommendations of types that are not specified in algorithm `allowed_actions`
+
 ## [3.3.2] - 2024-01-10
 * update modular-sdk dependency version to >=4.0.0,<5.0.0
 
