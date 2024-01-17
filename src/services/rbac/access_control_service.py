@@ -18,6 +18,8 @@ PARAM_EXPIRATION = 'expiration'
 PARAM_REQUEST_PATH = 'request_path'
 PARAM_TARGET_USER = 'target_user'
 PARAM_USER_CUSTOMER = 'user_customer'
+PARAM_USER_SUB = 'user_sub'
+
 
 class AccessControlService:
 
@@ -45,7 +47,9 @@ class AccessControlService:
         role_name = self.user_service.get_user_role_name(user=user)
         role = self.iam_service.role_get(role_name=role_name)
         user_customer = self.user_service.get_user_customer(user=user)
+        user_sub = self.user_service.get_user_id(user=user)
         event[PARAM_USER_CUSTOMER] = user_customer
+        event[PARAM_USER_SUB] = user_sub
 
         event_customer = event.get(CUSTOMER_ATTR)
         if user_customer != 'admin' and event_customer \

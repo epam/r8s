@@ -12,7 +12,7 @@ from commons.constants import POST_METHOD, GET_METHOD, PATCH_METHOD, \
     DESCRIPTION_ATTR, OUTPUT_STORAGE_ATTR, INPUT_STORAGE_ATTR, \
     CONNECTION_ATTR, PORT_ATTR, PROTOCOL_ATTR, HOST_ATTR, USERNAME_ATTR, \
     PASSWORD_ATTR, APPLICATION_ID_ATTR, MAESTRO_RIGHTSIZER_APPLICATION_TYPE, \
-    FORCE_ATTR, USER_ID_ATTR
+    FORCE_ATTR
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -21,11 +21,11 @@ from models.storage import Storage, StorageTypeEnum
 from services.abstract_api_handler_lambda import PARAM_USER_CUSTOMER
 from services.algorithm_service import AlgorithmService
 from services.clients.api_gateway_client import ApiGatewayClient
+from services.rbac.access_control_service import PARAM_USER_SUB
 from services.rightsizer_application_service import \
     RightSizerApplicationService
 from services.rightsizer_parent_service import RightSizerParentService
 from services.storage_service import StorageService
-from services.user_service import CognitoUserService
 
 _LOG = get_logger('r8s-application-processor')
 
@@ -41,15 +41,13 @@ class ApplicationProcessor(AbstractCommandProcessor):
                  customer_service: CustomerService,
                  application_service: RightSizerApplicationService,
                  parent_service: RightSizerParentService,
-                 api_gateway_client: ApiGatewayClient,
-                 user_service: CognitoUserService):
+                 api_gateway_client: ApiGatewayClient):
         self.algorithm_service = algorithm_service
         self.storage_service = storage_service
         self.customer_service = customer_service
         self.application_service = application_service
         self.api_gateway_client = api_gateway_client
         self.parent_service = parent_service
-        self.user_service = user_service
         self.method_to_handler = {
             GET_METHOD: self.get,
             POST_METHOD: self.post,
@@ -179,8 +177,6 @@ class ApplicationProcessor(AbstractCommandProcessor):
 
         password = connection.pop(PASSWORD_ATTR, None)
         connection_obj = ConnectionAttribute(**connection)
-        user_id = self.user_service.get_user_id(
-            user=event.get(USER_ID_ATTR))
         try:
             _LOG.debug('Creating application')
             application = self.application_service. \
@@ -191,7 +187,7 @@ class ApplicationProcessor(AbstractCommandProcessor):
                 output_storage=output_storage_obj,
                 connection=connection_obj,
                 password=password,
-                created_by=user_id
+                created_by=event.get(PARAM_USER_SUB)
             )
         except ModularException as e:
             _LOG.error(f'Exception occurred while creating application: '
@@ -313,9 +309,6 @@ class ApplicationProcessor(AbstractCommandProcessor):
                     content=f'Description must not be empty.'
                 )
 
-        user_id = self.user_service.get_user_id(
-            user=event.get(USER_ID_ATTR))
-
         _LOG.debug(f'Updating application \'{application.application_id}\'')
         self.application_service.update_rightsizer_application(
             application=application,
@@ -324,7 +317,7 @@ class ApplicationProcessor(AbstractCommandProcessor):
             output_storage=output_storage_obj,
             connection=connection_obj,
             password=password,
-            updated_by=user_id
+            updated_by=event.get(PARAM_USER_SUB)
         )
 
         application_dto = self.application_service.get_dto(

@@ -14,17 +14,17 @@ from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
 from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import GET_METHOD, POST_METHOD, DELETE_METHOD, \
     PARENT_ID_ATTR, APPLICATION_ID_ATTR, DESCRIPTION_ATTR, \
-    CLOUD_ALL, SCOPE_ATTR, TENANT_ATTR, FORCE_ATTR, USER_ID_ATTR
+    CLOUD_ALL, SCOPE_ATTR, TENANT_ATTR, FORCE_ATTR
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
 from services.algorithm_service import AlgorithmService
 from services.license_manager_service import LicenseManagerService
 from services.license_service import LicenseService
+from services.rbac.access_control_service import PARAM_USER_SUB
 from services.rightsizer_application_service import \
     RightSizerApplicationService
 from services.rightsizer_parent_service import RightSizerParentService
-from services.user_service import CognitoUserService
 
 _LOG = get_logger('r8s-parent-licenses-processor')
 
@@ -38,8 +38,7 @@ class ParentProcessor(AbstractCommandProcessor):
                  parent_service: RightSizerParentService,
                  tenant_service: TenantService,
                  license_service: LicenseService,
-                 license_manager_service: LicenseManagerService,
-                 user_service: CognitoUserService):
+                 license_manager_service: LicenseManagerService):
         self.algorithm_service = algorithm_service
         self.customer_service = customer_service
         self.application_service = application_service
@@ -47,7 +46,6 @@ class ParentProcessor(AbstractCommandProcessor):
         self.tenant_service = tenant_service
         self.license_service = license_service
         self.license_manager_service = license_manager_service
-        self.user_service = user_service
 
         self.method_to_handler = {
             GET_METHOD: self.get,
@@ -143,9 +141,6 @@ class ParentProcessor(AbstractCommandProcessor):
         scope = event.get(SCOPE_ATTR)
         tenant_name = event.get(TENANT_ATTR)
 
-        user_id = self.user_service.get_user_id(
-            user=event.get(USER_ID_ATTR))
-
         _LOG.debug('Creating parent')
         parent = self.parent_service.build(
             application_id=application.application_id,
@@ -157,7 +152,7 @@ class ParentProcessor(AbstractCommandProcessor):
             scope=scope,
             tenant_name=tenant_name,
             cloud=cloud,
-            created_by=user_id
+            created_by=event.get(PARAM_USER_SUB)
         )
 
         _LOG.debug('Saving parent')

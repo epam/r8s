@@ -10,8 +10,7 @@ from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import GET_METHOD, POST_METHOD, DELETE_METHOD, \
     APPLICATION_ID_ATTR, DESCRIPTION_ATTR, \
     CLOUD_ATTR, CLOUD_ALL, TENANT_LICENSE_KEY_ATTR, \
-    LICENSE_KEY_ATTR, CUSTOMER_ATTR, APPLICATION_TENANTS_ALL, FORCE_ATTR, \
-    USER_ID_ATTR
+    LICENSE_KEY_ATTR, CUSTOMER_ATTR, APPLICATION_TENANTS_ALL, FORCE_ATTR
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -22,10 +21,10 @@ from services.abstract_api_handler_lambda import PARAM_USER_CUSTOMER
 from services.algorithm_service import AlgorithmService
 from services.license_manager_service import LicenseManagerService
 from services.license_service import LicenseService
+from services.rbac.access_control_service import PARAM_USER_SUB
 from services.rightsizer_application_service import \
     RightSizerApplicationService
 from services.rightsizer_parent_service import RightSizerParentService
-from services.user_service import CognitoUserService
 
 _LOG = get_logger('r8s-application-licenses-processor')
 
@@ -38,15 +37,13 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
                  application_service: RightSizerApplicationService,
                  parent_service: RightSizerParentService,
                  license_service: LicenseService,
-                 license_manager_service: LicenseManagerService,
-                 user_service: CognitoUserService):
+                 license_manager_service: LicenseManagerService):
         self.algorithm_service = algorithm_service
         self.customer_service = customer_service
         self.application_service = application_service
         self.parent_service = parent_service
         self.license_service = license_service
         self.license_manager_service = license_manager_service
-        self.user_service = user_service
 
         self.method_to_handler = {
             GET_METHOD: self.get,
@@ -171,9 +168,6 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
         )
         _LOG.debug(f'Application meta {meta.as_dict()}')
 
-        user_id = self.user_service.get_user_id(
-            user=event.get(USER_ID_ATTR))
-
         _LOG.debug('Creating application')
         application = self.application_service.build(
             customer_id=customer_obj.name,
@@ -181,7 +175,7 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
             description=description,
             is_deleted=False,
             meta=meta.as_dict(),
-            created_by=user_id
+            created_by=event.get(PARAM_USER_SUB)
         )
         _LOG.debug('Saving application')
         self.application_service.save(application=application)

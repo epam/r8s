@@ -19,6 +19,7 @@ from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
 from models.parent_attributes import ShapeRule
+from services.rbac.access_control_service import PARAM_USER_SUB
 from services.rightsizer_application_service import \
     RightSizerApplicationService
 from services.rightsizer_parent_service import RightSizerParentService
@@ -168,8 +169,13 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
             meta=parent_meta
         )
 
-        self.parent_service.save(parent=parent)
-        _LOG.debug(f'Parent \'{parent.parent_id}\' saved')
+        _LOG.debug(f'Updating parent {parent.parent_id} meta')
+        self.parent_service.update(
+            parent=parent,
+            attributes=[Parent.meta],
+            updated_by=event.get(PARAM_USER_SUB)
+        )
+        _LOG.debug(f'Parent \'{parent.parent_id}\' updated')
 
         shape_rule_dto = self.parent_service.get_shape_rule_dto(
             shape_rule=shape_rule)
@@ -234,11 +240,13 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
             parent_meta=parent_meta,
             shape_rule=shape_rule
         )
-        _LOG.debug(f'Shape rule updated in parent '
-                   f'\'{parent.parent_id}\' meta')
-
-        self.parent_service.save(parent=parent)
-        _LOG.debug(f'Parent \'{parent.parent_id}\' saved')
+        _LOG.debug(f'Updating parent {parent.parent_id} meta')
+        self.parent_service.update(
+            parent=parent,
+            attributes=[Parent.meta],
+            updated_by=event.get(PARAM_USER_SUB)
+        )
+        _LOG.debug(f'Parent \'{parent.parent_id}\' updated')
 
         shape_rule_dto = self.parent_service.get_shape_rule_dto(
             shape_rule=shape_rule)
@@ -295,8 +303,13 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
             parent=target_parent,
             meta=parent_meta
         )
-        _LOG.debug('Saving parent with updated meta.')
-        self.parent_service.save(parent=target_parent)
+        _LOG.debug(f'Updating parent {target_parent.parent_id} meta')
+        self.parent_service.update(
+            parent=target_parent,
+            attributes=[Parent.meta],
+            updated_by=event.get(PARAM_USER_SUB)
+        )
+        _LOG.debug(f'Parent \'{target_parent.parent_id}\' updated')
 
         return build_response(
             code=RESPONSE_OK_CODE,
