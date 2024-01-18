@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.1] - 2024-01-18
+* fix issue with compatibility with `modular-api` for command `parent shape_rule`
+
 ## [3.1.0] - 2023-12-08
 * add ability to force delete Application/Parent:
   * r8s application delete --force
