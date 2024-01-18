@@ -5,12 +5,12 @@ from r8s_service.constants import ALLOWED_RULE_ACTIONS, \
     ALLOWED_SHAPE_FIELDS, ALLOWED_RULE_CONDITIONS, AVAILABLE_CLOUDS
 
 
-@click.group(name='shape_rule')
-def shape_rule():
+@click.group(name='shaperule')
+def shaperule():
     """Manages RIGHTSIZER Parent Shape rule Entity"""
 
 
-@shape_rule.command(cls=ViewCommand, name='describe')
+@shaperule.command(cls=ViewCommand, name='describe')
 @click.option('--parent_id', '-pid', type=str,
               help='Parent id to describe shape rules.')
 @click.option('--rule_id', '-rid', type=str,
@@ -25,21 +25,21 @@ def describe(parent_id=None, rule_id=None):
         parent_id=parent_id, rule_id=rule_id)
 
 
-@shape_rule.command(cls=ViewCommand, name='add')
+@shaperule.command(cls=ViewCommand, name='add')
 @click.option('--parent_id', '-pid', type=str,
               help='Parent id to create shape rule in.')
 @click.option('--action', '-a', required=True,
               type=click.Choice(ALLOWED_RULE_ACTIONS),
-              help="Shape rule action.")
+              help='Shape rule action.')
 @click.option('--condition', '-cd', required=True,
               type=click.Choice(ALLOWED_RULE_CONDITIONS),
-              help="Shape rule condition.")
+              help='Shape rule condition.')
 @click.option('--field', '-f', required=True,
               type=click.Choice(ALLOWED_SHAPE_FIELDS),
-              help="Shape rule field.")
+              help='Shape rule field.')
 @click.option('--value', '-v', required=True,
               type=str,
-              help="Shape rule filter value.")
+              help='Shape rule filter value.')
 @cli_response()
 def add(parent_id, action, condition, field, value):
     """
@@ -56,23 +56,23 @@ def add(parent_id, action, condition, field, value):
     )
 
 
-@shape_rule.command(cls=ViewCommand, name='update')
+@shaperule.command(cls=ViewCommand, name='update')
 @click.option('--rule_id', '-rid', type=str, required=True,
               help='Shape rule id to update.')
 @click.option('--parent_id', '-pid', type=str,
               help='Parent id to update shape rule in.')
 @click.option('--action', '-a', required=False,
               type=click.Choice(ALLOWED_RULE_ACTIONS),
-              help="Shape rule action.")
+              help='Shape rule action.')
 @click.option('--condition', '-cd', required=False,
               type=click.Choice(ALLOWED_RULE_CONDITIONS),
-              help="Shape rule condition.")
+              help='Shape rule condition.')
 @click.option('--field', '-f', required=False,
               type=click.Choice(ALLOWED_SHAPE_FIELDS),
-              help="Shape rule field.")
+              help='Shape rule field.')
 @click.option('--value', '-v', required=False,
               type=str,
-              help="Shape rule filter value.")
+              help='Shape rule filter value.')
 @cli_response()
 def update(rule_id, parent_id, action, condition, field, value):
     """
@@ -90,7 +90,7 @@ def update(rule_id, parent_id, action, condition, field, value):
     )
 
 
-@shape_rule.command(cls=ViewCommand, name='delete')
+@shaperule.command(cls=ViewCommand, name='delete')
 @click.option('--rule_id', '-rid', type=str, required=True,
               help='Shape rule id to delete')
 @click.option('--parent_id', '-pid', type=str,
@@ -105,7 +105,7 @@ def delete(rule_id, parent_id):
                                                   parent_id=parent_id)
 
 
-@shape_rule.command(cls=ViewCommand, name='dry_run')
+@shaperule.command(cls=ViewCommand, name='dry_run')
 @click.option('--parent_id', '-pid', type=str, required=True,
               help='Parent id to perform dry run on shape rules')
 @cli_response()
