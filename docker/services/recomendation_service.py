@@ -521,7 +521,7 @@ class RecommendationService:
         if status != STATUS_OK:
             return [STATUS_ERROR]
 
-        shutdown_forbidden = ACTION_SHUTDOWN in allowed_actions
+        shutdown_forbidden = ACTION_SHUTDOWN not in allowed_actions
         if not shutdown_forbidden and past_recommendations:
             shutdown_forbidden = self.recommendation_history_service. \
                 is_shutdown_forbidden(
@@ -531,7 +531,7 @@ class RecommendationService:
         if not schedule and not shutdown_forbidden:
             return [ACTION_SHUTDOWN]
 
-        if (schedule and ACTION_SCHEDULE not in allowed_actions and
+        if (schedule and ACTION_SCHEDULE in allowed_actions and not
                 self._is_schedule_always_run(schedule=schedule)):
             actions.append(ACTION_SCHEDULE)
 
