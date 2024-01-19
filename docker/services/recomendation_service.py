@@ -10,7 +10,7 @@ import pandas as pd
 from commons.constants import STATUS_ERROR, STATUS_OK, OK_MESSAGE, \
     ACTION_SHUTDOWN, ACTION_SCHEDULE, ACTION_SPLIT, ACTION_EMPTY, \
     STATUS_POSTPONED, CURRENT_INSTANCE_TYPE_ATTR, CURRENT_MONTHLY_PRICE_ATTR, \
-    SAVING_OPTIONS_ATTR, PROBABILITY
+    SAVING_OPTIONS_ATTR, PROBABILITY, ALLOWED_ACTIONS
 from commons.exception import ExecutorException, ProcessingPostponedException
 from commons.log_helper import get_logger
 from commons.profiler import profiler
@@ -233,7 +233,8 @@ class RecommendationService:
                 shapes=recommended_sizes,
                 resize_action=resize_action,
                 stats=stats,
-                past_recommendations=past_recommendations_feedback
+                past_recommendations=past_recommendations_feedback,
+                allowed_actions=allowed_actions
             )
 
             if not algorithm.recommendation_settings.ignore_savings:
@@ -511,7 +512,7 @@ class RecommendationService:
         return file_name[0:file_name.rindex('.')]
 
     def get_general_action(self, schedule, shapes, stats, resize_action,
-                           allowed_actions: list,
+                           allowed_actions: list = ALLOWED_ACTIONS,
                            past_recommendations: list = None):
         actions = []
         status = stats.get('status', '')
@@ -530,7 +531,7 @@ class RecommendationService:
         if not schedule and not shutdown_forbidden:
             return [ACTION_SHUTDOWN]
 
-        if (schedule and not ACTION_SCHEDULE in allowed_actions and
+        if (schedule and ACTION_SCHEDULE not in allowed_actions and
                 self._is_schedule_always_run(schedule=schedule)):
             actions.append(ACTION_SCHEDULE)
 
