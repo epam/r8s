@@ -43,7 +43,10 @@ class ResourceGroupService:
                           report: Dict):
         recommendation_history.recommendation_type = report[GENERAL_ACTIONS][0]
 
-        saving_options = report[RECOMMENDATION].get(SAVINGS, {}).get(
+        if not report[RECOMMENDATION].get(SAVINGS):
+            report[RECOMMENDATION][SAVINGS] = {}
+        savings = report[RECOMMENDATION][SAVINGS]
+        saving_options = savings.get(
             SAVING_OPTIONS_ATTR)
         if saving_options:
             recommendation_history.savings = saving_options
