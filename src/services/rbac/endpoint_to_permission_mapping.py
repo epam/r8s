@@ -63,7 +63,7 @@ ENDPOINT_PERMISSION_MAPPING = {
         PATCH_METHOD: 'r8s:application:update_application',
         DELETE_METHOD: 'r8s:application:remove_application',
     },
-    '/applications/policies': {
+    '/applications/policies/': {
         GET_METHOD: 'r8s:application:describe_group_policy',
         POST_METHOD: 'r8s:application:create_group_policy',
         PATCH_METHOD: 'r8s:application:update_group_policy',

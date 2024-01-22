@@ -221,7 +221,7 @@ class RightSizerApplicationService(ApplicationService):
         if not meta.group_policies:
             return
         for group_policy in meta.group_policies:
-            if group_policy.id == group_id:
+            if group_policy.get(ID_ATTR) == group_id:
                 return group_policy
 
     @staticmethod
@@ -242,7 +242,7 @@ class RightSizerApplicationService(ApplicationService):
             return
         target_group_id = group_policy.get(ID_ATTR)
         for index, group_policy in enumerate(meta.group_policies):
-            if group_policy.id == target_group_id:
+            if group_policy.get(ID_ATTR) == target_group_id:
                 meta.group_policies[index] = group_policy
                 return
 
@@ -251,6 +251,6 @@ class RightSizerApplicationService(ApplicationService):
         if not meta.group_policies:
             return
         for index, group_policy in enumerate(meta.group_policies):
-            if group_policy.id == group_id:
+            if group_policy.get(ID_ATTR) == group_id:
                 del meta.group_policies[index]
                 return

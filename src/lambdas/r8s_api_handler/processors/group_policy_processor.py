@@ -54,6 +54,7 @@ class GroupPolicyProcessor(AbstractCommandProcessor):
     def get(self, event):
         _LOG.debug(f'Describe group policy event: {event}')
         validate_params(event, (APPLICATION_ID_ATTR,))
+
         _LOG.debug('Resolving applications')
         applications = self.application_service.resolve_application(
             event=event, type_=MAESTRO_RIGHTSIZER_APPLICATION_TYPE
@@ -103,7 +104,7 @@ class GroupPolicyProcessor(AbstractCommandProcessor):
     def post(self, event):
         _LOG.debug(f'Create group policy event: {event}')
         validate_params(event,
-                        (APPLICATION_ID_ATTR, TYPE_ATTR, NAME_ATTR, TAG_ATTR))
+                        (APPLICATION_ID_ATTR, TYPE_ATTR, TAG_ATTR))
 
         _LOG.debug('Resolving applications')
         applications = self.application_service.resolve_application(
@@ -335,6 +336,11 @@ class GroupPolicyProcessor(AbstractCommandProcessor):
                 DESIRED_ATTR: thresholds.get(DESIRED_ATTR),
                 MAX_ATTR: thresholds.get(MAX_ATTR)
             }
+
+        tag = event.get(TAG_ATTR)
+        if tag:
+            group_policy[TAG_ATTR] = tag
+
         return group_policy
 
     @staticmethod
