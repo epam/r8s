@@ -14,7 +14,7 @@ from commons.constants import POST_METHOD, GET_METHOD, PATCH_METHOD, \
     DELETE_METHOD, ID_ATTR, RULE_ACTION_ATTR, CONDITION_ATTR, \
     FIELD_ATTR, VALUE_ATTR, ALLOWED_RULE_ACTIONS, \
     ALLOWED_RULE_CONDITIONS, ALLOWED_SHAPE_FIELDS, PARENT_ID_ATTR, \
-    CLOUDS
+    CLOUDS, ERROR_NO_APPLICATION_FOUND
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -25,8 +25,6 @@ from services.rightsizer_application_service import \
 from services.rightsizer_parent_service import RightSizerParentService
 
 _LOG = get_logger('r8s-shape-rule-processor')
-
-ERROR_NO_APPLICATION_FOUND = 'No application found matching given query.'
 
 
 class ShapeRuleProcessor(AbstractCommandProcessor):

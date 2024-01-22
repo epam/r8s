@@ -42,7 +42,11 @@
       "describe_application",
       "create_application",
       "update_application",
-      "remove_application"
+      "remove_application",
+      "describe_group_policy",
+      "create_group_policy",
+      "update_group_policy",
+      "remove_group_policy"
     ],
     "r8s:parent": [
       "describe_parent",
