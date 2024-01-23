@@ -68,6 +68,7 @@ _LOG = get_logger('r8s-executor')
 JOB_ID = environment_service.get_batch_job_id()
 SCAN_FROM_DATE = environment_service.get_scan_from_date()
 SCAN_TO_DATE = environment_service.get_scan_to_date()
+APPLICATION_ID = environment_service.get_application_id()
 LICENSED_APPLICATION_ID = environment_service.get_licensed_application_id()
 PARENT_ID = environment_service.get_licensed_parent_id()
 
@@ -116,6 +117,7 @@ def submit_licensed_job(application: Application, tenant_name: str,
 def process_tenant_instances(metrics_dir, reports_dir,
                              input_storage, output_storage,
                              parent_meta: LicensesParentMeta,
+                             application: Application,
                              licensed_application: Application,
                              algorithm: Algorithm,
                              license_: License,
@@ -232,6 +234,43 @@ def process_tenant_instances(metrics_dir, reports_dir,
                 recommendations=past_recommendations
             )
 
+    app_meta = application_service.get_application_meta(
+        application=application)
+
+    group_resources_mapping = {}
+    if app_meta.group_policies:
+        _LOG.debug('Processing application group policies')
+        group_resources_mapping, metric_file_paths = (
+            recommendation_service.divide_by_group_policies(
+                metric_file_paths=metric_file_paths,
+                group_policies=app_meta.group_policies,
+                instance_meta_mapping=instance_meta_mapping
+            ))
+
+    if group_resources_mapping:
+        _LOG.debug(f'Group resources: {group_resources_mapping}')
+        for group_id, group_resources in group_resources_mapping.items():
+            group = application_service.get_group_policy(
+                meta=app_meta,
+                group_id=group_id
+            )
+            if not group:
+                _LOG.warning(f'Group policy {group_id} does not found. '
+                             f'Resources in group will be processed '
+                             f'as individual resources')
+                metric_file_paths.extend(group_resources)
+            _LOG.debug(f'Processing group {group_id} resources')
+            for tag_value, tag_resources in group_resources.items():
+                _LOG.debug(f'Processing group tag {tag_value}')
+                recommendation_service.process_group_resources(
+                    group_id=tag_value,
+                    group_policy=group,
+                    metric_file_paths=tag_resources,
+                    algorithm=algorithm,
+                    reports_dir=reports_dir,
+                    instance_meta_mapping=instance_meta_mapping
+                )
+
     group_results = {}
     group_history_items = []
     instance_region_mapping = {}
@@ -339,6 +378,17 @@ def main():
         job=job,
         status=JobStatusEnum.JOB_RUNNING_STATUS.value)
 
+    application = application_service.get_application_by_id(
+        application_id=APPLICATION_ID
+    )
+    _LOG.debug(f'RIGHTSIZER Application: {APPLICATION_ID}')
+    if not application:
+        _LOG.error(f'Application \'{APPLICATION_ID}\' does not exist')
+        raise ExecutorException(
+            step_name=JOB_STEP_INITIALIZATION,
+            reason=f'Application \'{APPLICATION_ID}\' does not exist'
+        )
+
     scan_tenants = job_service.get_scan_tenants(job=job)
     licensed_application = application_service.get_application_by_id(
         application_id=LICENSED_APPLICATION_ID)
@@ -432,6 +482,7 @@ def main():
                 input_storage=input_storage,
                 output_storage=output_storage,
                 parent_meta=tenant_meta_map[tenant],
+                application=application,
                 licensed_application=licensed_application,
                 algorithm=algorithm_map[RESOURCE_TYPE_VM],
                 license_=license_,

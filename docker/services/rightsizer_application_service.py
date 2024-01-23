@@ -5,7 +5,7 @@ from pynamodb.attributes import MapAttribute
 from modular_sdk.commons.constants import ApplicationType
 
 from commons.constants import MAESTRO_RIGHTSIZER_APPLICATION_TYPE, \
-    MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE
+    MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE, ID_ATTR
 from models.application_attributes import (RightsizerApplicationMeta,
                                            RightsizerLicensesApplicationMeta)
 
@@ -50,3 +50,11 @@ class RightSizerApplicationService(ApplicationService):
         else:
             application_meta_obj = meta_attr_class()
         return application_meta_obj
+
+    @staticmethod
+    def get_group_policy(meta: RightsizerApplicationMeta, group_id: str):
+        if not meta.group_policies:
+            return
+        for group_policy in meta.group_policies:
+            if group_policy.get(ID_ATTR) == group_id:
+                return group_policy

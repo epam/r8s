@@ -205,6 +205,7 @@ class ServiceProvider:
                     environment_service=self.environment_service(),
                     saving_service=self.saving_service(),
                     meta_service=self.meta_service(),
+                    shape_service=self.shape_service(),
                     recommendation_history_service=
                     self.recommendation_history_service()
                 )
