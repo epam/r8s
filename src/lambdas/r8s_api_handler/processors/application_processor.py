@@ -352,9 +352,10 @@ class ApplicationProcessor(AbstractCommandProcessor):
 
         _LOG.debug(f'Searching for application {application.application_id} '
                    f'parents')
-        parents = self.parent_service.list_application_parents(
+        parents = self.parent_service.query_application_parents(
             application_id=application.application_id,
-            only_active=True,
+            customer_id=application.customer_id,
+            is_deleted=False,
             type_=ParentType.RIGHTSIZER_PARENT
         )
         if parents:

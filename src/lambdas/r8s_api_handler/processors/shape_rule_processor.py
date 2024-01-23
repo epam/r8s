@@ -376,9 +376,12 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
     def get_parents(self, application_ids):
         parents = []
         for application_id in application_ids:
-            app_parents = self.parent_service.list_application_parents(
+            application = self.application_service.get_application_by_id(
+                application_id=application_id)
+            app_parents = self.parent_service.query_application_parents(
                 application_id=application_id,
-                only_active=True,
+                customer_id=application.customer_id,
+                is_deleted=False,
                 type_=ParentType.RIGHTSIZER_LICENSES_PARENT
             )
             parents.extend(app_parents)

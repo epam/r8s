@@ -3,7 +3,7 @@ from typing import List, Union
 from modular_sdk.commons import generate_id
 from modular_sdk.commons.constants import RIGHTSIZER_PARENT_TYPE, \
     TENANT_PARENT_MAP_RIGHTSIZER_TYPE, RIGHTSIZER_LICENSES_PARENT_TYPE, \
-    TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE, ParentScope
+    TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE, ParentScope, ParentType
 from modular_sdk.models.parent import Parent
 from modular_sdk.services.customer_service import CustomerService
 from modular_sdk.services.parent_service import ParentService
@@ -11,7 +11,6 @@ from modular_sdk.services.tenant_service import TenantService
 from pynamodb.attributes import MapAttribute
 
 from commons.log_helper import get_logger
-from models.algorithm import Algorithm
 from models.parent_attributes import ShapeRule, LicensesParentMeta
 from services.environment_service import EnvironmentService
 
@@ -35,18 +34,15 @@ class RightSizerParentService(ParentService):
             customer_service=customer_service
         )
 
-    @staticmethod
-    def list_application_parents(application_id, type_: str,
-                                 only_active=True):
-        if only_active:
-            return list(Parent.scan(
-                filter_condition=
-                (Parent.type == type_) &
-                (Parent.application_id == application_id) &
-                (Parent.is_deleted == False)))
-        return list(Parent.scan(
-            filter_condition=(Parent.application_id == application_id) &
-                             (Parent.type == type_)))
+    def query_application_parents(self, customer_id: str, application_id: str,
+                                  type_: ParentType, is_deleted=False):
+        query = list(self.query_by_scope_index(
+            customer_id=customer_id,
+            type_=type_,
+            is_deleted=is_deleted,
+        ))
+        return [parent for parent in query if
+                parent.application_id == application_id]
 
     def get_parent_meta(self, parent: Parent) -> LicensesParentMeta:
         meta: MapAttribute = parent.meta
