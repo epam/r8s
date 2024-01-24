@@ -1,7 +1,6 @@
 from typing import List
 
 from modular_sdk.commons.constants import AWS_CLOUD, AZURE_CLOUD, GOOGLE_CLOUD, \
-    RIGHTSIZER_LICENSES_PARENT_TYPE, \
     TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE, RIGHTSIZER_LICENSES_TYPE, \
     ParentType
 from modular_sdk.models.parent import Parent
@@ -81,10 +80,11 @@ class ParentProcessor(AbstractCommandProcessor):
         parents: List[Parent] = []
 
         for application in applications:
-            application_parents = self.parent_service.list_application_parents(
+            application_parents = self.parent_service.query_application_parents(
+                customer_id=application.customer_id,
                 application_id=application.application_id,
-                type_=RIGHTSIZER_LICENSES_PARENT_TYPE,
-                only_active=True
+                type_=ParentType.RIGHTSIZER_LICENSES_PARENT,
+                is_deleted=False
             )
             _LOG.debug(f'Got \'{len(application_parents)}\' from application '
                        f'\'{application.application_id}\'')

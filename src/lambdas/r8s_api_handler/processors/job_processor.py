@@ -2,7 +2,8 @@ from datetime import datetime
 from typing import List
 import os
 from modular_sdk.commons.constants import (RIGHTSIZER_LICENSES_PARENT_TYPE,
-                                           ParentScope, ApplicationType)
+                                           ParentScope, ApplicationType,
+                                           ParentType)
 from modular_sdk.models.application import Application
 from modular_sdk.models.tenant import Tenant
 from modular_sdk.models.parent import Parent
@@ -17,7 +18,7 @@ from commons.constants import CLOUD_AWS, TENANTS_ATTR, \
     ENV_TENANT_CUSTOMER_INDEX, FORBIDDEN_ATTR, ALLOWED_ATTR, \
     REMAINING_BALANCE_ATTR, ENV_LM_TOKEN_LIFETIME_MINUTES, LIMIT_ATTR, \
     APPLICATION_ID_ATTR, MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE, \
-    APPLICATION_TENANTS_ALL
+    APPLICATION_TENANTS_ALL, MAESTRO_RIGHTSIZER_APPLICATION_TYPE
 from commons.constants import POST_METHOD, GET_METHOD, DELETE_METHOD, ID_ATTR, \
     NAME_ATTR, USER_ID_ATTR, PARENT_ID_ATTR, SCAN_FROM_DATE_ATTR, \
     SCAN_TO_DATE_ATTR, TENANT_LICENSE_KEY_ATTR, PARENT_SCOPE_SPECIFIC_TENANT
@@ -371,11 +372,14 @@ class JobProcessor(AbstractCommandProcessor):
                 )
             parents = [parent]
         else:
+            application = self.application_service.get_application_by_id(
+                application_id=application_id)
             _LOG.debug(f'Searching for application {application_id} parents')
-            parents = self.parent_service.list_application_parents(
+            parents = self.parent_service.query_application_parents(
                 application_id=application_id,
-                type_=RIGHTSIZER_LICENSES_PARENT_TYPE,
-                only_active=True
+                customer_id=application.customer_id,
+                type_=ParentType.RIGHTSIZER_LICENSES_PARENT,
+                is_deleted=False
             )
         parents = [parent for parent in parents
                    if parent.scope != ParentScope.DISABLED]

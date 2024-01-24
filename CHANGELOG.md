@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * `add_autoscaling` - Configures AUTO_SCALING group policy
   * `update_autoscaling` - Updates AUTO_SCALING group policy
 
+## [3.4.3] - 2024-01-23
+* Optimize application parents querying with parent scope index.
+
+## [3.4.2] - 2024-01-22
+* fix syncing instance recommendation with RecommendationHistory item
+
 ## [3.4.1] - 2024-01-19
 * fix pass allowed actions to recommendation_service.get_general_action
 
