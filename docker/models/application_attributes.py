@@ -13,6 +13,7 @@ class RightsizerApplicationMeta(MapAttribute):
     input_storage = UnicodeAttribute(null=True)
     output_storage = UnicodeAttribute(null=True)
     connection = ConnectionAttribute(null=True)
+    group_policies = ListAttribute(of=MapAttribute, null=True)
 
 
 class RightsizerLicensesApplicationMeta(MapAttribute):

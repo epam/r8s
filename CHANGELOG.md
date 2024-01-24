@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.0] - 2024-01-24
+* Implement AUTO_SCALING group policy recommendation generation
+* Implement `r8s application policies` command group:
+  * `describe` - Describes available group policies from application
+  * `delete` - Deletes group policy from application
+  * `add_autoscaling` - Configures AUTO_SCALING group policy
+  * `update_autoscaling` - Updates AUTO_SCALING group policy
+
 ## [3.4.3] - 2024-01-23
 * Optimize application parents querying with parent scope index.
 

@@ -10,7 +10,7 @@ from pynamodb.attributes import MapAttribute
 from commons import ApplicationException, RESPONSE_INTERNAL_SERVER_ERROR
 from commons.constants import APPLICATION_ID_ATTR, \
     MAESTRO_RIGHTSIZER_APPLICATION_TYPE, \
-    MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE
+    MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE, ID_ATTR
 from commons.log_helper import get_logger
 from models.application_attributes import RightsizerApplicationMeta, \
     ConnectionAttribute, RightsizerLicensesApplicationMeta
@@ -209,3 +209,48 @@ class RightSizerApplicationService(ApplicationService):
             secret_value=password
         )
         return secret_name
+
+    @staticmethod
+    def list_group_policies(meta: RightsizerApplicationMeta):
+        if not meta.group_policies:
+            return []
+        return meta.group_policies
+
+    @staticmethod
+    def get_group_policy(meta: RightsizerApplicationMeta, group_id: str):
+        if not meta.group_policies:
+            return
+        for group_policy in meta.group_policies:
+            if group_policy.get(ID_ATTR) == group_id:
+                return group_policy
+
+    @staticmethod
+    def add_group_policy_to_meta(meta: RightsizerApplicationMeta,
+                                 group_policy: dict):
+        if not meta.group_policies:
+            meta.group_policies = [group_policy]
+            return
+
+        group_policies = meta.group_policies
+        group_policies.append(group_policy)
+        meta.group_policies = group_policies
+
+    @staticmethod
+    def update_group_policy_in_meta(meta: RightsizerApplicationMeta,
+                                    group_policy:dict):
+        if not meta.group_policies:
+            return
+        target_group_id = group_policy.get(ID_ATTR)
+        for index, group_policy in enumerate(meta.group_policies):
+            if group_policy.get(ID_ATTR) == target_group_id:
+                meta.group_policies[index] = group_policy
+                return
+
+    @staticmethod
+    def remove_group_from_meta(meta: RightsizerApplicationMeta, group_id: str):
+        if not meta.group_policies:
+            return
+        for index, group_policy in enumerate(meta.group_policies):
+            if group_policy.get(ID_ATTR) == group_id:
+                del meta.group_policies[index]
+                return

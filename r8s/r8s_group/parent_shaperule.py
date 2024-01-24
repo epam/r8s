@@ -93,16 +93,13 @@ def update(rule_id, parent_id, action, condition, field, value):
 @shaperule.command(cls=ViewCommand, name='delete')
 @click.option('--rule_id', '-rid', type=str, required=True,
               help='Shape rule id to delete')
-@click.option('--parent_id', '-pid', type=str,
-              help='Parent id to delete shape rule from.')
 @cli_response()
-def delete(rule_id, parent_id):
+def delete(rule_id):
     """
     Deletes r8s shape rule.
     """
     from r8s_service.initializer import init_configuration
-    return init_configuration().shape_rule_delete(rule_id=rule_id,
-                                                  parent_id=parent_id)
+    return init_configuration().shape_rule_delete(rule_id=rule_id)
 
 
 @shaperule.command(cls=ViewCommand, name='dry_run')

@@ -11,6 +11,8 @@ from lambdas.r8s_api_handler.processors.application_licenses_processor import \
     ApplicationLicensesProcessor
 from lambdas.r8s_api_handler.processors.application_processor import \
     ApplicationProcessor
+from lambdas.r8s_api_handler.processors.group_policy_processor import \
+    GroupPolicyProcessor
 from lambdas.r8s_api_handler.processors.health_check_processor import \
     HealthCheckProcessor
 from lambdas.r8s_api_handler.processors.job_processor import JobProcessor
@@ -104,6 +106,7 @@ LM_SETTING_CONFIG_ACTION = 'settings-config'
 LM_SETTING_CLIENT_ACTION = 'settings-client'
 LICENSE_ACTION = 'license'
 LICENSE_SYNC_ACTION = 'license-sync'
+GROUP_POLICY_ACTION = 'group-policy'
 
 
 class R8sApiHandler(AbstractApiHandlerLambda):
@@ -188,7 +191,8 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             LM_SETTING_CONFIG_ACTION: self._instantiate_lm_config_processor,
             LM_SETTING_CLIENT_ACTION: self._instantiate_lm_client_processor,
             LICENSE_ACTION: self._instantiate_license_processor,
-            LICENSE_SYNC_ACTION: self._instantiate_license_sync_processor
+            LICENSE_SYNC_ACTION: self._instantiate_license_sync_processor,
+            GROUP_POLICY_ACTION: self._instantiate_group_policy_processor
         }
 
     def validate_request(self, event) -> dict:
@@ -405,6 +409,11 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             license_service=self.license_service,
             license_manager_service=self.license_manager_service,
             algorithm_service=self.algorithm_service
+        )
+
+    def _instantiate_group_policy_processor(self):
+        return GroupPolicyProcessor(
+            application_service=self.application_service
         )
 
 

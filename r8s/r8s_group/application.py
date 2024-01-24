@@ -2,6 +2,7 @@ import click
 
 from r8s_group import cli_response, ViewCommand
 from r8s_group.application_licenses import licenses
+from r8s_group.application_policies import policies
 from r8s_service.constants import ALLOWED_PROTOCOLS, \
     PROTOCOL_HTTPS
 
@@ -134,3 +135,4 @@ def delete(application_id, force):
 
 
 application.add_command(licenses)
+application.add_command(policies)

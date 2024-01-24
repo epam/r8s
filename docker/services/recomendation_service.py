@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import datetime
-from typing import Union, List
+from typing import Union, List, Dict
 import itertools
 
 import numpy as np
@@ -10,7 +10,10 @@ import pandas as pd
 from commons.constants import STATUS_ERROR, STATUS_OK, OK_MESSAGE, \
     ACTION_SHUTDOWN, ACTION_SCHEDULE, ACTION_SPLIT, ACTION_EMPTY, \
     STATUS_POSTPONED, CURRENT_INSTANCE_TYPE_ATTR, CURRENT_MONTHLY_PRICE_ATTR, \
-    SAVING_OPTIONS_ATTR, PROBABILITY, ALLOWED_ACTIONS
+    SAVING_OPTIONS_ATTR, PROBABILITY, ALLOWED_ACTIONS, \
+    GROUP_POLICY_AUTO_SCALING, TYPE_ATTR, JOB_STEP_PROCESS_METRICS, \
+    THRESHOLDS_ATTR, MIN_ATTR, MAX_ATTR, DESIRED_ATTR, SCALE_STEP_ATTR, \
+    ACTION_SCALE_DOWN, ACTION_SCALE_UP
 from commons.exception import ExecutorException, ProcessingPostponedException
 from commons.log_helper import get_logger
 from commons.profiler import profiler
@@ -19,6 +22,7 @@ from models.base_model import CloudEnum
 from models.parent_attributes import LicensesParentMeta
 from models.recommendation_history import RecommendationHistory, \
     RecommendationTypeEnum
+from models.shape import Shape
 from models.shape_price import OSEnum
 from services.environment_service import EnvironmentService
 from services.meta_service import MetaService
@@ -29,12 +33,15 @@ from services.resize.resize_service import ResizeService
 from services.resize.resize_trend import ResizeTrend
 from services.saving.saving_service import SavingService
 from services.schedule.schedule_service import ScheduleService
+from services.shape_service import ShapeService
 
 _LOG = get_logger('r8s-recommendation-service')
 
 RIGHTSIZER_SOURCE = 'RIGHTSIZER'
 RIGHTSIZER_RESOURCE_TYPE = 'INSTANCE'
+RIGHTSIZER_AUTOSCALING_GROUP_RESOURCE_TYPE = 'AUTOSCALING_GROUP'
 DEFAULT_SEVERITY = 'MEDIUM'
+AUTOSCALING_METRICS = ('cpu_load', 'memory_load')
 
 
 class RecommendationService:
@@ -44,7 +51,8 @@ class RecommendationService:
                  environment_service: EnvironmentService,
                  saving_service: SavingService,
                  meta_service: MetaService,
-                 recommendation_history_service: RecommendationHistoryService):
+                 recommendation_history_service: RecommendationHistoryService,
+                 shape_service: ShapeService):
         self.metrics_service = metrics_service
         self.schedule_service = schedule_service
         self.resize_service = resize_service
@@ -52,6 +60,11 @@ class RecommendationService:
         self.saving_service = saving_service
         self.meta_service = meta_service
         self.recommendation_history_service = recommendation_history_service
+        self.shape_service = shape_service
+
+        self.policy_type_processor = {
+            GROUP_POLICY_AUTO_SCALING: self.process_autoscaling_group
+        }
 
     @profiler(execution_step=f'instance_recommendation_generation')
     def process_instance(self, metric_file_path, algorithm: Algorithm,
@@ -289,6 +302,165 @@ class RecommendationService:
         )
         return item, history_items
 
+    def process_group_resources(self, group_id: str,
+                                group_policy: dict,
+                                metric_file_paths: List[str],
+                                algorithm: Algorithm, reports_dir,
+                                instance_meta_mapping):
+        group_policy_type = group_policy.get(TYPE_ATTR)
+
+        processor = self.policy_type_processor.get(group_policy_type)
+
+        if not processor:
+            _LOG.error(f'Invalid group policy type {group_policy_type}. '
+                       f'Supported types: '
+                       f'{list(self.policy_type_processor.keys())}')
+            raise ExecutorException(
+                step_name=JOB_STEP_PROCESS_METRICS,
+                reason=f'Invalid group policy type {group_policy_type}. '
+                       f'Supported types: '
+                       f'{list(self.policy_type_processor.keys())}'
+            )
+
+        processor(
+            group_id=group_id,
+            group_policy=group_policy,
+            metric_file_paths=metric_file_paths,
+            algorithm=algorithm,
+            reports_dir=reports_dir,
+            instance_meta_mapping=instance_meta_mapping
+        )
+
+    def process_autoscaling_group(self, group_id: str,
+                                  group_policy: dict,
+                                  metric_file_paths: List[str],
+                                  algorithm: Algorithm, reports_dir,
+                                  instance_meta_mapping: dict):
+        _LOG.debug(f'Loading group resources: {metric_file_paths}')
+
+        dfs = {}
+        instance_type_mapping = {}  # instance_type: List[instance_id]
+        id_file_mapping = {}
+        for metric_file_path in metric_file_paths:
+            instance_id = self.get_instance_id(
+                metric_file_path=metric_file_path)
+            id_file_mapping[instance_id] = metric_file_path
+            _LOG.debug(f'Loading df: {metric_file_path}')
+            df = self.metrics_service.load_df(
+                path=metric_file_path,
+                algorithm=algorithm,
+                instance_meta=instance_meta_mapping.get(instance_id, {})
+            )
+            dfs[instance_id] = df
+
+            _LOG.debug('Extracting instance type name')
+            instance_type = self.metrics_service.get_instance_type(
+                metric_file_path=metric_file_path,
+                algorithm=algorithm
+            )
+            if instance_type not in instance_type_mapping:
+                instance_type_mapping[instance_type] = [instance_id]
+            else:
+                instance_type_mapping[instance_type].append(instance_id)
+
+        target_instance_type, target_resources, non_matching_resources = (
+            self._find_non_matching_autoscaling_resources(
+                instance_type_mapping=instance_type_mapping
+            ))
+
+        if non_matching_resources:
+            _LOG.debug('Dumping non-matching autoscaling group resources')
+            self.dump_autoscaling_resources(
+                instance_type_mapping=instance_type_mapping,
+                non_matching_resources=non_matching_resources,
+                dfs=dfs,
+                instance_meta_mapping=instance_meta_mapping,
+                id_file_mapping=id_file_mapping,
+                reports_dir=reports_dir,
+                action=ACTION_SHUTDOWN
+            )
+
+        _LOG.debug('Dumping autoscaling group resources as NO_ACTION')
+        self.dump_autoscaling_resources(
+            instance_type_mapping=instance_type_mapping,
+            non_matching_resources=target_resources,
+            dfs=dfs,
+            instance_meta_mapping=instance_meta_mapping,
+            id_file_mapping=id_file_mapping,
+            reports_dir=reports_dir,
+            action=ACTION_EMPTY
+        )
+
+        _LOG.debug(f'Describing target group shape: {target_instance_type}')
+        target_shape = self.shape_service.get(name=target_instance_type)
+
+        dfs = [dfs[instance_id] for instance_id in dfs.keys()
+               if instance_id in target_resources]
+
+        _LOG.debug('Detecting scaling action')
+        scale_action, scale_step = self.get_autoscaling_group_scale_action(
+            dfs=dfs,
+            group_policy=group_policy,
+            algorithm=algorithm,
+            instance_type=target_instance_type
+        )
+        _LOG.debug(f'Scaling action: {scale_action}, scale step: {scale_step}')
+
+        _LOG.debug(f'Formatting autoscaling group {group_id} recommendation')
+        item = self.format_autoscaling_recommendation(
+            group_id=group_id,
+            group_policy=group_policy,
+            shape=target_shape,
+            action=scale_action,
+            instance_meta_mapping=instance_meta_mapping,
+            current_resources=target_resources,
+            scale_step=scale_step,
+            dfs=dfs
+        )
+
+        customer, cloud, tenant, region, _, instance_id = self.parse_folders(
+            metric_file_path=metric_file_paths[0]
+        )
+
+        _LOG.debug('Saving group recommendation')
+        self.save_report(
+            reports_dir=reports_dir,
+            customer=customer,
+            cloud=cloud,
+            tenant=tenant,
+            region=region,
+            item=item
+        )
+
+    def divide_by_group_policies(self, metric_file_paths: List[str],
+                                 instance_meta_mapping: dict,
+                                 group_policies: List[dict]):
+        group_resources_mapping = {}
+        individual_resources = []
+        allowed_group_tags = {policy.get('tag'): policy.get('id') for policy in
+                              group_policies if policy.get('tag')}
+
+        for metric_file_path in metric_file_paths:
+            resource_id = self.get_instance_id(
+                metric_file_path=metric_file_path)
+            instance_meta = instance_meta_mapping.get(resource_id, {})
+            instance_tags = self.meta_service.parse_tags(
+                instance_meta=instance_meta)
+
+            for tag_key, policy_id in allowed_group_tags.items():
+                if tag_key in instance_tags:
+                    tag_value = instance_tags[tag_key]
+                    if policy_id not in group_resources_mapping:
+                        group_resources_mapping[policy_id] = {}
+                    if tag_value not in group_resources_mapping[policy_id]:
+                        group_resources_mapping[policy_id][tag_value] = []
+                    group_resources_mapping[policy_id][tag_value].append(
+                        metric_file_path)
+                    break
+            else:
+                individual_resources.append(metric_file_path)
+        return group_resources_mapping, individual_resources
+
     def dump_error_report(self, reports_dir, metric_file_path,
                           exception):
         customer, cloud, tenant, region, _, instance_id = self.parse_folders(
@@ -311,6 +483,46 @@ class RecommendationService:
             region=region,
             item=item
         )
+
+    def format_autoscaling_recommendation(
+            self, group_id: str, group_policy: dict, shape: Shape, action: str,
+            instance_meta_mapping: dict, current_resources: List[str],
+            scale_step: int, dfs: List[pd.DataFrame]):
+        recommended_count = len(current_resources)
+        if action == ACTION_SCALE_UP:
+            recommended_count += scale_step
+        elif action == ACTION_SCALE_DOWN:
+            recommended_count -= scale_step
+
+        meta = {instance_id: instance_meta_mapping.get(instance_id, {})
+                for instance_id in current_resources}
+
+        _LOG.debug('Calculating autoscaling group stats')
+        stats = self.calculate_instance_group_stats(
+            dfs=dfs,
+            resources=current_resources)
+
+        item = {
+            'resource_id': group_id,
+            'resource_type': RIGHTSIZER_AUTOSCALING_GROUP_RESOURCE_TYPE,
+            'source': RIGHTSIZER_SOURCE,
+            'severity': DEFAULT_SEVERITY,
+            'recommendation': {
+                'instance_type': shape.get_dto(),
+                'current_resources': len(current_resources),
+                'recommended_resources': recommended_count
+            },
+            'stats': stats,
+            'policies': [
+                group_policy
+            ],
+            'general_actions': [
+                action
+            ],
+            'meta': meta
+        }
+        _LOG.debug(f'Formatted item: {item}')
+        return item
 
     def format_recommendation(self, stats, instance_id=None, schedule=None,
                               recommended_sizes=None, meta=None,
@@ -455,6 +667,44 @@ class RecommendationService:
         }
 
     @staticmethod
+    def calculate_instance_group_stats(dfs: List[pd.DataFrame] = None,
+                                       resources: List[str] = None,
+                                       exception=None):
+        from_date = None
+        to_date = None
+
+        if dfs:
+            for df in dfs:
+                df_from_date = min(df.T).to_pydatetime().isoformat()
+                df_to_date = max(df.T).to_pydatetime().isoformat()
+
+                if not from_date or df_from_date < from_date:
+                    from_date = df_from_date
+                if not to_date or df_to_date > to_date:
+                    to_date = df_to_date
+
+        if isinstance(exception, ExecutorException):
+            status = STATUS_ERROR
+            message = exception.reason
+        elif isinstance(exception, ProcessingPostponedException):
+            status = STATUS_POSTPONED
+            message = str(exception)
+        elif exception:
+            status = STATUS_ERROR
+            message = f'Unexpected error occurred: {str(exception)}'
+        else:
+            status = STATUS_OK
+            message = OK_MESSAGE
+
+        return {
+            'resources': resources or [],
+            'from_date': from_date,
+            'to_date': to_date,
+            'status': status,
+            'message': message
+        }
+
+    @staticmethod
     def generate_past_recommendation_stats(
             recommendations: List[RecommendationHistory]):
         last_captured_date = max([rec.last_metric_capture_date
@@ -467,7 +717,7 @@ class RecommendationService:
         }
 
     def calculate_advanced_stats(self, df, algorithm, centroids):
-        _LOG.debug(f'Calculating advanced stats')
+        _LOG.debug('Calculating advanced stats')
         result = {}
 
         metric_fields = self._get_metric_fields(df=df, algorithm=algorithm)
@@ -481,7 +731,7 @@ class RecommendationService:
                 _LOG.debug(f'{metric_field} advanced stats: {metric_stats}')
                 result[metric_field] = metric_stats
 
-        _LOG.debug(f'Calculating clustering stats')
+        _LOG.debug('Calculating clustering stats')
         cluster_stats = self._get_clusters_stats(centroids=centroids)
         _LOG.debug(f'Clustering stats: {cluster_stats}')
         result['clusters'] = cluster_stats
@@ -643,3 +893,196 @@ class RecommendationService:
             "min_per_day": round(float(np.min(cluster_count_per_day)), 2),
             "quartiles": quartiles
         }
+
+    @staticmethod
+    def _find_non_matching_autoscaling_resources(
+            instance_type_mapping: Dict[str, List[str]]):
+        """
+
+        Args:
+            instance_type_mapping: map of instance type to
+                list of resource id with that instance type
+
+        Returns:
+            Tuple:
+            0 - target autoscaling group instance type
+            1 - target autoscaling group resources (of target instance type)
+            2 - resources with different instance type from
+                the most common in group
+        """
+        _LOG.debug('Sorting group resources by the amount of resources')
+        instance_type_mapping = {k: v for k, v in
+                                 sorted(instance_type_mapping.items(),
+                                        key=lambda item: -len(item[1]))}
+        _LOG.debug(f'Instance type mapping: {instance_type_mapping}')
+        if len(instance_type_mapping) == 1:
+            instance_type = next(iter(instance_type_mapping))
+            _LOG.debug(f'Auto scaling group consist from resources with '
+                       f'same instance type: {instance_type}')
+            return instance_type, instance_type_mapping[instance_type], []
+        target_type = None
+        non_matching_resources = []
+        for instance_type, resources in instance_type_mapping.items():
+            if not target_type:
+                target_type = instance_type
+            elif len(resources) == len(instance_type_mapping[target_type]):
+                _LOG.warning(f'Several different instance types with same '
+                             f'amount of resources detected: {target_type}, '
+                             f'{instance_type}. Autoscaling policy '
+                             f'won\'t be applied.')
+                return (None, [],
+                        list(itertools.chain(*instance_type_mapping.values())))
+            else:
+                non_matching_resources.extend(
+                    instance_type_mapping[instance_type])
+
+        _LOG.debug(f'Non matching resources: {non_matching_resources}')
+        return (target_type, instance_type_mapping[target_type],
+                non_matching_resources)
+
+    def dump_autoscaling_resources(
+            self, instance_type_mapping: dict,
+            non_matching_resources: list,
+            dfs: Dict[str, pd.DataFrame],
+            instance_meta_mapping: dict,
+            id_file_mapping: dict,
+            reports_dir: str,
+            action: str
+    ):
+        id_type_mapping = {}
+        for instance_type, resources in instance_type_mapping.items():
+            for instance_id in resources:
+                id_type_mapping[instance_id] = instance_type
+
+        _LOG.warning(f'Resources with non-matching instance type for auto '
+                     f'scaling group: {non_matching_resources}. '
+                     f'Dumping as SHUTDOWN recommendations')
+        for instance_id in non_matching_resources:
+            customer, cloud, tenant, region, _, instance_id = self.parse_folders(
+                metric_file_path=id_file_mapping.get(instance_id)
+            )
+
+            formatted_item = self.format_recommendation(
+                stats=self.calculate_instance_stats(dfs[instance_id]),
+                instance_id=instance_id,
+                general_action=action,
+                meta=instance_meta_mapping.get(instance_id, {}),
+                savings=self.saving_service.calculate_savings(
+                    general_actions=[action],
+                    current_shape=id_type_mapping.get(instance_id),
+                    schedule=[],
+                    recommended_shapes=[],
+                    customer=customer,
+                    region=region,
+                    os=OSEnum.OS_LINUX.value,
+                )
+            )
+            _LOG.debug(f'Saving formatted item: {formatted_item}')
+            self.save_report(
+                reports_dir=reports_dir,
+                customer=customer,
+                cloud=cloud,
+                tenant=tenant,
+                region=region,
+                item=formatted_item
+            )
+
+    def get_autoscaling_group_scale_action(self, dfs: List[pd.DataFrame],
+                                           group_policy: dict,
+                                           algorithm: Algorithm,
+                                           instance_type: str):
+        resource_loads = []
+
+        for df in dfs:
+            resource_load = self._get_load_percent(
+                df=df
+            )
+            resource_loads.append(resource_load)
+
+        current_group_load = sum(resource_loads) / len(resource_loads)
+
+        thresholds = self._get_autoscaling_thresholds(
+            group_policy=group_policy,
+            algorithm=algorithm
+        )
+        action = ACTION_EMPTY
+        if current_group_load <= thresholds[0]:
+            action = ACTION_SCALE_DOWN
+        elif current_group_load >= thresholds[2]:
+            action = ACTION_SCALE_UP
+
+        if action == ACTION_EMPTY:
+            return action, 0
+
+        scale_step = self._get_autoscaling_scale_step(
+            group_policy=group_policy,
+            instance_type=instance_type,
+            resource_loads=resource_loads,
+            thresholds=thresholds
+        )
+        return action, scale_step
+
+    @staticmethod
+    def _get_load_percent(df: pd.DataFrame, metrics=AUTOSCALING_METRICS):
+        values = []
+        for metric in metrics:
+            if metric not in df.columns:
+                continue
+            if any([value not in (0, -1) for value in df[metric]]):
+                values.append(df[metric].quantile(0.9))
+        if not values:
+            return 0
+        return sum(values) / len(values)
+
+    @staticmethod
+    def _get_autoscaling_thresholds(group_policy: dict,
+                                    algorithm: Algorithm):
+        thresholds = group_policy.get(THRESHOLDS_ATTR)
+        if thresholds:
+            return (
+                thresholds.get(MIN_ATTR),
+                thresholds.get(DESIRED_ATTR),
+                thresholds.get(MAX_ATTR),
+            )
+        algorithm_thresholds = algorithm.recommendation_settings.thresholds
+
+        min_load = algorithm_thresholds[1]
+        max_load = algorithm_thresholds[2]
+        desired_load = round((min_load + max_load) / 2)
+
+        return min_load, desired_load, max_load
+
+    def _get_autoscaling_scale_step(self, group_policy: dict,
+                                    thresholds: tuple,
+                                    instance_type: str,
+                                    resource_loads: List[float]):
+        scale_step = group_policy.get(SCALE_STEP_ATTR)
+
+        if isinstance(scale_step, int):
+            return scale_step
+
+        shape = self.shape_service.get(name=instance_type)
+
+        shape_cpu = shape.cpu
+        shape_ram = shape.memory
+
+        total_used_cpu = 0
+        total_used_ram = 0
+
+        for resource_load in resource_loads:
+            total_used_cpu += resource_load * shape_cpu / 100
+            total_used_ram += resource_load * shape_ram / 100
+
+        desired_load = thresholds[1]
+
+        unused_koef = round(100 / desired_load, 2)
+
+        required_cpu = total_used_cpu * unused_koef
+        required_ram = total_used_ram * unused_koef
+
+        required_instances_by_cpu = required_cpu / shape_cpu
+        required_instances_by_ram = required_ram / shape_ram
+
+        desired_instances_count = round((required_instances_by_cpu +
+                                         required_instances_by_ram) / 2)
+        return abs(len(resource_loads) - desired_instances_count)

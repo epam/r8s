@@ -4,7 +4,8 @@ from commons.constants import INSTANCE_SPECS_STORAGE_TYPE, \
     STORAGE_TYPE_SETTING, DEFAULT_DAYS_TO_PROCESS, DEFAULT_META_POSTPONED_KEY, \
     DEFAULT_META_POSTPONED_FOR_ACTIONS_KEY, \
     ENV_SERVICE_MODE, DOCKER_SERVICE_MODE, ENV_FORCE_RESCAN, \
-    ENV_LM_TOKEN_LIFETIME_MINUTES, PARENT_ID_ATTR, APPLICATION_ID_ATTR
+    ENV_LM_TOKEN_LIFETIME_MINUTES, PARENT_ID_ATTR, APPLICATION_ID_ATTR, \
+    LICENSED_APPLICATION_ID_ATTR
 
 DEFAULT_LM_TOKEN_LIFETIME_MINUTES = 120
 
@@ -44,8 +45,12 @@ class EnvironmentService:
                               STORAGE_TYPE_SETTING)
 
     @staticmethod
-    def get_licensed_application_id():
+    def get_application_id():
         return os.environ.get(APPLICATION_ID_ATTR)
+
+    @staticmethod
+    def get_licensed_application_id():
+        return os.environ.get(LICENSED_APPLICATION_ID_ATTR)
 
     @staticmethod
     def get_licensed_parent_id():

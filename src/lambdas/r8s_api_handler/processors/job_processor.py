@@ -2,7 +2,8 @@ from datetime import datetime
 from typing import List
 import os
 from modular_sdk.commons.constants import (RIGHTSIZER_LICENSES_PARENT_TYPE,
-                                           ParentScope, ParentType)
+                                           ParentScope, ApplicationType,
+                                           ParentType)
 from modular_sdk.models.application import Application
 from modular_sdk.models.tenant import Tenant
 from modular_sdk.models.parent import Parent
@@ -143,10 +144,10 @@ class JobProcessor(AbstractCommandProcessor):
                                 APPLICATION_ID_ATTR))
 
         application_id = event.get(APPLICATION_ID_ATTR)
-        application = self.application_service.get_application_by_id(
+        licensed_application = self.application_service.get_application_by_id(
             application_id=application_id)
 
-        if not application:
+        if not licensed_application:
             _LOG.error(f'Application with id \'{application_id}\' '
                        f'does not exist')
             return build_response(
@@ -154,7 +155,8 @@ class JobProcessor(AbstractCommandProcessor):
                 content=f'Application with id \'{application_id}\' '
                         f'does not exist'
             )
-        if application.type != MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE:
+        if (licensed_application.type !=
+                MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE):
             _LOG.error(f'Application of '
                        f'{MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE} '
                        f'type required.')
@@ -176,19 +178,38 @@ class JobProcessor(AbstractCommandProcessor):
         user_id = event.get(USER_ID_ATTR)
         user_customer = event.get(PARAM_USER_CUSTOMER)
 
-        if user_customer != 'admin' and application.customer_id \
+        if user_customer != 'admin' and licensed_application.customer_id \
                 != user_customer:
             _LOG.warning(f'User \'{user_id}\' is not authorize to affect '
-                         f'customer \'{application.customer_id}\' entities.')
+                         f'customer \'{licensed_application.customer_id}\' '
+                         f'entities.')
             return build_response(
                 code=RESPONSE_FORBIDDEN_CODE,
                 content=f'User \'{user_id}\' is not authorize to affect '
-                        f'customer \'{application.customer_id}\' entities.'
+                        f'customer \'{licensed_application.customer_id}\' '
+                        f'entities.'
+            )
+
+        applications = self.application_service.list(
+            customer=licensed_application.customer_id,
+            deleted=False,
+            _type=ApplicationType.RIGHTSIZER,
+            limit=1
+        )
+        application = next(applications, None)
+        if not application:
+            _LOG.debug('No RIGHTSIZER application '
+                       'found matching given query')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content='No RIGHTSIZER application '
+                        'found matching given query'
             )
 
         envs = {
             "AWS_REGION": self.environment_service.aws_region(),
             "log_level": os.environ.get('log_level', 'ERROR'),
+            "licensed_application_id": licensed_application.application_id,
             "application_id": application.application_id,
             "FORCE_RESCAN": os.environ.get('force_rescan', "False"),
             "DEBUG": str(self.environment_service.is_debug()),
@@ -211,7 +232,7 @@ class JobProcessor(AbstractCommandProcessor):
             _LOG.debug(f'Validating user-provided scan tenants: '
                        f'{scan_tenants}')
             self._validate_input_tenants(
-                application=application,
+                application=licensed_application,
                 parents=parents,
                 input_scan_tenants=scan_tenants
             )
@@ -220,19 +241,19 @@ class JobProcessor(AbstractCommandProcessor):
                        f'{", ".join([p.parent_id for p in parents])}')
             scan_tenants = self.parent_service.resolve_tenant_names(
                 parents=parents,
-                cloud=application.meta.cloud
+                cloud=licensed_application.meta.cloud
             )
         _LOG.debug(f'Setting scan_tenants env to '
                    f'\'{scan_tenants}\'')
         envs['SCAN_TENANTS'] = ','.join(scan_tenants)
 
         application_meta = self.application_service.get_application_meta(
-            application=application)
+            application=licensed_application)
         _LOG.debug(f'Checking permission to submit job on license '
                    f'\'{application_meta.license_key}\' '
                    f'for tenants: {scan_tenants}')
         tenant_status_map = self._validate_licensed_job(
-            application=application,
+            application=licensed_application,
             license_key=application_meta.license_key,
             scan_tenants=scan_tenants
         )
@@ -250,7 +271,7 @@ class JobProcessor(AbstractCommandProcessor):
             envs[SCAN_TO_DATE_ATTR.upper()] = scan_to_date
 
         _LOG.debug(f'Going to submit job from application '
-                   f'\'{application.application_id}\'')
+                   f'\'{licensed_application.application_id}\'')
         response = self.job_service.submit_job(
             job_owner=user_id,
             application_id=application_id,

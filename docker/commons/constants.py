@@ -140,6 +140,7 @@ ALLOWED_RULE_CONDITIONS = (
 
 ALLOWED_SHAPE_FIELDS = ('name', 'family_type', 'physical_processor',
                         'architecture')
+LICENSED_APPLICATION_ID_ATTR = 'licensed_application_id'
 APPLICATION_ID_ATTR = 'application_id'
 PARENT_ID_ATTR = 'parent_id'
 PARENT_SCOPE_ALL_TENANTS = 'ALL_TENANTS'
@@ -228,3 +229,14 @@ TAG_GROUP_ID = 'r8s_group_id'
 RESOURCE_TYPE_ATTR = 'resource_type'
 RESOURCE_TYPE_VM = 'VM'
 ALGORITHM_MAPPING_ATTR = 'algorithm_mapping'
+
+TYPE_ATTR = 'type'
+ID_ATTR = 'id'
+GROUP_POLICY_AUTO_SCALING = 'AUTO_SCALING'
+TAG_ATTR = 'tag'
+MIN_ATTR = 'min'
+MAX_ATTR = 'max'
+DESIRED_ATTR = 'desired'
+SCALE_STEP_ATTR = 'scale_step'
+SCALE_STEP_AUTO_DETECT = 'AUTO_DETECT'
+COOLDOWN_DAYS_ATTR = 'cooldown_days'
