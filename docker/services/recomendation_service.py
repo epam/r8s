@@ -498,7 +498,9 @@ class RecommendationService:
                 for instance_id in current_resources}
 
         _LOG.debug('Calculating autoscaling group stats')
-        stats = self.calculate_instance_group_stats(dfs=dfs)
+        stats = self.calculate_instance_group_stats(
+            dfs=dfs,
+            resources=current_resources)
 
         item = {
             'resource_id': group_id,
@@ -666,6 +668,7 @@ class RecommendationService:
 
     @staticmethod
     def calculate_instance_group_stats(dfs: List[pd.DataFrame] = None,
+                                       resources: List[str] = None,
                                        exception=None):
         from_date = None
         to_date = None
@@ -694,6 +697,7 @@ class RecommendationService:
             message = OK_MESSAGE
 
         return {
+            'resources': resources or [],
             'from_date': from_date,
             'to_date': to_date,
             'status': status,
