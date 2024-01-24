@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * `delete` - Deletes group policy from application
   * `add_autoscaling` - Configures AUTO_SCALING group policy
   * `update_autoscaling` - Updates AUTO_SCALING group policy
+* Remove unused `--parent_id` parameter from r8s parent shaperule delete
+* Fix invalid parent id in response of `r8s parent shaperule delete`
 
 ## [3.1.1] - 2024-01-18
 * fix issue with compatibility with `modular-api` for command `parent shape_rule`

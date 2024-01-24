@@ -312,7 +312,7 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
         return build_response(
             code=RESPONSE_OK_CODE,
             content=f'Shape rule \'{rule_id}\' was deleted from parent '
-                    f'\'{target_parent.application_id}\''
+                    f'\'{target_parent.parent_id}\''
         )
 
     @staticmethod

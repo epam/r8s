@@ -718,12 +718,10 @@ class AdapterClient:
                                    method=HTTP_PATCH,
                                    payload=request)
 
-    def shape_rule_delete(self, rule_id, parent_id=None):
+    def shape_rule_delete(self, rule_id):
         request = {
             PARAM_ID: rule_id
         }
-        if parent_id:
-            request[PARAM_PARENT_ID] = parent_id
 
         return self.__make_request(resource=API_SHAPE_RULES,
                                    method=HTTP_DELETE,
