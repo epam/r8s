@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List
 import os
 from modular_sdk.commons.constants import (RIGHTSIZER_LICENSES_PARENT_TYPE,
-                                           ParentScope)
+                                           ParentScope, ApplicationType)
 from modular_sdk.models.application import Application
 from modular_sdk.models.tenant import Tenant
 from modular_sdk.models.parent import Parent
@@ -192,7 +192,7 @@ class JobProcessor(AbstractCommandProcessor):
         applications = self.application_service.list(
             customer=licensed_application.customer_id,
             deleted=False,
-            _type=MAESTRO_RIGHTSIZER_APPLICATION_TYPE,
+            _type=ApplicationType.RIGHTSIZER,
             limit=1
         )
         application = next(applications, None)
