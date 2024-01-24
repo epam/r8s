@@ -2,7 +2,7 @@
 -r requirements.txt
 
 # Install modular-sdk
-modular-sdk>=3.3.8,<=4.0.0
+modular-sdk>=4.0.3,<5.0.0
 
 # Install tests requirements
 matplotlib==3.6.2

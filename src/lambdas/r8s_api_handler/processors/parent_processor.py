@@ -80,11 +80,9 @@ class ParentProcessor(AbstractCommandProcessor):
         parents: List[Parent] = []
 
         for application in applications:
-            application_parents = self.parent_service.query_application_parents(
-                customer_id=application.customer_id,
+            application_parents = self.parent_service.list_application_parents(
                 application_id=application.application_id,
-                type_=ParentType.RIGHTSIZER_LICENSES_PARENT,
-                is_deleted=False
+                only_active=True
             )
             _LOG.debug(f'Got \'{len(application_parents)}\' from application '
                        f'\'{application.application_id}\'')

@@ -174,11 +174,9 @@ class OperationModeCheckHandler:
 
         parents = []
         for application in applications:
-            application_parents = self.parent_service.query_application_parents(
+            application_parents = self.parent_service.list_application_parents(
                 application_id=application.application_id,
-                customer_id=application.customer_id,
-                type_=ParentType.RIGHTSIZER_PARENT,
-                is_deleted=False
+                only_active=True
             )
             parents.extend(application_parents)
         if not applications or not parents:

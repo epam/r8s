@@ -35,25 +35,11 @@ class RightSizerParentService(ParentService):
             customer_service=customer_service
         )
 
-    @staticmethod
-    def list_application_parents(application_id, type_: str,
-                                 only_active=True):
-        if only_active:
-            return list(Parent.scan(
-                filter_condition=
-                (Parent.type == type_) &
-                (Parent.application_id == application_id) &
-                (Parent.is_deleted == False)))
-        return list(Parent.scan(
-            filter_condition=(Parent.application_id == application_id) &
-                             (Parent.type == type_)))
-
     def get_job_parents(self, application_id: str, parent_id: str = None):
         if parent_id:
             return [self.get_parent_by_id(parent_id=parent_id)]
         return self.list_application_parents(
             application_id=application_id,
-            type_=MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE,
             only_active=True
         )
 

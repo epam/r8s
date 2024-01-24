@@ -34,16 +34,6 @@ class RightSizerParentService(ParentService):
             customer_service=customer_service
         )
 
-    def query_application_parents(self, customer_id: str, application_id: str,
-                                  type_: ParentType, is_deleted=False):
-        query = list(self.query_by_scope_index(
-            customer_id=customer_id,
-            type_=type_,
-            is_deleted=is_deleted,
-        ))
-        return [parent for parent in query if
-                parent.application_id == application_id]
-
     def get_parent_meta(self, parent: Parent) -> LicensesParentMeta:
         meta: MapAttribute = parent.meta
         if meta:

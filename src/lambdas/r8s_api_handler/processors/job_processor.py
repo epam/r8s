@@ -375,11 +375,9 @@ class JobProcessor(AbstractCommandProcessor):
             application = self.application_service.get_application_by_id(
                 application_id=application_id)
             _LOG.debug(f'Searching for application {application_id} parents')
-            parents = self.parent_service.query_application_parents(
-                application_id=application_id,
-                customer_id=application.customer_id,
-                type_=ParentType.RIGHTSIZER_LICENSES_PARENT,
-                is_deleted=False
+            parents = self.parent_service.list_application_parents(
+                application_id=application.application_id,
+                only_active=True
             )
         parents = [parent for parent in parents
                    if parent.scope != ParentScope.DISABLED]
