@@ -209,7 +209,7 @@ class JobProcessor(AbstractCommandProcessor):
             "AWS_REGION": self.environment_service.aws_region(),
             "log_level": os.environ.get('log_level', 'ERROR'),
             "licensed_application_id": licensed_application.application_id,
-            "application": application.application_id,
+            "application_id": application.application_id,
             "FORCE_RESCAN": os.environ.get('force_rescan', "False"),
             "DEBUG": str(self.environment_service.is_debug()),
             ENV_LM_TOKEN_LIFETIME_MINUTES: str(
