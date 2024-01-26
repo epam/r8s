@@ -177,11 +177,9 @@ class RightSizerApplicationService(ApplicationService):
                         and not application.is_deleted:
                     return [application]
                 return []
-            applications = self.list(_type=type_)
+            applications = self.list(_type=type_, deleted=False)
             # return all application of RIGHTSIZER type
-            return [app for app in applications
-                    if app.type == type_
-                    and not app.is_deleted]
+            return list(applications)
 
         if event_application:
             # return application by id if it's customer matches with
