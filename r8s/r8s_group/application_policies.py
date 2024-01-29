@@ -34,7 +34,7 @@ def describe(application_id=None, group_id=None):
 @click.option('--application_id', '-aid', type=str, required=True,
               help='Id of the application to add policy.')
 @click.option('--tag', '-tg', type=str, required=True,
-              help='Group policy tag.')
+              help='Group policy tag name.')
 @click.option('--cooldown_days', '-cd', type=int, default=7,
               help='Minimum amount of days between scaling events.')
 @click.option('--scale_step', '-ss', type=int, required=False,
@@ -87,7 +87,7 @@ def add_autoscaling(application_id: str, tag: str, cooldown_days: int,
 @click.option('--group_id', '-gid', type=str, required=True,
               help='Id of the group to update.')
 @click.option('--tag', '-tg', type=str,
-              help='Group policy tag.')
+              help='Group policy tag name.')
 @click.option('--cooldown_days', '-cd', type=int,
               help='Minimum amount of days between scaling events.')
 @click.option('--scale_step', '-ss', type=int,
