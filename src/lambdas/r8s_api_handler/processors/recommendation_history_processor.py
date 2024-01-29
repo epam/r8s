@@ -53,7 +53,7 @@ class RecommendationHistoryProcessor(AbstractCommandProcessor):
         _LOG.debug(f'Searching for recommendations')
         recommendations = self.recommendation_history_service.list(
             customer=customer,
-            instance_id=instance_id,
+            resource_id=instance_id,
             recommendation_type=recommendation_type,
             job_id=job_id
         )
@@ -106,24 +106,24 @@ class RecommendationHistoryProcessor(AbstractCommandProcessor):
                    f'recommendation of type \'{recommendation_type}\'')
         recommendation = list(
             self.recommendation_history_service.get_recent_recommendation(
-                instance_id=instance_id,
+                resource_id=instance_id,
                 recommendation_type=recommendation_type,
                 customer=customer,
                 limit=1
             ))
         if not recommendation:
-            _LOG.error(f'No recommendations found matching given query.')
+            _LOG.error('No recommendations found matching given query.')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No recommendations found matching given query.'
+                content='No recommendations found matching given query.'
             )
         recommendation = recommendation[0]
-        _LOG.debug(f'Updating recommendation')
+        _LOG.debug('Updating recommendation')
         recommendation = self.recommendation_history_service.save_feedback(
             recommendation=recommendation,
             feedback_status=feedback_status
         )
-        _LOG.debug(f'Describing recommendation dto')
+        _LOG.debug('Describing recommendation dto')
         response = recommendation.get_dto()
 
         _LOG.debug(f'Response: {response}')
