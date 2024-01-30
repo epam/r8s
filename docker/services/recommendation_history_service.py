@@ -23,7 +23,7 @@ class RecommendationHistoryService:
                schedule: list, recommended_shapes: list, actions: list,
                instance_meta: dict,
                last_metric_capture_date: datetime.date,
-               resource_type = RESOURCE_TYPE_INSTANCE
+               resource_type=RESOURCE_TYPE_INSTANCE
                ) -> List[RecommendationHistory]:
         if ACTION_ERROR in actions:
             _LOG.debug(f'Skipping saving result to history collection. '
@@ -65,12 +65,12 @@ class RecommendationHistoryService:
         return result
 
     def create_group_recommendation(self, resource_id: str,
-               job_id: str, customer: str, tenant: str,
-               region: str, current_instance_type: str,
-               action: str, recommendation: dict,
-               instance_meta: dict,
-               last_metric_capture_date: datetime.date
-               ) -> Optional[RecommendationHistory]:
+                                    job_id: str, customer: str, tenant: str,
+                                    region: str, current_instance_type: str,
+                                    action: str, recommendation: dict,
+                                    instance_meta: dict,
+                                    last_metric_capture_date: datetime.date
+                                    ) -> Optional[RecommendationHistory]:
         if action == ACTION_ERROR:
             _LOG.debug(f'Skipping saving result to history collection. '
                        f'Action: \'{action}\'')
@@ -173,19 +173,21 @@ class RecommendationHistoryService:
 
     def get_tenant_recommendation(
             self, tenant: str, last_days=60,
-            filter_only_last_job=True) -> \
+            filter_only_last_job=True,
+            resource_type: str = RESOURCE_TYPE_INSTANCE) -> \
             Dict[str, List[RecommendationHistory]]:
         threshold_date = self._get_past_date(n_days=last_days)
         query = {
             'added_at__gt': threshold_date,
-            'tenant': tenant
+            'tenant': tenant,
+            'resource_type': resource_type
         }
         items = RecommendationHistory.objects(**query).order_by('-added_at')
         result = {}
 
         for item in items:
-            instance_id = item.instance_id
-            if item.instance_id not in result:
+            instance_id = item.resource_id
+            if instance_id not in result:
                 result[instance_id] = [item]
             elif (not filter_only_last_job or
                   result[instance_id][0].job_id == item.job_id):
@@ -193,11 +195,13 @@ class RecommendationHistoryService:
 
         return result
 
-    def get_instance_last_captured_date_map(self, tenant, last_days=40):
+    def get_instance_last_captured_date_map(
+            self, tenant, resource_type=RESOURCE_TYPE_INSTANCE, last_days=40):
         threshold_date = self._get_past_date(n_days=last_days)
         query = {
             'added_at__gt': threshold_date,
-            'tenant': tenant
+            'tenant': tenant,
+            'resource_type': resource_type
         }
         items = RecommendationHistory.objects(**query).order_by('-added_at')
 
