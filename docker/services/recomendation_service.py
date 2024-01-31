@@ -13,7 +13,7 @@ from commons.constants import STATUS_ERROR, STATUS_OK, OK_MESSAGE, \
     SAVING_OPTIONS_ATTR, PROBABILITY, ALLOWED_ACTIONS, \
     GROUP_POLICY_AUTO_SCALING, TYPE_ATTR, JOB_STEP_PROCESS_METRICS, \
     THRESHOLDS_ATTR, MIN_ATTR, MAX_ATTR, DESIRED_ATTR, SCALE_STEP_ATTR, \
-    ACTION_SCALE_DOWN, ACTION_SCALE_UP
+    ACTION_SCALE_DOWN, ACTION_SCALE_UP, SCALE_STEP_AUTO_DETECT
 from commons.exception import ExecutorException, ProcessingPostponedException
 from commons.log_helper import get_logger
 from commons.profiler import profiler
@@ -408,10 +408,16 @@ class RecommendationService:
 
         if (scale_action == ACTION_SCALE_DOWN and
                 scale_step >= len(target_resources)):
-            _LOG.debug('Scale down is blocked due to '
-                       'lack of available resources.')
-            scale_action = ACTION_EMPTY
-            scale_step = 0
+            policy_scale_step = group_policy.get(SCALE_STEP_ATTR)
+            if policy_scale_step == SCALE_STEP_AUTO_DETECT:
+                _LOG.debug('Scaling down to single group resource '
+                           'will be recommended')
+                scale_step = len(target_resources) - 1
+            else:
+                _LOG.debug('Scale down is blocked due to lack of '
+                           'available resources and strict scale step.')
+                scale_action = ACTION_EMPTY
+                scale_step = 0
 
         _LOG.debug(f'Formatting autoscaling group {group_id} recommendation')
         item = self.format_autoscaling_recommendation(
