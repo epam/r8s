@@ -406,6 +406,13 @@ class RecommendationService:
         )
         _LOG.debug(f'Scaling action: {scale_action}, scale step: {scale_step}')
 
+        if (scale_action == ACTION_SCALE_DOWN and
+                scale_step >= len(target_resources)):
+            _LOG.debug('Scale down is blocked due to '
+                       'lack of available resources.')
+            scale_action = ACTION_EMPTY
+            scale_step = 0
+
         _LOG.debug(f'Formatting autoscaling group {group_id} recommendation')
         item = self.format_autoscaling_recommendation(
             group_id=group_id,
