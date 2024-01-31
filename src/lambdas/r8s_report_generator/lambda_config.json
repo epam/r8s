@@ -8,14 +8,14 @@
   "memory": 128,
   "timeout": 100,
   "lambda_path": "/lambdas/r8s_report_generator",
+  "logs_expiration": "${logs_expiration}",
   "dependencies": [
   ],
   "event_sources": [
   ],
   "env_variables": {
     "RABBITMQ_APPLICATION_ID": "${RABBITMQ_APPLICATION_ID}",
-    "log_level": "${log_level}",
-    "logs_expiration": "${logs_expiration}"
+    "log_level": "${log_level}"
   },
   "publish_version": true,
   "alias": "${lambdas_alias_name}",
