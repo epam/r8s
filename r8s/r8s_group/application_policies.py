@@ -92,7 +92,7 @@ def add_autoscaling(application_id: str, tag: str, cooldown_days: int,
               help='Minimum amount of days between scaling events.')
 @click.option('--scale_step', '-ss', type=int,
               help='Amount of instances to spin up/terminate during scaling '
-                   'event. If not specified, AUTO_DETECT will be used.')
+                   'event. If set to 0, AUTO_DETECT will be used.')
 @click.option('--threshold_min', '-tmin', type=int,
               help='Threshold value for triggering scale in event')
 @click.option('--threshold_desired', '-tdes', type=int,
@@ -112,8 +112,11 @@ def update_autoscaling(application_id: str, group_id: str, tag=None,
         PARAM_TYPE: GROUP_POLICY_AUTO_SCALING,
     }
 
-    if scale_step:
-        group_policy[PARAM_SCALE_STEP] = scale_step
+    if scale_step is not None:
+        if scale_step == 0:
+            group_policy[PARAM_SCALE_STEP] = SCAPE_STEP_AUTO_DETECT
+        else:
+            group_policy[PARAM_SCALE_STEP] = scale_step
     if tag:
         group_policy[PARAM_TAG] = tag
     if cooldown_days:
@@ -130,7 +133,6 @@ def update_autoscaling(application_id: str, group_id: str, tag=None,
             PARAM_DESIRED: threshold_desired,
             PARAM_MAX: threshold_max
         }
-
     from r8s_service.initializer import init_configuration
     return init_configuration().application_policies_patch(
         application_id=application_id,
