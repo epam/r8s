@@ -6,6 +6,9 @@ from mongoengine import StringField, DateTimeField, FloatField, \
 from commons.enum import ListEnum
 from models.base_model import BaseModel
 
+RESOURCE_TYPE_INSTANCE = 'INSTANCE'
+RESOURCE_TYPE_GROUP = 'GROUP'
+
 
 class FeedbackStatusEnum(ListEnum):
     APPLIED = 'APPLIED'
@@ -48,7 +51,8 @@ class RecommendationTypeEnum(ListEnum):
 
 
 class RecommendationHistory(BaseModel):
-    instance_id = StringField(null=True)
+    resource_id = StringField(null=True)
+    resource_type = StringField(null=True)
     job_id = StringField(null=True)
     customer = StringField(null=True)
     tenant = StringField(null=True)
@@ -66,11 +70,11 @@ class RecommendationHistory(BaseModel):
 
     meta = {
         'indexes': [
-            'instance_id',
+            'resource_id',
             'customer',
-            ('instance_id', 'job_id'),
+            ('resource_id', 'job_id'),
             {
-                'fields': ['instance_id', 'added_at', 'recommendation_type'],
+                'fields': ['resource_id', 'added_at', 'recommendation_type'],
                 'unique': True
             },
             {

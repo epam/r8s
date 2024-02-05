@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 import datetime
 
 from commons.constants import ACTION_EMPTY, ACTION_ERROR, ACTION_SCHEDULE, \
@@ -6,7 +6,8 @@ from commons.constants import ACTION_EMPTY, ACTION_ERROR, ACTION_SCHEDULE, \
     ACTION_SHUTDOWN, SAVING_OPTIONS_ATTR
 from commons.log_helper import get_logger
 from models.recommendation_history import RecommendationHistory, \
-    FeedbackStatusEnum, RecommendationTypeEnum
+    FeedbackStatusEnum, RecommendationTypeEnum, RESOURCE_TYPE_INSTANCE, \
+    RESOURCE_TYPE_GROUP
 
 _LOG = get_logger('r8s-recommendation-history-service')
 
@@ -16,11 +17,13 @@ RESIZE_ACTIONS = [ACTION_SCALE_UP, ACTION_SCALE_DOWN,
 
 class RecommendationHistoryService:
 
-    def create(self, instance_id: str, job_id: str, customer: str, tenant: str,
+    def create(self, resource_id: str,
+               job_id: str, customer: str, tenant: str,
                region: str, current_instance_type: str, savings: dict,
                schedule: list, recommended_shapes: list, actions: list,
                instance_meta: dict,
-               last_metric_capture_date: datetime.date
+               last_metric_capture_date: datetime.date,
+               resource_type=RESOURCE_TYPE_INSTANCE
                ) -> List[RecommendationHistory]:
         if ACTION_ERROR in actions:
             _LOG.debug(f'Skipping saving result to history collection. '
@@ -44,7 +47,8 @@ class RecommendationHistoryService:
                              f'{action}')
                 continue
             recommendation_item = self._create_or_update_recent(
-                instance_id=instance_id,
+                resource_id=resource_id,
+                resource_type=resource_type,
                 job_id=job_id,
                 customer=customer,
                 tenant=tenant,
@@ -60,13 +64,42 @@ class RecommendationHistoryService:
             result.append(recommendation_item)
         return result
 
-    def _create_or_update_recent(self, instance_id, job_id, customer, tenant,
+    def create_group_recommendation(self, resource_id: str,
+                                    job_id: str, customer: str, tenant: str,
+                                    region: str, current_instance_type: str,
+                                    action: str, recommendation: dict,
+                                    instance_meta: dict,
+                                    last_metric_capture_date: datetime.date
+                                    ) -> Optional[RecommendationHistory]:
+        if action == ACTION_ERROR:
+            _LOG.debug(f'Skipping saving result to history collection. '
+                       f'Action: \'{action}\'')
+            return
+        return self._create_or_update_recent(
+            resource_id=resource_id,
+            resource_type=RESOURCE_TYPE_GROUP,
+            job_id=job_id,
+            customer=customer,
+            tenant=tenant,
+            region=region,
+            current_instance_type=current_instance_type,
+            current_month_price_usd=None,
+            recommendation_type=action,
+            recommendation=recommendation,
+            savings=None,
+            instance_meta=instance_meta,
+            last_metric_capture_date=last_metric_capture_date
+        )
+
+    def _create_or_update_recent(self, resource_id, resource_type,
+                                 job_id, customer, tenant,
                                  region, current_instance_type,
                                  current_month_price_usd, recommendation_type,
                                  recommendation, savings, instance_meta,
                                  last_metric_capture_date):
         recent_recommendations = self.get_recent_recommendation(
-            instance_id=instance_id,
+            resource_id=resource_id,
+            resource_type=resource_type,
             recommendation_type=recommendation_type,
             without_feedback=True
         )
@@ -75,10 +108,11 @@ class RecommendationHistoryService:
 
         if not recent_recommendations:
             _LOG.debug(f'No recent \'{recommendation_type}\' recommendation '
-                       f'found for instance \'{instance_id}\'. Creating new '
+                       f'found for resource \'{resource_id}\'. Creating new '
                        f'record.')
             return RecommendationHistory(
-                instance_id=instance_id,
+                resource_id=resource_id,
+                resource_type=resource_type,
                 job_id=job_id,
                 customer=customer,
                 tenant=tenant,
@@ -93,13 +127,13 @@ class RecommendationHistoryService:
             )
         recent_recommendations = list(recent_recommendations)
         if len(recent_recommendations) > 1:
-            _LOG.error(f'More than one recent recommendation found. '
-                       f'Deleting all except the most recent')
+            _LOG.error('More than one recent recommendation found. '
+                       'Deleting all except the most recent')
             for recommendation in recent_recommendations[1:]:
                 self.delete(recommendation=recommendation)
 
         recent_recommendation: RecommendationHistory = recent_recommendations[0]
-        _LOG.debug(f'Recent recommendation found, updating.')
+        _LOG.debug('Recent recommendation found, updating.')
         recent_recommendation.update(
             job_id=job_id,
             customer=customer,
@@ -115,12 +149,15 @@ class RecommendationHistoryService:
         )
         return recent_recommendation
 
-    def get_recent_recommendation(self, instance_id, recommendation_type=None,
+    def get_recent_recommendation(self, resource_id,
+                                  resource_type=RESOURCE_TYPE_INSTANCE,
+                                  recommendation_type=None,
                                   without_feedback=False, limit=None):
         threshold_date = self._get_week_start_dt()
 
         query = {
-            'instance_id': instance_id,
+            'resource_id': resource_id,
+            'resource_type': resource_type,
             'added_at__gt': threshold_date
         }
         if recommendation_type:
@@ -136,19 +173,21 @@ class RecommendationHistoryService:
 
     def get_tenant_recommendation(
             self, tenant: str, last_days=60,
-            filter_only_last_job=True) -> \
+            filter_only_last_job=True,
+            resource_type: str = RESOURCE_TYPE_INSTANCE) -> \
             Dict[str, List[RecommendationHistory]]:
         threshold_date = self._get_past_date(n_days=last_days)
         query = {
             'added_at__gt': threshold_date,
-            'tenant': tenant
+            'tenant': tenant,
+            'resource_type': resource_type
         }
         items = RecommendationHistory.objects(**query).order_by('-added_at')
         result = {}
 
         for item in items:
-            instance_id = item.instance_id
-            if item.instance_id not in result:
+            instance_id = item.resource_id
+            if instance_id not in result:
                 result[instance_id] = [item]
             elif (not filter_only_last_job or
                   result[instance_id][0].job_id == item.job_id):
@@ -156,11 +195,13 @@ class RecommendationHistoryService:
 
         return result
 
-    def get_instance_last_captured_date_map(self, tenant, last_days=40):
+    def get_instance_last_captured_date_map(
+            self, tenant, resource_type=RESOURCE_TYPE_INSTANCE, last_days=40):
         threshold_date = self._get_past_date(n_days=last_days)
         query = {
             'added_at__gt': threshold_date,
-            'tenant': tenant
+            'tenant': tenant,
+            'resource_type': resource_type
         }
         items = RecommendationHistory.objects(**query).order_by('-added_at')
 
@@ -177,7 +218,8 @@ class RecommendationHistoryService:
     @staticmethod
     def get_instance_recommendations(instance_id, limit=None):
         query = {
-            'instance_id': instance_id
+            'resource_id': instance_id,
+            'resource_type': "INSTANCE"
         }
 
         result = RecommendationHistory.objects(**query).order_by('-added_at')
@@ -188,7 +230,8 @@ class RecommendationHistoryService:
     @staticmethod
     def get_recommendation_with_feedback(instance_id):
         return list(RecommendationHistory.objects(
-            instance_id=instance_id,
+            resource_id=instance_id,
+            resource_type=RESOURCE_TYPE_INSTANCE,
             feedback_dt__ne=None,
             feedback_status__ne=None
         ))

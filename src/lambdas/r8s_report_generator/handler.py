@@ -106,11 +106,11 @@ class ReportGenerator(AbstractLambda):
                     priority_saving_threshold= \
                         priority_saving_threshold)
 
-                _LOG.debug(f'Preparing request for sending to maestro')
+                _LOG.debug('Preparing request for sending to maestro')
                 formatted_report = self.prepare_request(report=report)
 
-                _LOG.debug(f'Formatted report: {formatted_report}')
-                _LOG.debug(f'Sending request to Maestro')
+                _LOG.debug('Formatted report: {formatted_report}')
+                _LOG.debug('Sending request to Maestro')
 
                 response_code, response_message = \
                     self._send_notification_to_m3(json_model=formatted_report)
@@ -145,13 +145,13 @@ class ReportGenerator(AbstractLambda):
                 content=f'No recommendations found '
                         f'for tenant \'{tenant.name}\''
             )
-        _LOG.debug(f'Filtering recommendation to include only one '
-                   f'recommendations from the last job with the resource')
+        _LOG.debug('Filtering recommendation to include only one '
+                   'recommendations from the last job with the resource')
         recommendations = self.filter_latest_job_resource(
             recommendations=recommendations
         )
 
-        _LOG.debug(f'Formatting recommendations')
+        _LOG.debug('Formatting recommendations')
         formatted = []
         for recommendation in recommendations:
             formatted_recommendation = self.format_recommendation(
@@ -162,18 +162,18 @@ class ReportGenerator(AbstractLambda):
             formatted_recommendations=formatted,
             saving_threshold=priority_saving_threshold)
 
-        _LOG.debug(f'Calculating total summary')
+        _LOG.debug('Calculating total summary')
         total_summary = self._resources_summary(resources=formatted)
-        _LOG.debug(f'Total summary: {total_summary}')
+        _LOG.debug('Total summary: {total_summary}')
         if len(priority_resources) > MAX_PRIORITY_RESOURCES:
             priority_resources = priority_resources[0:MAX_PRIORITY_RESOURCES]
 
-        _LOG.debug(f'Dividing resources by recommendation type')
+        _LOG.debug('Dividing resources by recommendation type')
         by_type = self.divide_by_recommendation_type(
             formatted,
             max_per_type=MAX_RESOURCES_PER_TYPE)
 
-        _LOG.debug(f'Calculating displayed items summary')
+        _LOG.debug('Calculating displayed items summary')
         displayed_resources = list(itertools.chain.from_iterable(
             by_type.values()))
         report_summary = self._resources_summary(
@@ -258,7 +258,7 @@ class ReportGenerator(AbstractLambda):
         result = []
         resource_job_id_mapping = {}
         for recommendation in recommendations:
-            instance_id = recommendation.instance_id
+            instance_id = recommendation.resource_id
             recommendation_type = recommendation.get_json().get(
                 RECOMMENDATION_TYPE_ATTR)
 
@@ -446,7 +446,7 @@ class ReportGenerator(AbstractLambda):
                   2) * 100
             for saving_item in estimated_savings]
         result = {
-            "resource_id": recommendation.instance_id,
+            "resource_id": recommendation.resource_id,
             "recommendation": recommended_instance_types,
             "recommendation_type": recommendation.recommendation_type.value,
             "description": "",
@@ -477,7 +477,7 @@ class ReportGenerator(AbstractLambda):
                   2) * 100
             for saving_item in savings_usd]
         return {
-            "resource_id": recommendation.instance_id,
+            "resource_id": recommendation.resource_id,
             "recommendation": list(recommendation.recommendation),
             "recommendation_type": recommendation.recommendation_type.value,
             "description": "",
@@ -497,7 +497,7 @@ class ReportGenerator(AbstractLambda):
             else:
                 savings_usd.append(saving)
         return {
-            "resource_id": recommendation.instance_id,
+            "resource_id": recommendation.resource_id,
             "recommendation": [],
             "recommendation_type": recommendation.recommendation_type.value,
             "description": "",

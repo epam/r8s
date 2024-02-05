@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Union, List, Dict
 import itertools
 
@@ -22,7 +22,7 @@ from models.algorithm import Algorithm
 from models.base_model import CloudEnum
 from models.parent_attributes import LicensesParentMeta
 from models.recommendation_history import RecommendationHistory, \
-    RecommendationTypeEnum
+    RecommendationTypeEnum, RESOURCE_TYPE_GROUP
 from models.shape import Shape
 from models.shape_price import OSEnum
 from services.environment_service import EnvironmentService
@@ -265,7 +265,7 @@ class RecommendationService:
             try:
                 _LOG.debug(f'Saving recommendation to history')
                 history_items = self.recommendation_history_service.create(
-                    instance_id=instance_id,
+                    resource_id=instance_id,
                     job_id=self.environment_service.get_batch_job_id(),
                     customer=customer,
                     tenant=tenant,
@@ -338,6 +338,35 @@ class RecommendationService:
                                   algorithm: Algorithm, reports_dir,
                                   instance_meta_mapping: dict):
         _LOG.debug(f'Loading group resources: {metric_file_paths}')
+
+        customer, cloud, tenant, region, _, instance_id = self.parse_folders(
+            metric_file_path=metric_file_paths[0]
+        )
+
+        recent_recommendations = self.recommendation_history_service.get_recent_recommendation(
+            resource_id=group_id,
+            resource_type=RESOURCE_TYPE_GROUP,
+            limit=1
+        )
+        if recent_recommendations:
+            last_recommendation = next(iter(recent_recommendations))
+            generated_at = last_recommendation.added_at
+            cooldown_days = group_policy.get('cooldown_days')
+
+            cooldown_passed = self._cooldown_period_passed(
+                last_scan_date=generated_at,
+                cooldown_days=cooldown_days)
+            if not cooldown_passed:
+                _LOG.debug('Cooldown period is not passed yet, '
+                           'past recommendation will be used')
+                self.dump_group_report_from_recommendation(
+                    reports_dir=reports_dir,
+                    group_policy=group_policy,
+                    cloud=cloud,
+                    region=region,
+                    recommendation=last_recommendation
+                )
+                return
 
         dfs = {}
         instance_type_mapping = {}  # instance_type: List[instance_id]
@@ -438,10 +467,6 @@ class RecommendationService:
             dfs=dfs
         )
 
-        customer, cloud, tenant, region, _, instance_id = self.parse_folders(
-            metric_file_path=metric_file_paths[0]
-        )
-
         _LOG.debug('Saving group recommendation')
         self.save_report(
             reports_dir=reports_dir,
@@ -451,6 +476,26 @@ class RecommendationService:
             region=region,
             item=item
         )
+
+        last_captured_date = None
+        last_captured_date_str = item.get('stats', {}).get('to_date')
+        if last_captured_date_str:
+            last_captured_date = datetime.fromisoformat(last_captured_date_str)
+
+        _LOG.debug(f'Saving group recommendation to db')
+        history_item = self.recommendation_history_service.create_group_recommendation(
+            resource_id=group_id,
+            job_id=self.environment_service.get_batch_job_id(),
+            customer=customer,
+            tenant=tenant,
+            region=region,
+            current_instance_type=target_instance_type,
+            instance_meta=instance_meta_mapping,
+            last_metric_capture_date=last_captured_date,
+            action=scale_action,
+            recommendation=item.get('recommendation')
+        )
+        self.recommendation_history_service.save(recommendation=history_item)
 
     def divide_by_group_policies(self, metric_file_paths: List[str],
                                  instance_meta_mapping: dict,
@@ -507,7 +552,7 @@ class RecommendationService:
     def format_autoscaling_recommendation(
             self, group_id: str, group_policy: dict, shape: Shape, action: str,
             instance_meta_mapping: dict, current_resources: List[str],
-            scale_step: int, dfs: List[pd.DataFrame]):
+            scale_step: int, dfs: List[pd.DataFrame] = None):
         recommended_count = len(current_resources)
         if action == ACTION_SCALE_UP:
             recommended_count += scale_step
@@ -622,7 +667,7 @@ class RecommendationService:
             schedule = self.schedule_service.get_always_run_schedule()
 
         item = self.format_recommendation(
-            instance_id=recommendations[0].instance_id,
+            instance_id=recommendations[0].resource_id,
             stats=stats,
             schedule=schedule,
             recommended_sizes=recommended_sizes,
@@ -638,6 +683,68 @@ class RecommendationService:
             region=recommendations[0].region,
             item=item
         )
+
+    def dump_group_report_from_recommendation(self, reports_dir, cloud,
+                                              region, group_policy,
+                                              recommendation: RecommendationHistory):
+        shape_name = recommendation.current_instance_type
+        shape = self.shape_service.get(name=shape_name)
+
+        recommendation_data = recommendation.recommendation[0]
+        recommended_resources = recommendation_data.get(
+            'recommended_resources')
+        current_resources = list(recommendation.instance_meta.keys())
+
+        _LOG.debug('Formatting group recommendation from history')
+        item = self.format_autoscaling_recommendation(
+            group_id=recommendation.resource_id,
+            group_policy=group_policy,
+            shape=shape,
+            action=recommendation.recommendation_type.value,
+            instance_meta_mapping=recommendation.instance_meta,
+            current_resources=current_resources,
+            scale_step=abs(len(current_resources) - recommended_resources)
+        )
+        _LOG.debug(f'Saving group recommendation: '
+                   f'{recommendation.resource_id}')
+        self.save_report(
+            reports_dir=reports_dir,
+            customer=recommendation.customer,
+            cloud=cloud,
+            tenant=recommendation.tenant,
+            region=region,
+            item=item
+        )
+        _LOG.debug('Formatting recommendation for each group resource')
+        for resource_id in current_resources:
+            _LOG.debug(f'Formatting recommendation for resource: {resource_id}')
+            resource_item = self.format_recommendation(
+                stats=self.calculate_instance_stats(),
+                instance_id=resource_id,
+                schedule=self.schedule_service.get_always_run_schedule(),
+                recommended_sizes=[],
+                general_action=ACTION_EMPTY,
+                savings=self.saving_service.calculate_savings(
+                    general_actions=ACTION_EMPTY,
+                    current_shape=recommendation.current_instance_type,
+                    recommended_shapes=[],
+                    schedule=None,
+                    customer=recommendation.customer,
+                    region=region,
+                    os=OSEnum.OS_LINUX.value
+                ),
+                meta=recommendation.instance_meta.get(resource_id, {})
+            )
+            _LOG.debug(f'Saving recommendation for resource: {resource_id}')
+            self.save_report(
+                reports_dir=reports_dir,
+                customer=recommendation.customer,
+                cloud=cloud,
+                tenant=recommendation.tenant,
+                region=region,
+                item=resource_item
+            )
+
 
     @staticmethod
     def get_non_straight_periods(df, grouped_periods):
@@ -1106,6 +1213,11 @@ class RecommendationService:
         desired_instances_count = round((required_instances_by_cpu +
                                          required_instances_by_ram) / 2)
         return abs(len(resource_loads) - desired_instances_count)
+
+    @staticmethod
+    def _cooldown_period_passed(last_scan_date, cooldown_days):
+        threshold_date = last_scan_date + timedelta(days=cooldown_days)
+        return datetime.utcnow() >= threshold_date
 
     @staticmethod
     def _filter_outdated_resources(target_resources: List[str],
