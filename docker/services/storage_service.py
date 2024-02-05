@@ -77,9 +77,9 @@ class StorageService:
 
     @profiler(execution_step=f's3_download_tenant_metrics')
     def download_metrics(self, data_source: Storage, output_path: str,
-                         scan_customer, scan_clouds, scan_tenants,
-                         scan_from_date, scan_to_date, max_days, min_days,
-                         recommendations_map: dict,
+                         resource_type, scan_customer, scan_clouds,
+                         scan_tenants, scan_from_date, scan_to_date,
+                         max_days, min_days, recommendations_map: dict,
                          force_rescan: bool):
         type_downloader_mapping = {
             S3Storage: self._download_metrics_s3
@@ -92,15 +92,15 @@ class StorageService:
                 reason=f'No downloader available for storage class '
                        f'\'{data_source.__class__}\''
             )
-        return downloader(data_source, output_path, scan_customer,
-                          scan_clouds, scan_tenants, scan_from_date,
-                          scan_to_date, max_days, min_days,
+        return downloader(data_source, output_path, resource_type,
+                          scan_customer, scan_clouds, scan_tenants,
+                          scan_from_date, scan_to_date, max_days, min_days,
                           recommendations_map, force_rescan)
 
     def _download_metrics_s3(self, data_source: S3Storage, output_path,
-                             scan_customer, scan_clouds, scan_tenants,
-                             scan_from_date=None, scan_to_date=None,
-                             max_days=None, min_days=None,
+                             resource_type, scan_customer, scan_clouds,
+                             scan_tenants, scan_from_date=None,
+                             scan_to_date=None, max_days=None, min_days=None,
                              recommendations_map: dict = None,
                              force_rescan=False):
         access = data_source.access
@@ -108,6 +108,7 @@ class StorageService:
         bucket_name = access.bucket_name
 
         paths = self._build_s3_paths(prefix=prefix,
+                                     resource_type=resource_type,
                                      scan_customer=scan_customer,
                                      scan_clouds=scan_clouds,
                                      scan_tenants=scan_tenants)
@@ -240,11 +241,14 @@ class StorageService:
             )
 
     @staticmethod
-    def _build_s3_paths(prefix, scan_customer, scan_clouds, scan_tenants):
+    def _build_s3_paths(prefix, resource_type,
+                        scan_customer, scan_clouds, scan_tenants):
         path_lst = []
         paths = []
         if prefix:
             path_lst.append(prefix)
+        if resource_type:
+            path_lst.append(resource_type.lower())
         if scan_customer:
             path_lst.append(scan_customer)
             for scan_cloud in scan_clouds:
