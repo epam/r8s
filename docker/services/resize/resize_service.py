@@ -78,7 +78,10 @@ class ResizeService:
             only_for_non_empty=True
         )
 
-        all_shapes = self.shape_service.list(cloud=current_shape.cloud)
+        all_shapes = self.shape_service.list(
+            cloud=current_shape.cloud,
+            resource_type=algorithm.resource_type
+        )
 
         if parent_meta:
             _LOG.debug(f'Applying parent meta: '

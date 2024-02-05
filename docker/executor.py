@@ -120,11 +120,10 @@ def process_tenant_instances(metrics_dir, reports_dir,
                              application: Application,
                              licensed_application: Application,
                              algorithm: Algorithm,
-                             license_: License,
-                             tenant: str,
-                             job: Job):
+                             tenant: str):
     _LOG.info(f'Downloading metrics from storage \'{input_storage.name}\', '
-              f'for tenant: {tenant}')
+              f'for tenant: {tenant}, for resource type: '
+              f'{algorithm.resource_type}')
 
     force_rescan = environment_service.force_rescan()
     if not force_rescan:
@@ -137,9 +136,11 @@ def process_tenant_instances(metrics_dir, reports_dir,
         recommendations_map = {}
 
     cloud = licensed_application.meta.cloud.lower()
+
     insufficient_map, unchanged_map = storage_service.download_metrics(
         data_source=input_storage,
         output_path=metrics_dir,
+        resource_type=algorithm.resource_type,
         scan_customer=licensed_application.customer_id,
         scan_clouds=[cloud],
         scan_tenants=[tenant],
@@ -152,6 +153,7 @@ def process_tenant_instances(metrics_dir, reports_dir,
 
     tenant_folder_path = os.path.join(
         metrics_dir,
+        algorithm.resource_type.lower(),
         licensed_application.customer_id,
         cloud,
         tenant)
@@ -193,19 +195,6 @@ def process_tenant_instances(metrics_dir, reports_dir,
             instance_meta_mapping=instance_meta_mapping,
             metric_file_paths=metric_file_paths
         )
-
-    _LOG.debug(f'Submitting licensed job for tenant {tenant}')
-    licensed_job_data = submit_licensed_job(
-        application=licensed_application,
-        license_=license_,
-        tenant_name=tenant)
-
-    _LOG.debug(f'Syncing licensed algorithm from license '
-               f'{license_.license_key}')
-    algorithm_service.update_from_licensed_job(
-        algorithm=algorithm,
-        licensed_job=licensed_job_data
-    )
 
     if insufficient_map:
         _LOG.info(f'Dumping {len(insufficient_map.keys())} instances '
@@ -349,14 +338,6 @@ def process_tenant_instances(metrics_dir, reports_dir,
         tenant=tenant
     )
 
-    _LOG.info(f'Setting tenant status to "SUCCEEDED"')
-    job_service.set_licensed_job_status(
-        job=job,
-        tenant=tenant,
-        status=JobTenantStatusEnum.TENANT_SUCCEEDED_STATUS,
-        customer=licensed_application.customer_id
-    )
-
 
 def main():
     _LOG.debug('Creating directories')
@@ -476,18 +457,38 @@ def main():
     for tenant in scan_tenants:
         try:
             _LOG.info(f'Processing tenant {tenant}')
-            process_tenant_instances(
-                metrics_dir=metrics_dir,
-                reports_dir=reports_dir,
-                input_storage=input_storage,
-                output_storage=output_storage,
-                parent_meta=tenant_meta_map[tenant],
-                application=application,
-                licensed_application=licensed_application,
-                algorithm=algorithm_map[RESOURCE_TYPE_VM],
+
+            _LOG.debug(f'Submitting licensed job for tenant {tenant}')
+            licensed_job_data = submit_licensed_job(
+                application=licensed_application,
                 license_=license_,
+                tenant_name=tenant)
+            for algorithm in algorithm_map.values():
+                _LOG.debug(f'Syncing licensed algorithm from license '
+                           f'{license_.license_key}')
+                algorithm_service.update_from_licensed_job(
+                    algorithm=algorithm,
+                    licensed_job=licensed_job_data
+                )
+            for algorithm in algorithm_map.values():
+                process_tenant_instances(
+                    metrics_dir=metrics_dir,
+                    reports_dir=reports_dir,
+                    input_storage=input_storage,
+                    output_storage=output_storage,
+                    parent_meta=tenant_meta_map[tenant],
+                    application=application,
+                    licensed_application=licensed_application,
+                    algorithm=algorithm,
+                    tenant=tenant
+                )
+
+            _LOG.info(f'Setting tenant status to "SUCCEEDED"')
+            job_service.set_licensed_job_status(
+                job=job,
                 tenant=tenant,
-                job=job
+                status=JobTenantStatusEnum.TENANT_SUCCEEDED_STATUS,
+                customer=licensed_application.customer_id
             )
         except LicenseForbiddenException as e:
             _LOG.error(e)
