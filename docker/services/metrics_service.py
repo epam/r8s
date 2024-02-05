@@ -161,7 +161,7 @@ class MetricsService:
 
     def load_df(self, path, algorithm: Algorithm,
                 applied_recommendations: List[RecommendationHistory] = None,
-                instance_meta: dict = None):
+                instance_meta: dict = None, max_days: int = None):
         all_attrs = set(list(algorithm.required_data_attributes))
         metric_attrs = set(list(algorithm.metric_attributes))
         non_metric = all_attrs - metric_attrs
@@ -200,8 +200,9 @@ class MetricsService:
                     step_name=JOB_STEP_INITIALIZE_ALGORITHM,
                     reason=message
                 )
+            max_days = max_days or recommendation_settings.max_days
             df = self.get_last_period(df,
-                                      days=recommendation_settings.max_days)
+                                      days=max_days)
             df = self.group_by_time(
                 df=df,
                 step_minutes=recommendation_settings.record_step_minutes,

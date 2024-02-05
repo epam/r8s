@@ -331,6 +331,17 @@ class GroupPolicyProcessor(AbstractCommandProcessor):
                 value = thresholds.get(key)
                 self._validate_positive_int(key=f'{THRESHOLDS_ATTR}.{key}',
                                             value=value)
+            if not thresholds[MIN_ATTR] < thresholds[DESIRED_ATTR] < \
+                   thresholds[MAX_ATTR]:
+                _LOG.error(f'Invalid thresholds specified. Thresholds must '
+                           f'be in increasing order {MIN_ATTR} < '
+                           f'{DESIRED_ATTR} < {MAX_ATTR}')
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content=f'Invalid thresholds specified. Thresholds must '
+                            f'be in increasing order {MIN_ATTR} < '
+                            f'{DESIRED_ATTR} < {MAX_ATTR}'
+                )
             group_policy[THRESHOLDS_ATTR] = {
                 MIN_ATTR: thresholds.get(MIN_ATTR),
                 DESIRED_ATTR: thresholds.get(DESIRED_ATTR),

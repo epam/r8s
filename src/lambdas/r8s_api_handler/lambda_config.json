@@ -8,6 +8,7 @@
   "memory": 1024,
   "timeout": 30,
   "lambda_path": "lambdas/r8s_api_handler",
+  "logs_expiration": "${logs_expiration}",
   "dependencies": [],
   "event_sources": [],
   "env_variables": {

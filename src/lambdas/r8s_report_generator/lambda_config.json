@@ -8,6 +8,7 @@
   "memory": 128,
   "timeout": 100,
   "lambda_path": "/lambdas/r8s_report_generator",
+  "logs_expiration": "${logs_expiration}",
   "dependencies": [
   ],
   "event_sources": [

@@ -13,7 +13,8 @@ from commons.constants import STATUS_ERROR, STATUS_OK, OK_MESSAGE, \
     SAVING_OPTIONS_ATTR, PROBABILITY, ALLOWED_ACTIONS, \
     GROUP_POLICY_AUTO_SCALING, TYPE_ATTR, JOB_STEP_PROCESS_METRICS, \
     THRESHOLDS_ATTR, MIN_ATTR, MAX_ATTR, DESIRED_ATTR, SCALE_STEP_ATTR, \
-    ACTION_SCALE_DOWN, ACTION_SCALE_UP
+    ACTION_SCALE_DOWN, ACTION_SCALE_UP, SCALE_STEP_AUTO_DETECT, \
+    COOLDOWN_DAYS_ATTR
 from commons.exception import ExecutorException, ProcessingPostponedException
 from commons.log_helper import get_logger
 from commons.profiler import profiler
@@ -378,7 +379,8 @@ class RecommendationService:
             df = self.metrics_service.load_df(
                 path=metric_file_path,
                 algorithm=algorithm,
-                instance_meta=instance_meta_mapping.get(instance_id, {})
+                instance_meta=instance_meta_mapping.get(instance_id, {}),
+                max_days=group_policy.get(COOLDOWN_DAYS_ATTR)
             )
             dfs[instance_id] = df
 
@@ -396,6 +398,11 @@ class RecommendationService:
             self._find_non_matching_autoscaling_resources(
                 instance_type_mapping=instance_type_mapping
             ))
+
+        target_resources = self._filter_outdated_resources(
+            target_resources=target_resources,
+            dfs=dfs
+        )
 
         if non_matching_resources:
             _LOG.debug('Dumping non-matching autoscaling group resources')
@@ -434,6 +441,19 @@ class RecommendationService:
             instance_type=target_instance_type
         )
         _LOG.debug(f'Scaling action: {scale_action}, scale step: {scale_step}')
+
+        if (scale_action == ACTION_SCALE_DOWN and
+                scale_step >= len(target_resources)):
+            policy_scale_step = group_policy.get(SCALE_STEP_ATTR)
+            if policy_scale_step == SCALE_STEP_AUTO_DETECT:
+                _LOG.debug('Scaling down to single group resource '
+                           'will be recommended')
+                scale_step = len(target_resources) - 1
+            else:
+                _LOG.debug('Scale down is blocked due to lack of '
+                           'available resources and strict scale step.')
+                scale_action = ACTION_EMPTY
+                scale_step = 0
 
         _LOG.debug(f'Formatting autoscaling group {group_id} recommendation')
         item = self.format_autoscaling_recommendation(
@@ -1198,3 +1218,13 @@ class RecommendationService:
     def _cooldown_period_passed(last_scan_date, cooldown_days):
         threshold_date = last_scan_date + timedelta(days=cooldown_days)
         return datetime.utcnow() >= threshold_date
+
+    @staticmethod
+    def _filter_outdated_resources(target_resources: List[str],
+                                   dfs: Dict[str, pd.DataFrame]):
+        last_df_dates = [dfs[resource_id].index.max().date()
+                         for resource_id in target_resources]
+        last_captured_date = max(last_df_dates)
+
+        return [resource for resource in target_resources
+                if dfs[resource].index.max().date() >= last_captured_date]

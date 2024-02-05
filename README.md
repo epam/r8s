@@ -118,6 +118,7 @@ r8s_job_queue: name of AWS Batch Job queue
 r8s_job_definition: name of AWS Batch Job definition
 log_level: DEBUG
 DEBUG: True - to enable test metric generation by instance tags
+logs_expiration: The expiration period of Lambda's CloudWatch logs in days
 ```
 4. Export env variable `SDCT_CONF` which value is a path to folder
    where `syndicate_aliases.yml` and `syndicate.yml` are located.
