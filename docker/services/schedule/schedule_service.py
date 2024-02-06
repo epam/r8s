@@ -18,8 +18,7 @@ from services.schedule.schedule_item import ScheduleItem
 _LOG = get_logger('r8s-schedule-service')
 
 SECONDS_IN_DAY = 86400
-MINIMUM_DAYS_REQUIRED = 14
-MINIMUM_SCHEDULE_DURATION_MINUTES = 60
+MINIMUM_SCHEDULE_DURATION_MINUTES = 120
 MAX_GROUPING_DIFFERENCE_SECONDS = 3600
 
 
@@ -43,10 +42,20 @@ class ScheduleService:
         covered_days = (df.index.max() - df.index.min()).total_seconds()
         covered_days = round(covered_days / SECONDS_IN_DAY)
 
-        if covered_days < recommendation_settings.min_allowed_days_schedule:
-            _LOG.warning(f'Minimum {MINIMUM_DAYS_REQUIRED} days of '
+        min_days = recommendation_settings.min_allowed_days_schedule
+        if covered_days < min_days:
+            _LOG.warning(f'Minimum {min_days} days of '
                          f'telemetry required for schedule recommendation')
             return self.get_always_run_schedule()
+
+        max_days = recommendation_settings.max_allowed_days_schedule
+        if covered_days > max_days:
+            _LOG.debug(f'Discarding metrics that are older than {max_days} '
+                       f'for schedule calculation')
+            threshold = df.index.max().date() - timedelta(days=max_days)
+            shutdown_periods = [df for df in shutdown_periods
+                                if df.index.max().date() >= threshold]
+            df = df[df.index.date >= threshold]
 
         _LOG.debug(f'Extracting active periods')
         active_schedule_periods = self._get_active_schedule_periods(
@@ -61,10 +70,12 @@ class ScheduleService:
             action='shutdown'
         )
 
+        min_duration = recommendation_settings.min_schedule_day_duration_minutes
         _LOG.debug(f'Generating daily schedules')
         day_schedules = self._generate_daily_schedule(
             df=df,
             frequency_map=frequency_map,
+            minimum_duration=min_duration
         )
         _LOG.debug(f'Grouping schedules by day')
         schedule_result = self._group_by_days(day_schedules=day_schedules)
