@@ -73,6 +73,9 @@ class RecommendationSettings(EmbeddedDocument):
     min_allowed_days = IntField(default=1, min_value=1, max_value=90)
     max_days = IntField(default=90, min_value=7, max_value=365)
     min_allowed_days_schedule = IntField(default=14, min_value=7, max_value=60)
+    max_allowed_days_schedule = IntField(default=28, min_value=14)
+    min_schedule_day_duration_minutes = IntField(default=90, min_value=30,
+                                                 max_value=360)
 
     ignore_savings = BooleanField(default=False)
     max_recommended_shapes = IntField(min_value=1, max_value=10, default=5)

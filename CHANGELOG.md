@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.8.0] - 2024-02-08
+* Support new Algorithm parameters:
+  * max_allowed_days_schedule - Maximum allowed number of days taken for schedule processing
+  * min_schedule_day_duration_minutes - Minimum allowed schedule period duration per day
+
 ## [3.7.2] - 2024-02-06
 * improve handling failed group resources
 
