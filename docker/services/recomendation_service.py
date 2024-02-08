@@ -14,7 +14,7 @@ from commons.constants import STATUS_ERROR, STATUS_OK, OK_MESSAGE, \
     GROUP_POLICY_AUTO_SCALING, TYPE_ATTR, JOB_STEP_PROCESS_METRICS, \
     THRESHOLDS_ATTR, MIN_ATTR, MAX_ATTR, DESIRED_ATTR, SCALE_STEP_ATTR, \
     ACTION_SCALE_DOWN, ACTION_SCALE_UP, SCALE_STEP_AUTO_DETECT, \
-    COOLDOWN_DAYS_ATTR
+    COOLDOWN_DAYS_ATTR, ACTION_ERROR
 from commons.exception import ExecutorException, ProcessingPostponedException
 from commons.log_helper import get_logger
 from commons.profiler import profiler
@@ -371,18 +371,25 @@ class RecommendationService:
         dfs = {}
         instance_type_mapping = {}  # instance_type: List[instance_id]
         id_file_mapping = {}
+        failed_resources = {}
         for metric_file_path in metric_file_paths:
             instance_id = self.get_instance_id(
                 metric_file_path=metric_file_path)
             id_file_mapping[instance_id] = metric_file_path
             _LOG.debug(f'Loading df: {metric_file_path}')
-            df = self.metrics_service.load_df(
-                path=metric_file_path,
-                algorithm=algorithm,
-                instance_meta=instance_meta_mapping.get(instance_id, {}),
-                max_days=group_policy.get(COOLDOWN_DAYS_ATTR)
-            )
-            dfs[instance_id] = df
+            try:
+                df = self.metrics_service.load_df(
+                    path=metric_file_path,
+                    algorithm=algorithm,
+                    instance_meta=instance_meta_mapping.get(instance_id, {}),
+                    max_days=group_policy.get(COOLDOWN_DAYS_ATTR)
+                )
+                dfs[instance_id] = df
+            except ExecutorException as e:
+                _LOG.debug(f'Exception occurred while reading metric file: '
+                           f'{metric_file_path}. Error: {e}')
+                failed_resources[instance_id] = e
+                continue
 
             _LOG.debug('Extracting instance type name')
             instance_type = self.metrics_service.get_instance_type(
@@ -414,6 +421,15 @@ class RecommendationService:
                 id_file_mapping=id_file_mapping,
                 reports_dir=reports_dir,
                 action=ACTION_SHUTDOWN
+            )
+        if failed_resources:
+            _LOG.debug('Dumping failed autoscaling group resource')
+            self.dump_autoscaling_failed_resources(
+                instance_type_mapping=instance_type_mapping,
+                failed_resources=failed_resources,
+                instance_meta_mapping=instance_meta_mapping,
+                id_file_mapping=id_file_mapping,
+                reports_dir=reports_dir
             )
 
         _LOG.debug('Dumping autoscaling group resources as NO_ACTION')
@@ -1103,6 +1119,44 @@ class RecommendationService:
                     region=region,
                     os=OSEnum.OS_LINUX.value,
                 )
+            )
+            _LOG.debug(f'Saving formatted item: {formatted_item}')
+            self.save_report(
+                reports_dir=reports_dir,
+                customer=customer,
+                cloud=cloud,
+                tenant=tenant,
+                region=region,
+                item=formatted_item
+            )
+
+    def dump_autoscaling_failed_resources(
+            self, instance_type_mapping: dict,
+            failed_resources: Dict[str, Exception],
+            instance_meta_mapping: dict,
+            id_file_mapping: dict,
+            reports_dir: str,
+    ):
+        id_type_mapping = {}
+        for instance_type, resources in instance_type_mapping.items():
+            for instance_id in resources:
+                id_type_mapping[instance_id] = instance_type
+
+        _LOG.warning(f'Failed resources for auto scaling group: '
+                     f'{list(failed_resources.keys())}. '
+                     f'Dumping as ERROR recommendations')
+        for instance_id, exception in failed_resources.items():
+            customer, cloud, tenant, region, _, instance_id = self.parse_folders(
+                metric_file_path=id_file_mapping.get(instance_id)
+            )
+
+            formatted_item = self.format_recommendation(
+                stats=self.calculate_instance_stats(df=None,
+                                                    exception=exception),
+                instance_id=instance_id,
+                general_action=ACTION_ERROR,
+                meta=instance_meta_mapping.get(instance_id, {}),
+                savings={}
             )
             _LOG.debug(f'Saving formatted item: {formatted_item}')
             self.save_report(
