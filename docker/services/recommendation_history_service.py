@@ -207,7 +207,7 @@ class RecommendationHistoryService:
 
         result = {}
         for item in items:
-            instance_id = item.instance_id
+            instance_id = item.resource_id
             last_captured_date = item.last_metric_capture_date
 
             if (instance_id not in result or

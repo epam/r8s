@@ -471,13 +471,21 @@ class RecommendationService:
                 scale_action = ACTION_EMPTY
                 scale_step = 0
 
+        _LOG.debug(f'Filtering instance meta mapping to include '
+                   f'only active group resources')
+        target_resources_meta_mapping = {resource_id: v for resource_id, v in
+                                         instance_meta_mapping.items()
+                                         if resource_id in target_resources}
+        _LOG.debug(f'Target resources meta mapping: '
+                   f'{target_resources_meta_mapping}')
+
         _LOG.debug(f'Formatting autoscaling group {group_id} recommendation')
         item = self.format_autoscaling_recommendation(
             group_id=group_id,
             group_policy=group_policy,
             shape=target_shape,
             action=scale_action,
-            instance_meta_mapping=instance_meta_mapping,
+            instance_meta_mapping=target_resources_meta_mapping,
             current_resources=target_resources,
             scale_step=scale_step,
             dfs=dfs
@@ -506,7 +514,7 @@ class RecommendationService:
             tenant=tenant,
             region=region,
             current_instance_type=target_instance_type,
-            instance_meta=instance_meta_mapping,
+            instance_meta=target_resources_meta_mapping,
             last_metric_capture_date=last_captured_date,
             action=scale_action,
             recommendation=item.get('recommendation')
@@ -733,7 +741,8 @@ class RecommendationService:
         )
         _LOG.debug('Formatting recommendation for each group resource')
         for resource_id in current_resources:
-            _LOG.debug(f'Formatting recommendation for resource: {resource_id}')
+            _LOG.debug(
+                f'Formatting recommendation for resource: {resource_id}')
             resource_item = self.format_recommendation(
                 stats=self.calculate_instance_stats(),
                 instance_id=resource_id,
@@ -760,7 +769,6 @@ class RecommendationService:
                 region=region,
                 item=resource_item
             )
-
 
     @staticmethod
     def get_non_straight_periods(df, grouped_periods):
@@ -925,7 +933,7 @@ class RecommendationService:
             return [ACTION_SHUTDOWN]
 
         if (schedule and ACTION_SCHEDULE in allowed_actions and not
-                self._is_schedule_always_run(schedule=schedule)):
+        self._is_schedule_always_run(schedule=schedule)):
             actions.append(ACTION_SCHEDULE)
 
         if shapes:

@@ -27,7 +27,7 @@ class ResourceGroupService:
 
         id_report_mapping = {item.get('resource_id'): item
                              for item in processed_reports}
-        id_history_mapping = {item.instance_id: item
+        id_history_mapping = {item.resource_id: item
                               for item in group_history_items}
         for resource_id, resource_report in id_report_mapping.items():
             history_item = id_history_mapping.get(resource_id)
