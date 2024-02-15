@@ -145,6 +145,10 @@ class ReportGenerator(AbstractLambda):
                 content=f'No recommendations found '
                         f'for tenant \'{tenant.name}\''
             )
+
+        _LOG.debug(f'Filtering only recommendations with available savings.')
+        recommendations = [i for i in recommendations if i.savings]
+
         _LOG.debug('Filtering recommendation to include only one '
                    'recommendations from the last job with the resource')
         recommendations = self.filter_latest_job_resource(
@@ -156,7 +160,8 @@ class ReportGenerator(AbstractLambda):
         for recommendation in recommendations:
             formatted_recommendation = self.format_recommendation(
                 recommendation=recommendation)
-            formatted.append(formatted_recommendation)
+            if formatted_recommendation:
+                formatted.append(formatted_recommendation)
 
         priority_resources = self.get_priority(
             formatted_recommendations=formatted,
@@ -427,8 +432,8 @@ class ReportGenerator(AbstractLambda):
 
     @staticmethod
     def _format_resize_recommendation(recommendation):
-        recommended_instance_types = [item.get('name') for
-                                      item in recommendation.recommendation]
+        recommended_instances = [dict(item) for
+                                 item in recommendation.recommendation]
 
         savings = reversed(recommendation.savings)
 
@@ -447,7 +452,7 @@ class ReportGenerator(AbstractLambda):
             for saving_item in estimated_savings]
         result = {
             "resource_id": recommendation.resource_id,
-            "recommendation": recommended_instance_types,
+            "recommendation": recommended_instances,
             "recommendation_type": recommendation.recommendation_type.value,
             "description": "",
             "current_price": recommendation.current_month_price_usd,
