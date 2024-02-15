@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.9.0] - 2024-02-15
 * extend tenant mail report content with full instance specs
+* fix update algorithm timezone extraction from RIGHTSIZER_LICENSES application
 
 ## [3.8.1] - 2024-02-12
 * fix invalid RecommendationHistory.resource_id references

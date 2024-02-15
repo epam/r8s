@@ -568,9 +568,10 @@ class ReportGenerator(AbstractLambda):
         if not app_meta:
             _LOG.error(f'Application \'{application_id}\' meta is empty.')
             return UTC_TIMEZONE_NAME
-        algorithm_name = app_meta.algorithm
+
+        algorithm_name = app_meta.as_dict().get('algorithm_map', {}).get('VM')
         if not algorithm_name:
-            _LOG.error(f'Algorithm not specified in application '
+            _LOG.error(f'No VM algorithm specified in application '
                        f'\'{application_id}\'.')
             return UTC_TIMEZONE_NAME
         algorithm = self.algorithm_service.get_by_name(name=algorithm_name)
