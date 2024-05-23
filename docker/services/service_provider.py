@@ -3,6 +3,7 @@ import os
 from modular_sdk.services.customer_service import CustomerService
 from modular_sdk.services.tenant_service import TenantService
 
+from commons.constants import ENV_SERVICE_MODE
 from services.algorithm_service import AlgorithmService
 from services.clients.s3 import S3Client
 from services.clients.ssm import SSMClient
@@ -31,7 +32,7 @@ from services.shape_service import ShapeService
 from services.ssm_service import SSMService
 from services.storage_service import StorageService
 
-SERVICE_MODE = os.getenv('service_mode')
+SERVICE_MODE = os.getenv(ENV_SERVICE_MODE)
 is_docker = SERVICE_MODE == 'docker'
 
 
