@@ -265,6 +265,9 @@ class ServiceProvider:
             return self.__recommendation_history_service
 
         def maestro_rabbitmq_service(self):
+            if is_docker:
+                _LOG.error(f'RabbitMQ service is not available in docker mode')
+                return
             if not self.__maestro_rabbitmq_service:
                 from modular_sdk.modular import Modular
                 from modular_sdk.services.impl.maestro_rabbit_transport_service import \
