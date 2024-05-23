@@ -155,7 +155,7 @@ def create_admin_user():
 def create_customer():
     customer_name = os.environ.get('CUSTOMER_NAME')
     if not customer_name:
-        _LOG.debug(f'Customer ')
+        _LOG.debug('Customer not specified')
         return
     from modular_sdk.services.customer_service import CustomerService
     if CustomerService().get(customer_name):
@@ -163,6 +163,24 @@ def create_customer():
         return
     _LOG.debug(f'Creating Customer \'{customer_name}\'')
     Customer(name=customer_name, display_name=customer_name).save()
+
+
+def create_tenant():
+    tenant_name = os.environ.get('TENANT_NAME')
+    customer_name = os.environ.get('CUSTOMER_NAME')
+    if not tenant_name:
+        _LOG.debug('Tenant not specified')
+        return
+    if not customer_name:
+        _LOG.debug('Customer not specified')
+        return
+    from modular_sdk.services.tenant_service import TenantService
+    if TenantService().get(tenant_name):
+        _LOG.debug(f'Tenant \'{tenant_name}\' already exist.')
+        return
+    _LOG.debug(f'Creating Tenant \'{tenant_name}\'')
+    Tenant(name=tenant_name, display_name=tenant_name,
+           cloud="AWS", customer_name=customer_name).save()
 
 
 def init_mongo():
@@ -176,6 +194,7 @@ def init_mongo():
     create_admin_role()
     create_admin_user()
     create_customer()
+    create_tenant()
 
 
 if __name__ == '__main__':
