@@ -4,7 +4,7 @@ import os
 import boto3
 from botocore.config import Config
 
-from commons.constants import ENV_SERVICE_MODE, DOCKER_SERVICE_MODE, \
+from commons.constants import ENV_SERVICE_MODE_S3, DOCKER_SERVICE_MODE, \
     ENV_MINIO_HOST, ENV_MINIO_PORT, ENV_MINIO_ACCESS_KEY, \
     ENV_MINIO_SECRET_ACCESS_KEY
 from commons.log_helper import get_logger
@@ -15,7 +15,7 @@ _LOG = get_logger('s3client')
 
 
 class S3Client:
-    IS_DOCKER = os.getenv(ENV_SERVICE_MODE) == DOCKER_SERVICE_MODE
+    IS_DOCKER = os.getenv(ENV_SERVICE_MODE_S3) == DOCKER_SERVICE_MODE
 
     def __init__(self, region):
         self.region = region
