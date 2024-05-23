@@ -82,5 +82,5 @@ Open Windows PowerShell and perform the following steps:
 * Assign the policy `consoleAdmin`  to the created user to make him be able to perform various commands:
 
   ```powershell
-  PS> mc admin policy set myminio consoleAdmin user=$Env:MINIO_ACCESS_KEY
+  PS> mc admin policy attach myminio consoleAdmin --user $Env:MINIO_ACCESS_KEY
   ```

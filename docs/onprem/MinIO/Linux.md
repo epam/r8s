@@ -87,3 +87,16 @@ add the folder with them to PATH:
   $ export MINIO_ACCESS_KEY={YOUR_ACCESS_KEY}
   $ export MINIO_SECRET_ACCESS_KEY={YOUR_SECRET_KEY}
   ```
+
+
+- Create MinIO user with you just set access keys:
+
+  ```bash
+  $ mc admin user add myminio $MINIO_ACCESS_KEY $MINIO_SECRET_ACCESS_KEY
+  ```
+  
+- Assign the policy consoleAdmin to the created user to make him be able to perform various commands:
+
+  ```bash
+  $ mc admin policy attach myminio consoleAdmin --user $MINIO_ACCESS_KEY
+  ```
