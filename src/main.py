@@ -5,6 +5,7 @@ helps fast and be safe from importing not existing packages
 import logging
 import logging.config
 import multiprocessing
+import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional
@@ -12,6 +13,7 @@ from typing import Optional
 from bottle import Bottle
 
 from services import SERVICE_PROVIDER
+from commons.constants import ENV_SERVICE_MODE_S3
 
 SRC = Path(__file__).parent.resolve()
 ROOT = SRC.parent.resolve()
@@ -107,7 +109,8 @@ def main():
     from exported_module.scripts.init_mongo import init_mongo
 
     init_vault()
-    init_minio()
+    if os.environ.get(ENV_SERVICE_MODE_S3) == 'docker':
+        init_minio()
     init_mongo()
     Run()()
 
