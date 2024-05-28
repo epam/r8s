@@ -1,4 +1,4 @@
-### Maestro Rightsizer Service
+### EPAM Syndicate RightSizer
 
 The application provides ability to provide resize/schedule recommendation for
 cloud instances based on their activity metrics.
@@ -10,19 +10,19 @@ version, or a range of versions of the software.
 
 ### Actual for version: 2.10
 
-## Maestro Rightsizer Service diagram
+## EPAM Syndicate RightSizer diagram
 
 ### Serverless Deployment Model
 
-![Maestro Rightsizer Service SaaS diagram](./docs/images/r8s_saas.png)
+![EPAM Syndicate RightSizer SaaS diagram](./docs/images/r8s_saas.png)
 
 ### On-Premises Deployment Model
 
-![Maestro Rightsizer Service SaaS diagram](./docs/images/r8s_onprem.png)
+![EPAM Syndicate RightSizer OnPrem diagram](./docs/images/r8s_onprem.png)
 
 ### Maestro - RightSizer Workflow
 
-![Maestro Rightsizer Service SaaS diagram](./docs/images/r8s-maestro-workflow.png)
+![Maestro - RightSizer workflow diagram](./docs/images/r8s-maestro-workflow.png)
 
 ## Lambdas description
 
