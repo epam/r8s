@@ -9,8 +9,11 @@ import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional
+from dotenv import load_dotenv
 
 from bottle import Bottle
+
+load_dotenv()
 
 from services import SERVICE_PROVIDER
 from commons.constants import ENV_SERVICE_MODE_S3
