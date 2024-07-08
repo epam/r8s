@@ -25,7 +25,7 @@ def parse_args():
     parser.add_argument('-r', '--region', help='AWS Region',
                         required=True, choices=ALLOWED_REGIONS)
     parser.add_argument('-uri', '--r8s_mongodb_connection_uri',
-                        help='MongoDB Connection string', required=True)
+                        help='MongoDB Connection string', required=False)
     parser.add_argument('-pr', '--price_region', action='append',
                         required=False, choices=ALLOWED_REGIONS,
                         help='List of AWS regions to populate price for')
@@ -50,7 +50,8 @@ def export_args(access_key, secret_key, session_token,
         os.environ['AWS_SESSION_TOKEN'] = session_token
     os.environ['AWS_DEFAULT_REGION'] = region
     os.environ['AWS_REGION'] = region
-    os.environ['r8s_mongodb_connection_uri'] = r8s_mongodb_connection_uri
+    if r8s_mongodb_connection_uri:
+        os.environ['r8s_mongodb_connection_uri'] = r8s_mongodb_connection_uri
 
 
 def export_src_path():
