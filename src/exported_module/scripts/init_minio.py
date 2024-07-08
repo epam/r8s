@@ -4,7 +4,8 @@ from services import SERVICE_PROVIDER
 
 environment = SERVICE_PROVIDER.environment_service()
 BUCKETS = [
-    "r8s-metrics"
+    "r8s-metrics",
+    "r8s-results"
 ]
 
 
