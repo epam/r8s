@@ -30,7 +30,7 @@ def describe(storage_name=None):
               required=True, help='Type of the r8s storage.')
 @click.option('--bucket_name', '-bname', type=str, required=True,
               help='S3 bucket name.')
-@click.option('--prefix', '-bname', type=str,
+@click.option('--prefix', '-p', type=str,
               help='S3 bucket prefix.')
 @cli_response()
 def add(storage_name, type, bucket_name, prefix=None):
