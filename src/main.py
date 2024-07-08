@@ -16,22 +16,17 @@ from bottle import Bottle
 load_dotenv()
 
 from services import SERVICE_PROVIDER
-from commons.constants import ENV_SERVICE_MODE_S3
 
 SRC = Path(__file__).parent.resolve()
 ROOT = SRC.parent.resolve()
 
 DEPLOYMENT_RESOURCES_FILENAME = 'deployment_resources.json'
 
-RUN_ACTION = 'run'
-CREATE_INDEXES_ACTION = 'create_indexes'
-CREATE_BUCKETS_ACTION = 'create_buckets'
-INIT_VAULT_ACTION = 'init_vault'
-ENV_ACTION = 'env'
-
 DEFAULT_HOST = '0.0.0.0'
-DEFAULT_PORT = 8010
+DEFAULT_PORT = 8000
 DEFAULT_NUMBER_OF_WORKERS = (multiprocessing.cpu_count() * 2) + 1
+
+
 # DEFAULT_ON_PREM_API_LINK = f'http://{DEFAULT_HOST}:{str(DEFAULT_PORT)}/caas'
 # DEFAULT_API_GATEWAY_NAME = 'r8s-api'
 
@@ -106,17 +101,5 @@ class Run(ActionHandler):
             app.run(host=host, port=port)
 
 
-def main():
-    from exported_module.scripts.init_vault import init_vault
-    from exported_module.scripts.init_minio import init_minio
-    from exported_module.scripts.init_mongo import init_mongo
-
-    init_vault()
-    if os.environ.get(ENV_SERVICE_MODE_S3) == 'docker':
-        init_minio()
-    init_mongo()
-    Run()()
-
-
 if __name__ == '__main__':
-    main()
+    Run()(gunicorn=True)
