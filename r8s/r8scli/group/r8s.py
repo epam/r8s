@@ -1,27 +1,28 @@
 from importlib.metadata import version as lib_version
 
 import click
-from r8s_group import cli_response, ViewCommand, cast_to_list
-from r8s_group.algorithm import algorithm
-from r8s_group.application import application
-from r8s_group.job import job
-from r8s_group.license import license
-from r8s_group.parent import parent
-from r8s_group.policy import policy
-from r8s_group.recommendation import recommendation
-from r8s_group.report import report
-from r8s_group.role import role
-from r8s_group.setting import setting
-from r8s_group.shape import shape
-from r8s_group.storage import storage
-from r8s_group.user import user
-from r8s_service.config import create_configuration, clean_up_configuration, \
+from r8scli.group import cli_response, ViewCommand, cast_to_list
+from r8scli.group.algorithm import algorithm
+from r8scli.group.application import application
+from r8scli.group.job import job
+from r8scli.group.license import license
+from r8scli.group.parent import parent
+from r8scli.group.policy import policy
+from r8scli.group.recommendation import recommendation
+from r8scli.group.report import report
+from r8scli.group.role import role
+from r8scli.group.setting import setting
+from r8scli.group.shape import shape
+from r8scli.group.storage import storage
+from r8scli.group.user import user
+from r8scli.service.config import create_configuration, clean_up_configuration, \
     save_token
-from r8s_service.constants import AVAILABLE_CHECK_TYPES
+from r8scli.service.constants import AVAILABLE_CHECK_TYPES
+from r8scli.version import __version__
 
 
 @click.group()
-@click.version_option(lib_version('r8s'), '-v', '--version')
+@click.version_option(__version__)
 def r8s():
     """The main click's group to accumulates all the CLI commands"""
 
@@ -51,7 +52,7 @@ def login(username: str, password: str):
     """
     Authenticates user to work with R8s.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
 
     response = init_configuration().login(
         username=username, password=password)
@@ -78,7 +79,7 @@ def register(username: str, password: str, customer_id, role_name):
     Creates user to work with R8s.
     """
 
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     response = init_configuration().register(
         username=username, password=password,
         customer=customer_id, role_name=role_name)
@@ -103,7 +104,7 @@ def health_check(check_type):
     """
     Describes a R8s health check status.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
 
     check_types = cast_to_list(check_type)
     return init_configuration().health_check_post(check_types=check_types)

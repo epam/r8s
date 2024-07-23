@@ -1,7 +1,7 @@
 import click
 
-from r8s_group import cli_response, ViewCommand
-from r8s_service.constants import ALLOWED_RULE_ACTIONS, \
+from r8scli.group import cli_response, ViewCommand
+from r8scli.service.constants import ALLOWED_RULE_ACTIONS, \
     ALLOWED_SHAPE_FIELDS, ALLOWED_RULE_CONDITIONS, AVAILABLE_CLOUDS
 
 
@@ -20,7 +20,7 @@ def describe(parent_id=None, rule_id=None):
     """
     Describes a R8s parent shape rules.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().shape_rule_get(
         parent_id=parent_id, rule_id=rule_id)
 
@@ -45,7 +45,7 @@ def add(parent_id, action, condition, field, value):
     """
     Creates a R8s Shape rule.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
 
     return init_configuration().shape_rule_post(
         parent_id=parent_id,
@@ -78,7 +78,7 @@ def update(rule_id, parent_id, action, condition, field, value):
     """
     Updates a R8s Shape rule.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
 
     return init_configuration().shape_rule_patch(
         parent_id=parent_id,
@@ -98,7 +98,7 @@ def delete(rule_id):
     """
     Deletes r8s shape rule.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().shape_rule_delete(rule_id=rule_id)
 
 
@@ -110,6 +110,6 @@ def dry_run(parent_id):
     """
     Describes shapes that satisfy all of the specified Parent rules.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().shape_rule_dry_run_get(
         parent_id=parent_id)

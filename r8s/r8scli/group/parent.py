@@ -1,12 +1,12 @@
 import click
 
-from r8s_group import cli_response, ViewCommand, cast_to_list
-from r8s_service.constants import (AVAILABLE_CLOUDS, ALLOWED_PROTOCOLS, \
+from r8scli.group import cli_response, ViewCommand, cast_to_list
+from r8scli.service.constants import (AVAILABLE_CLOUDS, ALLOWED_PROTOCOLS, \
                                    PROTOCOL_HTTPS, AVAILABLE_PARENT_SCOPES,
                                    PARENT_SCOPE_ALL,
                                    PARENT_SCOPE_SPECIFIC,
                                    PARENT_SCOPE_DISABLED)
-from r8s_group.parent_shaperule import shaperule
+from r8scli.group.parent_shaperule import shaperule
 
 
 @click.group(name='parent')
@@ -24,7 +24,7 @@ def describe(application_id=None, parent_id=None):
     """
     Describes a RIGHTSIZER_LICENSES Parent.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().parent_licenses_get(
         application_id=application_id,
         parent_id=parent_id
@@ -45,7 +45,7 @@ def add(application_id, description, tenant, scope):
     """
     Activates License for Tenants
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().parent_licenses_post(
         application_id=application_id,
         description=description,
@@ -64,7 +64,7 @@ def delete(parent_id, force):
     """
     Deletes Maestro RIGHTSIZER_LICENSES Parent
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     if force:
         click.confirm(
             f'Do you really want to completely '
@@ -87,7 +87,7 @@ def describe_resize_insights(parent_id, instance_type):
     """
     Describes r8s shape selection logic insights
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
 
     return init_configuration().parent_insights_resize(
         parent_id=parent_id,

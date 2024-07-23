@@ -1,5 +1,5 @@
 import click
-from r8s_group import cli_response, ViewCommand
+from r8scli.group import cli_response, ViewCommand
 
 PARAM_PEM = 'PEM'
 
@@ -18,7 +18,7 @@ def describe(format):
     """
     Describe current License Manager client-key data
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().lm_client_setting_get(format=format)
 
 
@@ -40,7 +40,7 @@ def add(key_id, algorithm, private_key, format, b64encoded):
     """
     Adds License Manager provided client-key data
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().lm_client_setting_post(
         key_id=key_id,
         algorithm=algorithm,
@@ -59,7 +59,7 @@ def delete(key_id: str):
     """
     Removes current License Manager client-key data
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().lm_client_setting_delete(
         key_id=key_id
     )

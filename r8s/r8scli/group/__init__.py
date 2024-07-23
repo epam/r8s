@@ -6,9 +6,9 @@ from pathlib import Path
 import click
 from prettytable import PrettyTable
 
-from r8s_service.exception import HTTP_CODE_EXCEPTION_MAPPING, \
+from r8scli.service.exception import HTTP_CODE_EXCEPTION_MAPPING, \
     R8sInternalException
-from r8s_service.logger import get_logger, get_user_logger, FILE_NAME
+from r8scli.service.logger import get_logger, get_user_logger, FILE_NAME
 
 POSITIVE_ANSWERS = ['y', 'yes']
 CONFIRMATION_MESSAGE = 'The command`s response is pretty huge and the ' \
@@ -72,8 +72,7 @@ def cli_response(id_attribute=None, secured_params=None, reversed=False):
         @wraps(func)
         def wrapper(*args, **kwargs):
             modular_mode = False
-            executed_from = func.__globals__.get('__file__')
-            if Path(executed_from).parents[2].name == MODULAR_ADMIN:
+            if Path(__file__).parents[3].name == 'modules':
                 modular_mode = True
 
             view_format = CLI_VIEW
@@ -81,11 +80,10 @@ def cli_response(id_attribute=None, secured_params=None, reversed=False):
             json_format = kwargs.pop(JSON_VIEW, False)
             response = func(*args, **kwargs)
 
-            if table_format:
-                view_format = TABLE_VIEW
-            elif json_format or modular_mode:
+            if modular_mode or json_format:
                 view_format = JSON_VIEW
-
+            elif table_format:
+                view_format = TABLE_VIEW
             pretty_response = ResponseFormatter(function_result=response,
                                                 view_format=view_format). \
                 prettify_response(reversed=reversed)

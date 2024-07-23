@@ -1,9 +1,9 @@
 import json
 
 import requests
-from r8s_service.constants import *
-from r8s_service.local_response_processor import LocalCommandResponse
-from r8s_service.logger import get_logger, get_user_logger
+from r8scli.service.constants import *
+from r8scli.service.local_response_processor import LocalCommandResponse
+from r8scli.service.logger import get_logger, get_user_logger
 
 HTTP_GET = 'get'
 HTTP_POST = 'post'

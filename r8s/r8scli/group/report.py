@@ -1,6 +1,6 @@
 import click
 
-from r8s_group import cli_response, ViewCommand, cast_to_list
+from r8scli.group import cli_response, ViewCommand, cast_to_list
 
 
 @click.group(name='report')
@@ -28,7 +28,7 @@ def general(job_id, customer_id, cloud, tenant, region, instance_id, detailed):
     """
     Describes a R8s general job report.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().report_describe_general(
         job_id=job_id, customer=customer_id, cloud=cloud, tenant=tenant,
         region=region, detailed=detailed, instance_id=instance_id)
@@ -48,7 +48,7 @@ def download(job_id, customer_id, tenant, region):
     """
     Describe a R8s job report with presigned url.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().report_describe_download(
         job_id=job_id, customer=customer_id, tenant=tenant, region=region)
 
@@ -63,7 +63,7 @@ def initiate_tenant_mail_report(customer_id, tenants):
     """
     Initiates tenant mail report.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
 
     tenants = cast_to_list(tenants)
     return init_configuration().initiate_tenant_mail_report(

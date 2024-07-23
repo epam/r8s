@@ -1,11 +1,11 @@
 import click
 
-from r8s_group import cli_response, ViewCommand, cast_to_list
-from r8s_service.constants import AVAILABLE_CLOUDS, AVAILABLE_QUOTING, \
+from r8scli.group import cli_response, ViewCommand, cast_to_list
+from r8scli.service.constants import AVAILABLE_CLOUDS, AVAILABLE_QUOTING, \
     AVAILABLE_KMEANS_INIT, AVAILABLE_KNEE_INTERP_OPTIONS, \
     AVAILABLE_SHAPE_COMPATIBILITY_RULES, AVAILABLE_SHAPE_SORTING, \
     AVAILABLE_ANALYSIS_PRICE
-from r8s_service.local_response_processor import LocalCommandResponse
+from r8scli.service.local_response_processor import LocalCommandResponse
 
 QUOTING_HELP = """Controls when quotes should be recognised by the reader.
 
@@ -51,7 +51,7 @@ def describe(algorithm_name=None):
     """
     Describes a R8s algorithm.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().algorithm_get(algorithm_name=algorithm_name)
 
 
@@ -79,7 +79,7 @@ def add(algorithm_name, customer_id, cloud, data_attribute,
     """
     Creates a R8s Algorithm.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
 
     data_attributes = cast_to_list(data_attribute)
     if not data_attributes:
@@ -116,7 +116,7 @@ def update_general_settings(algorithm_name, data_attribute, metric_attribute,
     """
     Updates a R8s algorithm general settings.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
 
     data_attribute = cast_to_list(data_attribute)
     metric_attribute = cast_to_list(metric_attribute)
@@ -170,7 +170,7 @@ def update_metric_format(algorithm_name, delimiter, skipinitialspace,
     """
     Updates a R8s algorithm metric format settings.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
 
     optional_parameters = (delimiter, skipinitialspace, lineterminator,
                            quotechar, quoting, escapechar, doublequote)
@@ -220,7 +220,7 @@ def update_clustering_settings(algorithm_name, max_clusters, wcss_kmeans_init,
     """
     Updates a R8s algorithm clustering settings.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
 
     optional_parameters = (max_clusters, wcss_kmeans_init,
                            wcss_kmeans_max_iter, wcss_kmeans_n_init,
@@ -309,7 +309,7 @@ def update_recommendation_settings(algorithm_name, record_step_minutes,
     """
     Updates a R8s algorithm recommendation settings.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
 
     thresholds = cast_to_list(threshold)
     if thresholds and not len(thresholds) == 3:
@@ -360,6 +360,6 @@ def delete(algorithm_name=None):
     """
     Deletes a R8s algorithm.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().algorithm_delete(
         algorithm_name=algorithm_name)

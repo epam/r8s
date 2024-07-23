@@ -1,6 +1,6 @@
 import click
 
-from r8s_group import cli_response, ViewCommand
+from r8scli.group import cli_response, ViewCommand
 
 
 @click.group(name='user')
@@ -15,7 +15,7 @@ def describe(username=None):
     """
     Describes a R8s user.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().user_get(username=username)
 
 
@@ -29,7 +29,7 @@ def update(username, password):
     """
     Updates user password.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().user_patch(username=username,
                                            password=password)
 
@@ -42,5 +42,5 @@ def delete(username):
     """
     Deletes user.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().user_delete(username=username)

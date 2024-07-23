@@ -1,7 +1,7 @@
 import click
 
-from r8s_group import ViewCommand, cli_response
-from r8s_service.constants import AVAILABLE_CLOUDS, AVAILABLE_OS
+from r8scli.group import ViewCommand, cli_response
+from r8scli.service.constants import AVAILABLE_CLOUDS, AVAILABLE_OS
 
 
 @click.group(name='price')
@@ -27,7 +27,7 @@ def describe(name, cloud, region, os, customer_id):
     """
     Describes a R8s Shape Price.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().shape_price_get(
         customer=customer_id,
         cloud=cloud,
@@ -57,7 +57,7 @@ def add(name, cloud, region, os, on_demand_price, customer_id):
     """
     Creates a R8s Shape Price.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().shape_price_post(
         customer=customer_id,
         cloud=cloud,
@@ -89,7 +89,7 @@ def update(name, cloud, region, os, on_demand_price, customer_id):
     """
     Updates a R8s Shape Price.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().shape_price_patch(
         customer=customer_id,
         cloud=cloud,
@@ -118,7 +118,7 @@ def delete(name, cloud, region, os, customer_id):
     """
     Deletes a R8s Shape Price.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().shape_price_delete(
         customer=customer_id,
         cloud=cloud,

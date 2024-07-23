@@ -1,9 +1,9 @@
 import click
 
-from r8s_group import cli_response, ViewCommand
-from r8s_group.application_licenses import licenses
-from r8s_group.application_policies import policies
-from r8s_service.constants import ALLOWED_PROTOCOLS, \
+from r8scli.group import cli_response, ViewCommand
+from r8scli.group.application_licenses import licenses
+from r8scli.group.application_policies import policies
+from r8scli.service.constants import ALLOWED_PROTOCOLS, \
     PROTOCOL_HTTPS
 
 
@@ -20,7 +20,7 @@ def describe(application_id=None):
     """
     Describes a RIGHTSIZER Application.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().application_get(
         application_id=application_id)
 
@@ -56,7 +56,7 @@ def add(customer_id, description, input_storage, output_storage,
     """
     Creates Maestro RIGHTSIZER Application
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
 
     return init_configuration().application_post(
         customer=customer_id,
@@ -98,7 +98,7 @@ def update(application_id, description, input_storage, output_storage,
     """
     Updates Maestro RIGHTSIZER Application
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
 
     return init_configuration().application_patch(
         application_id=application_id,
@@ -123,7 +123,7 @@ def delete(application_id, force):
     """
     Deletes RIGHTSIZER Application.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     if force:
         click.confirm(
             f'Do you really want to completely '

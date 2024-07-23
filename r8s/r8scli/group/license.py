@@ -1,6 +1,6 @@
 import click
 
-from r8s_group import cli_response, ViewCommand
+from r8scli.group import cli_response, ViewCommand
 
 
 @click.group(name='license')
@@ -16,7 +16,7 @@ def describe(license_key=None):
     """
     Describes a RIGHTSIZER License.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().license_get(
         license_key=license_key)
 
@@ -28,7 +28,7 @@ def delete(license_key=None):
     """
     Deletes a RIGHTSIZER License.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().license_delete(
         license_key=license_key)
 
@@ -40,6 +40,6 @@ def sync(license_key=None):
     """
     Synchronizes a RIGHTSIZER License.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().license_sync_post(
         license_key=license_key)

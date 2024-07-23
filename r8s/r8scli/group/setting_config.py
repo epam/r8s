@@ -1,6 +1,6 @@
 import click
-from r8s_group import cli_response, ViewCommand
-from r8s_service.local_response_processor import LocalCommandResponse
+from r8scli.group import cli_response, ViewCommand
+from r8scli.service.local_response_processor import LocalCommandResponse
 
 
 @click.group(name='config')
@@ -14,7 +14,7 @@ def describe():
     """
     Describes current License Manager access configuration data
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().lm_config_setting_get()
 
 
@@ -33,7 +33,7 @@ def add(host, port, protocol, stage):
     """
     Adds License Manager access configuration data
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().lm_config_setting_post(
         host=host, port=port,
         protocol=protocol, stage=stage
@@ -51,5 +51,5 @@ def delete(confirm: bool):
         return LocalCommandResponse(
             body={'message': 'Please, specify `--confirm` flag'})
 
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().lm_config_setting_delete()

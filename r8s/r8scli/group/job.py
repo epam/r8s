@@ -1,7 +1,7 @@
 import click
 
-from r8s_group import cli_response, ViewCommand, cast_to_list
-from r8s_service.constants import AVAILABLE_CLOUDS
+from r8scli.group import cli_response, ViewCommand, cast_to_list
+from r8scli.service.constants import AVAILABLE_CLOUDS
 
 
 @click.group(name='job')
@@ -21,7 +21,7 @@ def describe(job_id=None, job_name=None, limit=None):
     """
     Describes a R8s job.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().job_get(
         job_id=job_id, job_name=job_name, limit=limit)
 
@@ -48,7 +48,7 @@ def submit(application_id, parent_id, scan_tenants,
     """
     Submits a R8s job.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
 
     scan_tenants = cast_to_list(scan_tenants)
 
@@ -68,5 +68,5 @@ def terminate(job_id):
     """
     Terminates a R8s batch job.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().job_delete(job_id=job_id)

@@ -1,6 +1,6 @@
-from r8s_service.adapter_client import AdapterClient
-from r8s_service.config import ConfigurationProvider
-from r8s_service.logger import get_logger
+from r8scli.service.adapter_client import AdapterClient
+from r8scli.service.config import ConfigurationProvider
+from r8scli.service.logger import get_logger
 
 SYSTEM_LOG = get_logger('r8s.service.initializer')
 

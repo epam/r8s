@@ -1,11 +1,11 @@
 import click
 
-from r8s_group import cli_response, ViewCommand
-from r8s_service.constants import ALLOWED_PROTOCOLS, \
+from r8scli.group import cli_response, ViewCommand
+from r8scli.service.constants import ALLOWED_PROTOCOLS, \
     PROTOCOL_HTTPS, AVAILABLE_CLOUDS, PARAM_TAG, PARAM_COOLDOWN, \
     PARAM_SCALE_STEP, SCAPE_STEP_AUTO_DETECT, PARAM_THRESHOLDS, PARAM_DESIRED, \
     PARAM_MIN, PARAM_MAX, PARAM_TYPE, GROUP_POLICY_AUTO_SCALING, PARAM_ID
-from r8s_service.local_response_processor import LocalCommandResponse
+from r8scli.service.local_response_processor import LocalCommandResponse
 
 
 @click.group(name='policies')
@@ -23,7 +23,7 @@ def describe(application_id=None, group_id=None):
     """
     Describes a RIGHTSIZER Application group policy.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().application_policies_get(
         application_id=application_id,
         group_id=group_id
@@ -74,7 +74,7 @@ def add_autoscaling(application_id: str, tag: str, cooldown_days: int,
             PARAM_MAX: threshold_max
         }
 
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().application_policies_post(
         application_id=application_id,
         group_policy=group_policy
@@ -133,7 +133,7 @@ def update_autoscaling(application_id: str, group_id: str, tag=None,
             PARAM_DESIRED: threshold_desired,
             PARAM_MAX: threshold_max
         }
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().application_policies_patch(
         application_id=application_id,
         group_policy=group_policy
@@ -150,7 +150,7 @@ def delete(application_id=None, group_id=None):
     """
     Deletes a RIGHTSIZER Application group policy.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().application_policies_delete(
         application_id=application_id,
         group_id=group_id

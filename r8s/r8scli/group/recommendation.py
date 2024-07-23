@@ -1,7 +1,7 @@
 import click
 
-from r8s_group import cli_response, cast_to_list, ViewCommand
-from r8s_service.constants import AVAILABLE_RECOMMENDATION_TYPES, \
+from r8scli.group import cli_response, cast_to_list, ViewCommand
+from r8scli.service.constants import AVAILABLE_RECOMMENDATION_TYPES, \
     AVAILABLE_FEEDBACK_STATUSES
 
 
@@ -26,7 +26,7 @@ def describe(instance_id=None, recommendation_type=None, job_id=None,
     """
     Describes a R8s recommendations.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().recommendation_get(
         instance_id=instance_id,
         recommendation_type=recommendation_type,
@@ -52,7 +52,7 @@ def update(instance_id, recommendation_type,feedback_status,
     """
     Saves feedback for r8s recommendation
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().recommendation_patch(
         instance_id=instance_id,
         recommendation_type=recommendation_type,

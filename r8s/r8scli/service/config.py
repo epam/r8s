@@ -4,8 +4,8 @@ import click
 import requests
 
 from modular_cli_sdk.services.credentials_manager import CredentialsProvider
-from r8s_service.local_response_processor import LocalCommandResponse
-from r8s_service.logger import get_logger, get_user_logger
+from r8scli.service.local_response_processor import LocalCommandResponse
+from r8scli.service.logger import get_logger, get_user_logger
 
 SYSTEM_LOG = get_logger('r8s.service.config')
 USER_LOG = get_user_logger('user')

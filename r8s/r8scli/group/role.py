@@ -1,7 +1,7 @@
 from datetime import datetime
 
 import click
-from r8s_group import cli_response, cast_to_list, ViewCommand
+from r8scli.group import cli_response, cast_to_list, ViewCommand
 
 
 @click.group(name='role')
@@ -16,7 +16,7 @@ def describe(name=None):
     """
     Describes a R8s roles.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().role_get(role_name=name)
 
 
@@ -32,7 +32,7 @@ def add(name, policies, expiration):
     """
     Creates the Role entity with the given name
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
 
     policies = cast_to_list(policies)
     if expiration:
@@ -60,7 +60,7 @@ def update(name, attach_policy, detach_policy, expiration):
     """
     Updates role configuration.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
 
     if not attach_policy and not detach_policy:
         return {'message': 'At least one of the following arguments must be '
@@ -90,5 +90,5 @@ def delete(name):
     """
     Deletes role.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().role_delete(role_name=name)

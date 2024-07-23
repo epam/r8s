@@ -1,8 +1,8 @@
 import click
 
-from r8s_group import ViewCommand, cli_response
-from r8s_group.shape_price import price
-from r8s_service.constants import AVAILABLE_CLOUDS
+from r8scli.group import ViewCommand, cli_response
+from r8scli.group.shape_price import price
+from r8scli.service.constants import AVAILABLE_CLOUDS
 
 
 @click.group(name='shape')
@@ -20,7 +20,7 @@ def describe(name=None, cloud=None):
     """
     Describes a R8s Shape.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().shape_get(name=name, cloud=cloud)
 
 
@@ -50,7 +50,7 @@ def add(name, cloud, cpu, memory, network_throughtput, iops,
     """
     Creates a R8s Shape.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().shape_post(
         name=name, cloud=cloud, cpu=cpu, memory=memory,
         network_throughtput=network_throughtput, iops=iops,
@@ -84,7 +84,7 @@ def update(name, cloud, cpu, memory, network_throughtput, iops,
     """
     Updates a R8s Shape.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().shape_patch(
         name=name, cloud=cloud, cpu=cpu, memory=memory,
         network_throughtput=network_throughtput, iops=iops,
@@ -100,7 +100,7 @@ def delete(name):
     """
     Deletes a R8s Shape.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().shape_delete(name=name)
 
 

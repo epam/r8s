@@ -1,7 +1,7 @@
 import click
 
-from r8s_group import cli_response, ViewCommand
-from r8s_service.constants import TYPE_DATASOURCE, \
+from r8scli.group import cli_response, ViewCommand
+from r8scli.service.constants import TYPE_DATASOURCE, \
     TYPE_STORAGE, SERVICE_S3_BUCKET, PARAM_BUCKET_NAME, PARAM_PREFIX
 
 
@@ -18,7 +18,7 @@ def describe(storage_name=None):
     """
     Describes a R8s storage.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().storage_get(storage_name=storage_name)
 
 
@@ -37,7 +37,7 @@ def add(storage_name, type, bucket_name, prefix=None):
     """
     Creates a R8s S3 storage.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     access = {
         PARAM_BUCKET_NAME: bucket_name,
     }
@@ -66,7 +66,7 @@ def update(storage_name, type, bucket_name, prefix=None):
     """
     Updates a R8s S3 storage.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     access = {}
     if bucket_name:
         access[PARAM_BUCKET_NAME]: bucket_name
@@ -87,7 +87,7 @@ def delete(storage_name):
     """
     Removes a R8s storage.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().storage_delete(storage_name=storage_name)
 
 
@@ -110,7 +110,7 @@ def describe_metrics(data_source_name, tenant, region=None, timestamp=None,
     """
     Describes metric files from data source.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().storage_describe_metrics(
         data_source_name=data_source_name, region=region,
         tenant=tenant, timestamp=timestamp, instance_id=instance_id,
