@@ -3,8 +3,7 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
-
-from commons.constants import SETTING_IAM_PERMISSIONS
+from commons.constants import SETTING_IAM_PERMISSIONS, ENV_SYSTEM_USER_PASSWORD
 from commons.log_helper import get_logger
 from scripts.configure_environment import generate_password
 
@@ -77,7 +76,9 @@ def create_admin_role():
 def create_admin_user():
     from services import SERVICE_PROVIDER
     auth_client = SERVICE_PROVIDER.cognito()
-    password = generate_password()
+
+    password = (os.environ.get(ENV_SYSTEM_USER_PASSWORD) or
+                generate_password())
     if auth_client._get_user('SYSTEM_ADMIN'):
         _LOG.debug(f'Admin user already exist')
         return
