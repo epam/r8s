@@ -224,9 +224,7 @@ class ServiceProvider:
 
         def tenant_service(self):
             if not self.__tenant_service:
-                self.__tenant_service = TenantService(
-                    customer_service=self.customer_service()
-                )
+                self.__tenant_service = TenantService()
             return self.__tenant_service
 
         def application_service(self):
