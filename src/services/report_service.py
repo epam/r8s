@@ -1,8 +1,7 @@
 from commons import build_response, RESPONSE_BAD_REQUEST_CODE
 from commons.constants import CUSTOMER_ATTR, TENANT_ATTR, REGION_ATTR, \
     CLOUD_ATTR, REPORT_RECOMMENDATION_ATTR, \
-    REPORT_RESOURCE_ID_ATTR, REPORT_RESOURCE_TYPE_ATTR, REPORT_SOURCE_ATTR, \
-    REPORT_SEVERITY_ATTR
+    REPORT_RESOURCE_ID_ATTR
 from commons.log_helper import get_logger
 from models.job import Job
 from services.rightsizer_application_service import \
@@ -38,7 +37,7 @@ class ReportService:
     def get_job_report(self, job: Job, detailed=None, customer=None,
                        cloud=None, tenant=None, region=None, instance_id=None):
         _LOG.debug(f'Describing job storage')
-        job_storage = self.get_job_storage(job=job)
+        job_storage = self.get_storage(customer=customer)
 
         job_results = self.storage_service.download_job_results(
             storage=job_storage,
@@ -64,8 +63,9 @@ class ReportService:
         for instance_data in job_results:
             instance_data = {k: v for k, v in instance_data.items()
                              if k in RESULT_INSTANCE_ATTRIBUTES}
-            recommendation = instance_data.pop(REPORT_RECOMMENDATION_ATTR, None)
-            recommendation = {k:v for k, v in recommendation.items()
+            recommendation = instance_data.pop(REPORT_RECOMMENDATION_ATTR,
+                                               None)
+            recommendation = {k: v for k, v in recommendation.items()
                               if k in RECOMMENDATION_ATTRIBUTES}
             if not recommendation or not isinstance(recommendation, dict):
                 return
@@ -87,7 +87,7 @@ class ReportService:
 
     def get_download_report(self, job: Job, customer, tenant, region):
         _LOG.debug(f'Describing job storage')
-        storage = self.get_job_storage(job=job)
+        storage = self.get_storage(customer=customer)
 
         objects = self.storage_service.list_object_with_presigned_urls(
             storage=storage, job_id=job.id)
@@ -155,25 +155,17 @@ class ReportService:
         days_part = ' - '.join(days_part)
         return ', '.join((time_part, days_part))
 
-    def get_job_storage(self, job: Job):
-        parent_id = job.parent_id
-        parent = self.parent_service.get_parent_by_id(parent_id=parent_id)
-
-        if not parent:
-            _LOG.error(f'Parent \'{parent_id}\' does not exist.')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Parent \'{parent_id}\' does not exist.'
-            )
-        application_id = parent.application_id
-        application = self.application_service.get_application_by_id(
-            application_id=application_id)
+    def get_storage(self, customer: str):
+        application = self.application_service.get_host_application(
+            customer=customer)
 
         if not application:
-            _LOG.error(f'Application \'{application_id}\' does not exist.')
+            _LOG.error(f'Host Application for customer \'{customer}\' '
+                       f'does not found.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Application \'{application_id}\' does not exist.'
+                content=f'Host Application for customer \'{customer}\' '
+                        f'does not found.'
             )
         application_meta = self.application_service.get_application_meta(
             application=application)
@@ -182,11 +174,11 @@ class ReportService:
 
         if not output_storage:
             _LOG.error(f'Output storage is not specified in application '
-                       f'\'{application_id}\'')
+                       f'\'{application.application_id}\'')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
                 content=f'Output storage is not specified in application '
-                        f'\'{application_id}\''
+                        f'\'{application.application_id}\''
             )
 
         storage = self.storage_service.get_by_name(name=output_storage)

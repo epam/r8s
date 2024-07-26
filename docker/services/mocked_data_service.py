@@ -196,10 +196,10 @@ class MockedDataService:
         period_days = config.get(TAG_PERIOD_DAYS)
         length = POINTS_IN_DAY * period_days
 
-        instance_id_series, instance_type_series, timestamp_series, \
-        shape_series, shape_size_koef_series = self.generate_common_columns(
+        instance_id_series, instance_type_series, timestamp_series = (
+            self.generate_common_columns(
             metric_file_path=metric_file_path, length=length
-        )
+        ))
 
         deviation = config.get(TAG_STD)
         cpu_avg = config.get(TAG_CPU)
@@ -241,8 +241,6 @@ class MockedDataService:
         df_data = {
             'instance_id': instance_id_series,
             'instance_type': instance_type_series,
-            'shape': shape_series,
-            'shape_size_koef': shape_size_koef_series,
             'timestamp': timestamp_series,
             'cpu_load': cpu_load_series,
             'memory_load': memory_load_series,
@@ -257,10 +255,10 @@ class MockedDataService:
         period_days = config.get(TAG_PERIOD_DAYS)
         length = POINTS_IN_DAY * period_days
 
-        instance_id_series, instance_type_series, timestamp_series, \
-        shape_series, shape_size_koef_series = self.generate_common_columns(
+        instance_id_series, instance_type_series, timestamp_series = (
+            self.generate_common_columns(
             metric_file_path=metric_file_path, length=length
-        )
+        ))
 
         deviation = config.get(TAG_STD)
         cpu_avg = config.get(TAG_CPU)
@@ -318,8 +316,6 @@ class MockedDataService:
         df_data = {
             'instance_id': instance_id_series,
             'instance_type': instance_type_series,
-            'shape': shape_series,
-            'shape_size_koef': shape_size_koef_series,
             'timestamp': timestamp_series,
             'cpu_load': cpu_load_series,
             'memory_load': memory_load_series,
@@ -334,10 +330,10 @@ class MockedDataService:
         period_days = config.get(TAG_PERIOD_DAYS)
         length = POINTS_IN_DAY * period_days
 
-        instance_id_series, instance_type_series, timestamp_series, \
-        shape_series, shape_size_koef_series = self.generate_common_columns(
+        instance_id_series, instance_type_series, timestamp_series = (
+            self.generate_common_columns(
             metric_file_path=metric_file_path, length=length
-        )
+        ))
 
         deviation = config.get(TAG_STD)
         cpu_avg = config.get(TAG_CPU)
@@ -383,8 +379,6 @@ class MockedDataService:
         df_data = {
             'instance_id': instance_id_series,
             'instance_type': instance_type_series,
-            'shape': shape_series,
-            'shape_size_koef': shape_size_koef_series,
             'timestamp': timestamp_series,
             'cpu_load': cpu_load_series,
             'memory_load': memory_load_series,
@@ -417,11 +411,8 @@ class MockedDataService:
             value=shape_cloud_mapping.get(cloud.upper()),
             length=length
         )
-        shape_series = constant_to_series('stub', length)
-        shape_size_koef_series = constant_to_series(0.5, length)
 
-        return instance_id_series, instance_type_series, timestamp_series, \
-               shape_series, shape_size_koef_series
+        return instance_id_series, instance_type_series, timestamp_series
 
     @staticmethod
     def _cron_to_list(cron_str):

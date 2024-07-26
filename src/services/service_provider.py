@@ -348,7 +348,9 @@ class ServiceProvider:
                     LicenseManagerService
                 self.__license_manager_service = LicenseManagerService(
                     license_manager_client=self.license_manager_client(),
-                    token_service=self.token_service()
+                    token_service=self.token_service(),
+                    ssm_service=self.ssm_service(),
+                    environment_service=self.environment_service()
                 )
             return self.__license_manager_service
 

@@ -1,6 +1,6 @@
 from typing import Optional, Union, List
 
-from modular_sdk.commons.constants import RIGHTSIZER_PARENT_TYPE
+from modular_sdk.commons.constants import ParentType
 from modular_sdk.models.application import Application
 from modular_sdk.models.parent import Parent
 from modular_sdk.services.tenant_service import TenantService
@@ -176,7 +176,6 @@ class OperationModeCheckHandler:
         for application in applications:
             application_parents = self.parent_service.list_application_parents(
                 application_id=application.application_id,
-                type_=RIGHTSIZER_PARENT_TYPE,
                 only_active=True
             )
             parents.extend(application_parents)

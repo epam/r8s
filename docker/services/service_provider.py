@@ -19,6 +19,7 @@ from services.recommendation_history_service import \
     RecommendationHistoryService
 from services.reformat_service import ReformatService
 from services.resize.resize_service import ResizeService
+from services.resource_group_service import ResourceGroupService
 from services.rightsizer_application_service import \
     RightSizerApplicationService
 from services.rightsizer_parent_service import RightSizerParentService
@@ -63,6 +64,7 @@ class ServiceProvider:
         __shape_price_service = None
         __meta_service = None
         __recommendation_history_service = None
+        __resource_group_service = None
 
         # modular services
         __customer_service = None
@@ -203,6 +205,7 @@ class ServiceProvider:
                     environment_service=self.environment_service(),
                     saving_service=self.saving_service(),
                     meta_service=self.meta_service(),
+                    shape_service=self.shape_service(),
                     recommendation_history_service=
                     self.recommendation_history_service()
                 )
@@ -278,6 +281,13 @@ class ServiceProvider:
                     RecommendationHistoryService()
             return self.__recommendation_history_service
 
+        def resource_group_service(self):
+            if not self.__resource_group_service:
+                self.__resource_group_service = ResourceGroupService(
+                    schedule_service=self.schedule_service()
+                )
+            return self.__resource_group_service
+
         def token_service(self):
             if not self.__token_service:
                 from services.token_service import TokenService
@@ -292,7 +302,9 @@ class ServiceProvider:
                     LicenseManagerService
                 self.__license_manager_service = LicenseManagerService(
                     license_manager_client=self.license_manager_client(),
-                    token_service=self.token_service()
+                    token_service=self.token_service(),
+                    environment_service=self.environment_service(),
+                    ssm_service=self.ssm_service()
                 )
             return self.__license_manager_service
 

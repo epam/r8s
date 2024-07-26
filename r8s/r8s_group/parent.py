@@ -2,10 +2,11 @@ import click
 
 from r8s_group import cli_response, ViewCommand, cast_to_list
 from r8s_service.constants import (AVAILABLE_CLOUDS, ALLOWED_PROTOCOLS, \
-    PROTOCOL_HTTPS, AVAILABLE_PARENT_SCOPES, PARENT_SCOPE_ALL,
-                                   PARENT_SCOPE_SPECIFIC, PARENT_SCOPE_DISABLED)
-from r8s_group.parent_licenses import licenses
-from r8s_group.parent_shaperule import shape_rule
+                                   PROTOCOL_HTTPS, AVAILABLE_PARENT_SCOPES,
+                                   PARENT_SCOPE_ALL,
+                                   PARENT_SCOPE_SPECIFIC,
+                                   PARENT_SCOPE_DISABLED)
+from r8s_group.parent_shaperule import shaperule
 
 
 @click.group(name='parent')
@@ -21,58 +22,58 @@ def parent():
 @cli_response()
 def describe(application_id=None, parent_id=None):
     """
-    Describes a RIGHTSIZER Parent.
+    Describes a RIGHTSIZER_LICENSES Parent.
     """
     from r8s_service.initializer import init_configuration
-    return init_configuration().parent_get(
+    return init_configuration().parent_licenses_get(
         application_id=application_id,
-        parent_id=parent_id)
+        parent_id=parent_id
+    )
 
 
 @parent.command(cls=ViewCommand, name='add')
 @click.option('--application_id', '-aid', type=str, required=True,
-              help='Maestro application id to create Parent for.')
+              help='RIGHTSIZER_LICENSES application id create Parent for.')
 @click.option('--description', '-d', type=str, required=True,
               help='Parent description.')
-@click.option('--cloud', '-c', type=click.Choice(AVAILABLE_CLOUDS),
-              required=False, help='Parent cloud. Only applied to ALL scope')
-@click.option('--scope', '-s', required=True,
-              type=click.Choice(AVAILABLE_PARENT_SCOPES),
-              help=f'Parent scope. {PARENT_SCOPE_ALL} to enable all '
-                   f'tenants/all tenants of specific cloud. '
-                   f'{PARENT_SCOPE_SPECIFIC}/{PARENT_SCOPE_DISABLED} '
-                   f'to enable/disable specific tenant')
-@click.option('--tenant_name', '-tn', required=False, type=str,
-              help=f'Tenant name to be linked to Parent. '
-                   f'Only for {PARENT_SCOPE_DISABLED}/{PARENT_SCOPE_SPECIFIC} '
-                   f'scopes.')
+@click.option('--tenant', '-t', type=str, required=False,
+              help='Tenant to activate license for.')
+@click.option('--scope', '-s', type=click.Choice(AVAILABLE_PARENT_SCOPES),
+              required=True, help='Parent scope')
 @cli_response()
-def add(application_id, description, cloud, scope, tenant_name):
+def add(application_id, description, tenant, scope):
     """
-    Creates Maestro RIGHTSIZER Parent
+    Activates License for Tenants
     """
     from r8s_service.initializer import init_configuration
-    return init_configuration().parent_post(
+    return init_configuration().parent_licenses_post(
         application_id=application_id,
         description=description,
-        cloud=cloud,
-        scope=scope,
-        tenant_name=tenant_name
+        tenant=tenant,
+        scope=scope
     )
 
 
 @parent.command(cls=ViewCommand, name='delete')
 @click.option('--parent_id', '-pid', type=str, required=True,
               help='Maestro Parent id to delete.')
+@click.option('--force', '-f', is_flag=True,
+              help='To completely delete Parent from db.')
 @cli_response()
-def delete(parent_id):
+def delete(parent_id, force):
     """
-    Updates Maestro RIGHTSIZER Parent
+    Deletes Maestro RIGHTSIZER_LICENSES Parent
     """
     from r8s_service.initializer import init_configuration
-
-    return init_configuration().parent_delete(
-        parent_id=parent_id
+    if force:
+        click.confirm(
+            f'Do you really want to completely '
+            f'delete parent {parent_id}?',
+            abort=True
+        )
+    return init_configuration().parent_licenses_delete(
+        parent_id=parent_id,
+        force=force
     )
 
 
@@ -93,5 +94,5 @@ def describe_resize_insights(parent_id, instance_type):
         instance_type=instance_type
     )
 
-parent.add_command(licenses)
-parent.add_command(shape_rule)
+
+parent.add_command(shaperule)

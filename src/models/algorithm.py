@@ -73,6 +73,9 @@ class RecommendationSettings(EmbeddedDocument):
     min_allowed_days = IntField(default=1, min_value=1, max_value=90)
     max_days = IntField(default=90, min_value=7, max_value=365)
     min_allowed_days_schedule = IntField(default=14, min_value=7, max_value=60)
+    max_allowed_days_schedule = IntField(default=28, min_value=14)
+    min_schedule_day_duration_minutes = IntField(default=90, min_value=30,
+                                                 max_value=360)
 
     ignore_savings = BooleanField(default=False)
     max_recommended_shapes = IntField(min_value=1, max_value=10, default=5)
@@ -85,17 +88,21 @@ class RecommendationSettings(EmbeddedDocument):
     use_instance_tags = BooleanField(default=True)
     analysis_price = EnumField(AnalysisPriceEnum,
                                default=AnalysisPriceEnum.DEFAULT)
+    allowed_actions = ListField(StringField(null=True))
     ignore_actions = ListField(StringField(null=True))
     discard_initial_zeros = BooleanField(default=True)
     target_timezone_name = StringField(default="Europe/London")
     forbid_change_series = BooleanField(default=False)
     forbid_change_family = BooleanField(default=False)
+    optimized_aggregation_threshold_days = IntField(default=14)
+    optimized_aggregation_step_minutes = IntField(default=15)
 
 
 class Algorithm(BaseModel):
     dto_skip_attrs = ['_id', 'md5', 'format_version']
 
     name = StringField(unique=True)
+    resource_type = StringField(null=True)
     customer = StringField(null=True)
     cloud = EnumField(CloudEnum)
     licensed = BooleanField(default=False)

@@ -65,14 +65,6 @@ class OSService:
             return
         metric_files = [y for x in os.walk(metrics_folder_path)
                         for y in glob(os.path.join(x[0], '*.csv'))]
-
-        if not metric_files:
-            _LOG.error(f'No metric files found for '
-                       f'algorithm \'{algorithm.name}\'')
-            raise ExecutorException(
-                step_name=JOB_STEP_VALIDATE_METRICS,
-                reason=f'No metric files found'
-            )
         return metric_files
 
     @staticmethod

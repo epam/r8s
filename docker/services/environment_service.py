@@ -3,8 +3,11 @@ import os
 from commons.constants import INSTANCE_SPECS_STORAGE_TYPE, \
     STORAGE_TYPE_SETTING, DEFAULT_DAYS_TO_PROCESS, DEFAULT_META_POSTPONED_KEY, \
     DEFAULT_META_POSTPONED_FOR_ACTIONS_KEY, \
-    ENV_SERVICE_MODE, DOCKER_SERVICE_MODE
-from commons.constants import PARENT_ID_ATTR
+    ENV_SERVICE_MODE, DOCKER_SERVICE_MODE, ENV_FORCE_RESCAN, \
+    ENV_LM_TOKEN_LIFETIME_MINUTES, PARENT_ID_ATTR, APPLICATION_ID_ATTR, \
+    LICENSED_APPLICATION_ID_ATTR
+
+DEFAULT_LM_TOKEN_LIFETIME_MINUTES = 120
 
 
 class EnvironmentService:
@@ -42,6 +45,14 @@ class EnvironmentService:
                               STORAGE_TYPE_SETTING)
 
     @staticmethod
+    def get_application_id():
+        return os.environ.get(APPLICATION_ID_ATTR)
+
+    @staticmethod
+    def get_licensed_application_id():
+        return os.environ.get(LICENSED_APPLICATION_ID_ATTR)
+
+    @staticmethod
     def get_licensed_parent_id():
         return os.environ.get(PARENT_ID_ATTR)
 
@@ -71,3 +82,16 @@ class EnvironmentService:
     @staticmethod
     def is_docker() -> bool:
         return os.environ.get(ENV_SERVICE_MODE) == DOCKER_SERVICE_MODE
+
+    @staticmethod
+    def force_rescan() -> bool:
+        force_rescan = os.environ.get(ENV_FORCE_RESCAN, False)
+        return force_rescan and force_rescan.lower() in ('y', 't', 'true')
+
+    @staticmethod
+    def lm_token_lifetime_minutes():
+        try:
+            return int(os.environ.get(ENV_LM_TOKEN_LIFETIME_MINUTES,
+                                      DEFAULT_LM_TOKEN_LIFETIME_MINUTES))
+        except ValueError:
+            return DEFAULT_LM_TOKEN_LIFETIME_MINUTES

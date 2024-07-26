@@ -1,6 +1,8 @@
 import click
 
 from r8s_group import cli_response, ViewCommand
+from r8s_group.application_licenses import licenses
+from r8s_group.application_policies import policies
 from r8s_service.constants import ALLOWED_PROTOCOLS, \
     PROTOCOL_HTTPS
 
@@ -114,11 +116,23 @@ def update(application_id, description, input_storage, output_storage,
 @application.command(cls=ViewCommand, name='delete')
 @click.option('--application_id', '-aid', type=str, required=True,
               help='Id of the application to delete.')
+@click.option('--force', '-f', is_flag=True,
+              help='To completely delete Application from db.')
 @cli_response()
-def delete(application_id):
+def delete(application_id, force):
     """
     Deletes RIGHTSIZER Application.
     """
     from r8s_service.initializer import init_configuration
+    if force:
+        click.confirm(
+            f'Do you really want to completely '
+            f'delete application {application_id}?',
+            abort=True
+        )
     return init_configuration().application_delete(
         application_id=application_id)
+
+
+application.add_command(licenses)
+application.add_command(policies)

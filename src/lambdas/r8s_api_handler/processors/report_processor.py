@@ -9,17 +9,24 @@ from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
 from models.job import Job, JobStatusEnum
+from services.abstract_api_handler_lambda import PARAM_USER_CUSTOMER
+
 from services.job_service import JobService
 from services.report_service import ReportService
+
+from modular_sdk.services.tenant_service import TenantService
+from modular_sdk.models.tenant import Tenant
 
 _LOG = get_logger('r8s-report-processor')
 
 
 class ReportProcessor(AbstractCommandProcessor):
     def __init__(self, job_service: JobService,
-                 report_service: ReportService):
+                 report_service: ReportService,
+                 tenant_service: TenantService):
         self.job_service = job_service
         self.report_service = report_service
+        self.tenant_service = tenant_service
         self.report_type_mapping = {
             None: self.general_report,
             'download': self.download_report
@@ -74,6 +81,15 @@ class ReportProcessor(AbstractCommandProcessor):
                 code=RESPONSE_BAD_REQUEST_CODE,
                 content=f'Job \'{job_id}\' must have SUCCEEDED status.'
             )
+
+        if not customer:
+            _LOG.debug(f'Event customer not specified, resolving')
+            customer = self.resolve_customer(
+                user_customer=event.get(PARAM_USER_CUSTOMER),
+                job=job
+            )
+            _LOG.debug(f'Resolved customer: {customer}')
+
         _LOG.debug(f'Going to generate report for job \'{job_id}\'')
         reports = self.report_service.get_job_report(
             job=job, detailed=detailed, customer=customer, cloud=cloud,
@@ -116,6 +132,13 @@ class ReportProcessor(AbstractCommandProcessor):
                 code=RESPONSE_BAD_REQUEST_CODE,
                 content=f'Job \'{job_id}\' must have SUCCEEDED status.'
             )
+        if not customer:
+            _LOG.debug(f'Event customer not specified, resolving')
+            customer = self.resolve_customer(
+                user_customer=event.get(PARAM_USER_CUSTOMER),
+                job=job
+            )
+            _LOG.debug(f'Resolved customer: {customer}')
         _LOG.debug(f'Going to generate report for job \'{job_id}\'')
         report = self.report_service.get_download_report(
             job=job, customer=customer, tenant=tenant, region=region)
@@ -130,3 +153,16 @@ class ReportProcessor(AbstractCommandProcessor):
             code=RESPONSE_OK_CODE,
             content=report
         )
+
+    def resolve_customer(self, user_customer, job: Job):
+        if user_customer and user_customer != 'admin':
+            return user_customer
+        if not job.tenant_status_map:
+            return
+        tenant_name = next(iter(job.tenant_status_map))
+        tenant = self.tenant_service.get(
+            tenant_name=tenant_name,
+            attributes_to_get=[Tenant.name, Tenant.customer_name]
+        )
+        if tenant:
+            return tenant.customer_name

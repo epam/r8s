@@ -1,7 +1,11 @@
 from dataclasses import dataclass
+from statistics import quantiles
 
 from commons.constants import ACTION_SPLIT, ACTION_SCALE_DOWN, ACTION_SCALE_UP, \
     ACTION_CHANGE_SHAPE
+
+MIN_LIMIT_PERC = 30
+MAX_LIMIT_PERC = 70
 
 
 @dataclass
@@ -9,14 +13,16 @@ class MetricTrend:
     mean: float
     threshold: float
     result: float
+    percentiles: list[float]
 
 
 class ResizeTrend:
     def __init__(self):
         self.metric_trends = {}
         self.probability = None
-        self._default_metric_trend = MetricTrend(mean=-1,
-                                                 result=0, threshold=0)
+        self._default_metric_trend = MetricTrend(
+            mean=-1, percentiles=quantiles([-1, -1], n=100),
+            result=0, threshold=0)
 
     def __getitem__(self, item):
         return self.metric_trends.get(item, self._default_metric_trend)
@@ -27,12 +33,14 @@ class ResizeTrend:
     def add_metric_trend(self, metric_name, column):
         mean = column.mean()
         threshold = column.quantile(.9)
+        percentiles = quantiles(column, n=100)
         result_direction = self.__get_result_direction(
             mean=mean,
             threshold=threshold
         )
         metric_trend = MetricTrend(
             mean=mean,
+            percentiles=percentiles,
             threshold=threshold,
             result=result_direction
         )
@@ -103,11 +111,8 @@ class ResizeTrend:
             threshold = minimum_load_threshold
         currently_used = provided / 100 * threshold
 
-        min_limit_perc = 30
-        max_limit_perc = 70
-
-        absolute_max = currently_used * 100 / min_limit_perc
-        absolute_min = currently_used * 100 / max_limit_perc
+        absolute_max = currently_used * 100 / MIN_LIMIT_PERC
+        absolute_min = currently_used * 100 / MAX_LIMIT_PERC
 
         if absolute_min < lowest_minimum:
             absolute_min = lowest_minimum

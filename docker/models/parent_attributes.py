@@ -11,11 +11,5 @@ class ShapeRule(MapAttribute):
     value = UnicodeAttribute(null=True)
 
 
-class ParentMeta(MapAttribute):
-    shape_rules = ListAttribute(of=ShapeRule, default=list)
-
-
 class LicensesParentMeta(MapAttribute):
-    cloud = UnicodeAttribute(null=True)
-    algorithm = UnicodeAttribute(null=True)
-    license_key = UnicodeAttribute(null=True)
+    shape_rules = ListAttribute(of=ShapeRule, null=True, default=[])

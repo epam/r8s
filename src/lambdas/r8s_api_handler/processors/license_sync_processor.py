@@ -1,5 +1,5 @@
 from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    RESPONSE_OK_CODE, build_response
+    RESPONSE_OK_CODE, RESPONSE_RESOURCE_NOT_FOUND_CODE, build_response
 from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import LICENSE_KEY_ATTR
 from commons.constants import POST_METHOD
@@ -41,12 +41,18 @@ class LicenseSyncProcessor(AbstractCommandProcessor):
         _LOG.debug(f'Sync license event: {event}')
         license_key = event.get(LICENSE_KEY_ATTR)
 
-        licenses = self.license_service.list_licenses(license_key=license_key)
+        licenses = list(self.license_service.list_licenses(
+            license_key=license_key))
 
         license_key_list = [l.license_key for l in licenses]
         _LOG.debug(f'Licenses to sync: '
                    f'{", ".join(license_key_list)}')
-
+        if not license_key_list:
+            _LOG.error('No licenses matching given query found.')
+            return build_response(
+                code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
+                content='No licenses matching given query found.'
+            )
         for license_ in licenses:
             _LOG.debug(f'Syncing license \'{license_.license_key}\'')
             self._execute_license_sync(
@@ -62,8 +68,11 @@ class LicenseSyncProcessor(AbstractCommandProcessor):
 
     def _execute_license_sync(self, license_obj: License):
         _LOG.info(f'Syncing license \'{license_obj.license_key}\'')
+        customer = list(license_obj.customers.keys())[0]
         response = self.license_manager_service.synchronize_license(
-            license_key=license_obj.license_key)
+            license_key=license_obj.license_key,
+            customer=customer
+        )
         if not response.status_code == 200:
             return
 

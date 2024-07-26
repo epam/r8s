@@ -67,7 +67,7 @@ class ViewCommand(click.core.Command):
             raise R8sInternalException(str(e))
 
 
-def cli_response(id_attribute=None, secured_params=None):
+def cli_response(id_attribute=None, secured_params=None, reversed=False):
     def internal(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -88,7 +88,7 @@ def cli_response(id_attribute=None, secured_params=None):
 
             pretty_response = ResponseFormatter(function_result=response,
                                                 view_format=view_format). \
-                prettify_response()
+                prettify_response(reversed=reversed)
             if modular_mode:
                 return pretty_response
             else:
@@ -140,7 +140,7 @@ class ResponseFormatter:
         error_type = HTTP_CODE_EXCEPTION_MAPPING[error_code].__name__
         return error_type, error_code, error_message
 
-    def process_cli_view(self, status, response_meta):
+    def process_cli_view(self, status, response_meta, reversed=False):
         if status == ERROR_STATUS:
             error_type, error_code, message = self.unpack_error_result_values(
                 response_meta=response_meta)
@@ -152,13 +152,14 @@ class ResponseFormatter:
                 self.unpack_success_result_values(response_meta=response_meta)
             if items:
                 return self.process_table_view(status=status,
-                                               response_meta=response_meta)
+                                               response_meta=response_meta,
+                                               reversed=reversed)
             result_message = f'Response:{os.linesep}{message}'
             if warnings:
                 result_message += self._prettify_warnings(warnings)
             return result_message
 
-    def process_json_view(self, status, response_meta):
+    def process_json_view(self, status, response_meta, reversed=False):
         if status == ERROR_STATUS:
             error_type, error_code, message = self.unpack_error_result_values(
                 response_meta=response_meta)
@@ -172,6 +173,8 @@ class ResponseFormatter:
             success_code, warnings, message, items = \
                 self.unpack_success_result_values(response_meta=response_meta)
             if items:
+                if reversed:
+                    items = items[::-1]
                 return json.dumps({
                     R8S_STATUS: status,
                     CLOUD_ADMIN_CODE: success_code,
@@ -186,7 +189,7 @@ class ResponseFormatter:
                 R8S_WARNINGS: warnings
             }, indent=4)
 
-    def process_table_view(self, status, response_meta):
+    def process_table_view(self, status, response_meta, reversed=False):
         response = PrettyTable()
         if status == ERROR_STATUS:
             response.field_names = [R8S_STATUS,
@@ -217,6 +220,8 @@ class ResponseFormatter:
                 all_values = {}
                 uniq_table_headers = []
                 width_table_columns = {}
+                if reversed:
+                    items = items[::-1]
                 for each_item in items:
                     if not isinstance(each_item, dict):
                         each_item = {'Result': each_item}
@@ -243,7 +248,8 @@ class ResponseFormatter:
                             os.get_terminal_size().columns and \
                             input(CONFIRMATION_MESSAGE).lower().strip() \
                             in POSITIVE_ANSWERS:
-                        return self.process_json_view(status, response_meta)
+                        return self.process_json_view(
+                            status, response_meta, reversed)
                 except Exception:
                     pass
                 last_string_index = 0
@@ -267,12 +273,14 @@ class ResponseFormatter:
 
         return response
 
-    def prettify_response(self):
+    def prettify_response(self, reversed=None):
         status = SUCCESS_STATUS if self.is_response_success(
             response_meta=self.function_result) else ERROR_STATUS
         view_processor = self.format_to_process_method[self.view_format]
         prettified_response = view_processor(
-            status=status, response_meta=self.function_result)
+            status=status,
+            response_meta=self.function_result,
+            reversed=reversed)
         return prettified_response
 
 

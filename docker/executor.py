@@ -1,16 +1,18 @@
 import os.path
 
-from modular_sdk.models.parent import Parent
+from modular_sdk.models.application import Application
 
 from commons.constants import (JOB_STEP_INITIALIZATION,
-                               TENANT_LICENSE_KEY_ATTR, PROFILE_LOG_PATH)
+                               TENANT_LICENSE_KEY_ATTR, PROFILE_LOG_PATH,
+                               JOB_STEP_INITIALIZE_ALGORITHM, RESOURCE_TYPE_VM,
+                               RESOURCE_TYPE_ATTR)
 from commons.exception import ExecutorException, LicenseForbiddenException
 from commons.log_helper import get_logger
 from commons.profiler import profiler
 from models.algorithm import Algorithm
 from models.job import Job, JobStatusEnum, JobTenantStatusEnum
 from models.license import License
-from models.parent_attributes import ParentMeta
+from models.parent_attributes import LicensesParentMeta
 from models.storage import Storage
 from services import SERVICE_PROVIDER
 from services.algorithm_service import AlgorithmService
@@ -18,12 +20,17 @@ from services.environment_service import EnvironmentService
 from services.job_service import JobService
 from services.license_manager_service import LicenseManagerService
 from services.license_service import LicenseService
-from services.metrics_service import MetricsService
+from services.meta_service import MetaService
+from services.metrics_service import MetricsService, \
+    INSUFFICIENT_DATA_ERROR_TEMPLATE
 from services.mocked_data_service import MockedDataService
 from services.os_service import OSService
 from services.recomendation_service import RecommendationService
+from services.recommendation_history_service import \
+    RecommendationHistoryService
 from services.reformat_service import ReformatService
 from services.resize.resize_service import ResizeService
+from services.resource_group_service import ResourceGroupService
 from services.rightsizer_application_service import \
     RightSizerApplicationService
 from services.rightsizer_parent_service import RightSizerParentService
@@ -50,12 +57,19 @@ application_service: RightSizerApplicationService = SERVICE_PROVIDER. \
 license_service: LicenseService = SERVICE_PROVIDER.license_service()
 license_manager_service: LicenseManagerService = SERVICE_PROVIDER. \
     license_manager_service()
+recommendation_history_service: RecommendationHistoryService = (
+    SERVICE_PROVIDER.recommendation_history_service())
+meta_service: MetaService = SERVICE_PROVIDER.meta_service()
+resource_group_service: ResourceGroupService = (
+    SERVICE_PROVIDER.resource_group_service())
 
 _LOG = get_logger('r8s-executor')
 
 JOB_ID = environment_service.get_batch_job_id()
 SCAN_FROM_DATE = environment_service.get_scan_from_date()
 SCAN_TO_DATE = environment_service.get_scan_to_date()
+APPLICATION_ID = environment_service.get_application_id()
+LICENSED_APPLICATION_ID = environment_service.get_licensed_application_id()
 PARENT_ID = environment_service.get_licensed_parent_id()
 
 
@@ -74,12 +88,12 @@ def set_job_fail_reason(exception: Exception):
 
 
 @profiler(execution_step=f'lm_submit_job')
-def submit_licensed_job(parent: Parent, tenant_name: str,
+def submit_licensed_job(application: Application, tenant_name: str,
                         license_: License):
-    customer = parent.customer_id
+    customer = application.customer_id
     tenant_license_key = license_.customers.get(customer, {}).get(
         TENANT_LICENSE_KEY_ATTR)
-    algorithm_name = parent.meta.algorithm
+    algorithm_name = application.meta.algorithm_map[RESOURCE_TYPE_VM]
 
     algorithm_map = {
         tenant_license_key: algorithm_name
@@ -102,47 +116,62 @@ def submit_licensed_job(parent: Parent, tenant_name: str,
 
 def process_tenant_instances(metrics_dir, reports_dir,
                              input_storage, output_storage,
-                             parent_meta: ParentMeta,
-                             licensed_parent: Parent,
+                             parent_meta: LicensesParentMeta,
+                             application: Application,
+                             licensed_application: Application,
                              algorithm: Algorithm,
-                             license_: License,
-                             customer: str,
-                             tenant: str,
-                             job: Job):
+                             tenant: str):
     _LOG.info(f'Downloading metrics from storage \'{input_storage.name}\', '
-              f'for tenant: {tenant}')
+              f'for tenant: {tenant}, for resource type: '
+              f'{algorithm.resource_type}')
 
-    cloud = licensed_parent.meta.cloud.lower()
-    storage_service.download_metrics(
+    force_rescan = environment_service.force_rescan()
+    if not force_rescan:
+        _LOG.debug(f'Querying for past tenant {tenant} recommendations.')
+        recommendations_map = (recommendation_history_service.
+                               get_tenant_recommendation(tenant=tenant))
+    else:
+        _LOG.debug('Force rescan enabled, querying for past tenant '
+                   'recommendations is omitted')
+        recommendations_map = {}
+
+    cloud = licensed_application.meta.cloud.lower()
+
+    insufficient_map, unchanged_map = storage_service.download_metrics(
         data_source=input_storage,
         output_path=metrics_dir,
-        scan_customer=licensed_parent.customer_id,
+        resource_type=algorithm.resource_type,
+        scan_customer=licensed_application.customer_id,
         scan_clouds=[cloud],
         scan_tenants=[tenant],
         scan_from_date=SCAN_FROM_DATE,
         scan_to_date=SCAN_TO_DATE,
-        max_days=algorithm.recommendation_settings.max_days)
+        max_days=algorithm.recommendation_settings.max_days,
+        min_days=algorithm.recommendation_settings.min_allowed_days,
+        recommendations_map=recommendations_map,
+        force_rescan=force_rescan)
 
     tenant_folder_path = os.path.join(
         metrics_dir,
-        customer,
+        algorithm.resource_type.lower(),
+        licensed_application.customer_id,
         cloud,
         tenant)
 
-    _LOG.info(f'Loading instances meta for tenant')
+    _LOG.info('Loading instances meta for tenant')
     instance_meta_mapping = metrics_service.read_meta(
         metrics_folder=tenant_folder_path)
 
-    _LOG.info(f'Merging metric files by date')
+    _LOG.info('Merging metric files by date')
     metrics_service.merge_metric_files(
         metrics_folder_path=tenant_folder_path,
         algorithm=algorithm)
 
-    _LOG.info(f'Extracting tenant metric files')
+    _LOG.info('Extracting tenant metric files')
     metric_file_paths = os_service.extract_metric_files(
         algorithm=algorithm, metrics_folder_path=tenant_folder_path)
 
-    _LOG.debug(f'Reformatting metrics to relative metric values')
+    _LOG.debug('Reformatting metrics to relative metric values')
     for metric_file_path in metric_file_paths.copy():
         try:
             _LOG.debug(f'Validating metric file: \'{metric_file_path}\'')
@@ -161,32 +190,86 @@ def process_tenant_instances(metrics_dir, reports_dir,
                 exception=e)
 
     if environment_service.is_debug():
-        _LOG.info(f'Searching for instances to replace with mocked data')
+        _LOG.info('Searching for instances to replace with mocked data')
         mocked_data_service.process(
             instance_meta_mapping=instance_meta_mapping,
             metric_file_paths=metric_file_paths
         )
 
-    _LOG.debug(f'Submitting licensed job for tenant {tenant}')
-    licensed_job_data = submit_licensed_job(
-        parent=licensed_parent,
-        license_=license_,
-        tenant_name=tenant)
+    if insufficient_map:
+        _LOG.info(f'Dumping {len(insufficient_map.keys())} instances '
+                  f'with insufficient metrics: '
+                  f'{list(insufficient_map.keys())}')
+        for instance_id, metric_s3_keys in insufficient_map.items():
+            _LOG.debug(f'Dumping instance {instance_id} result')
+            recommendation_service.dump_error_report(
+                reports_dir=reports_dir,
+                metric_file_path=metric_s3_keys[0],
+                exception=ExecutorException(
+                    step_name=JOB_STEP_INITIALIZE_ALGORITHM,
+                    reason=INSUFFICIENT_DATA_ERROR_TEMPLATE.format(
+                        days=algorithm.recommendation_settings.min_allowed_days
+                    )
+                )
+            )
+    if unchanged_map:
+        _LOG.info(f'Dumping instances with unchanged metrics from last '
+                  f'scan: {list(unchanged_map.keys())}')
+        for instance_id, past_recommendations in unchanged_map.items():
+            _LOG.debug(f'Dumping instance {instance_id} result')
+            recommendation_service.dump_reports_from_recommendations(
+                reports_dir=reports_dir,
+                cloud=cloud.lower(),
+                recommendations=past_recommendations
+            )
 
-    _LOG.debug(f'Syncing licensed algorithm from license '
-               f'{license_.license_key}')
-    algorithm_service.update_from_licensed_job(
-        algorithm=algorithm,
-        licensed_job=licensed_job_data
-    )
+    app_meta = application_service.get_application_meta(
+        application=application)
 
+    group_resources_mapping = {}
+    if app_meta.group_policies:
+        _LOG.debug('Processing application group policies')
+        group_resources_mapping, metric_file_paths = (
+            recommendation_service.divide_by_group_policies(
+                metric_file_paths=metric_file_paths,
+                group_policies=app_meta.group_policies,
+                instance_meta_mapping=instance_meta_mapping
+            ))
+
+    if group_resources_mapping:
+        _LOG.debug(f'Group resources: {group_resources_mapping}')
+        for group_id, group_resources in group_resources_mapping.items():
+            group = application_service.get_group_policy(
+                meta=app_meta,
+                group_id=group_id
+            )
+            if not group:
+                _LOG.warning(f'Group policy {group_id} does not found. '
+                             f'Resources in group will be processed '
+                             f'as individual resources')
+                metric_file_paths.extend(group_resources)
+            _LOG.debug(f'Processing group {group_id} resources')
+            for tag_value, tag_resources in group_resources.items():
+                _LOG.debug(f'Processing group tag {tag_value}')
+                recommendation_service.process_group_resources(
+                    group_id=tag_value,
+                    group_policy=group,
+                    metric_file_paths=tag_resources,
+                    algorithm=algorithm,
+                    reports_dir=reports_dir,
+                    instance_meta_mapping=instance_meta_mapping
+                )
+
+    group_results = {}
+    group_history_items = []
+    instance_region_mapping = {}
     _LOG.info(f'Tenant {tenant} metric file paths to '
               f'process: \'{metric_file_paths}\'')
     for index, metric_file_path in enumerate(metric_file_paths, start=1):
         _LOG.debug(
             f'Processing {index}/{len(metric_file_paths)} instance: '
             f'\'{metric_file_path}\'')
-        result = recommendation_service.process_instance(
+        result, history_items = recommendation_service.process_instance(
             metric_file_path=metric_file_path,
             algorithm=algorithm,
             reports_dir=reports_dir,
@@ -194,6 +277,58 @@ def process_tenant_instances(metrics_dir, reports_dir,
             parent_meta=parent_meta
         )
         _LOG.debug(f'Result: {result}')
+
+        _, _, _, region, _, resource_id = (
+            recommendation_service.parse_folders(
+                metric_file_path=metric_file_path
+            ))
+        instance_region_mapping[resource_id] = region
+
+        instance_meta = instance_meta_mapping.get(resource_id)
+        if group_id := meta_service.get_resource_group_id(
+                instance_meta=instance_meta):
+            _LOG.debug('Group item detected. Recommendations wont be '
+                       'saved until comparison.')
+            if group_id not in group_results:
+                group_results[group_id] = [result]
+            else:
+                group_results[group_id].append(result)
+            if history_items:
+                group_history_items.extend(history_items)
+        else:
+            _LOG.debug('Saving independent resource recommendation')
+            recommendation_service.save_report(
+                reports_dir=reports_dir,
+                customer=licensed_application.customer_id,
+                cloud=cloud,
+                tenant=tenant,
+                region=region,
+                item=result
+            )
+            if history_items:
+                recommendation_service.save_history_items(
+                    history_items=history_items)
+
+    if group_results:
+        _LOG.debug('Filtering contradictory recommendations '
+                   'inside resource groups')
+        filtered_reports, filtered_history = resource_group_service.filter(
+            group_results=group_results,
+            group_history_items=group_history_items
+        )
+        _LOG.debug('Saving group results')
+        for report in filtered_reports:
+            recommendation_service.save_report(
+                reports_dir=reports_dir,
+                customer=licensed_application.customer_id,
+                cloud=cloud,
+                tenant=tenant,
+                region=instance_region_mapping.get(report.get('resource_id')),
+                item=report
+            )
+        _LOG.debug('Saving group result recommendation')
+        recommendation_service.save_history_items(
+            history_items=filtered_history)
 
     _LOG.debug(f'Uploading job results to storage \'{output_storage.name}\'')
     storage_service.upload_job_results(
@@ -203,16 +338,9 @@ def process_tenant_instances(metrics_dir, reports_dir,
         tenant=tenant
     )
 
-    _LOG.info(f'Setting tenant status to "SUCCEEDED"')
-    job_service.set_licensed_job_status(
-        job=job,
-        tenant=tenant,
-        status=JobTenantStatusEnum.TENANT_SUCCEEDED_STATUS
-    )
-
 
 def main():
-    _LOG.debug(f'Creating directories')
+    _LOG.debug('Creating directories')
     work_dir, metrics_dir, reports_dir = \
         os_service.create_work_dirs(job_id=JOB_ID)
 
@@ -226,52 +354,65 @@ def main():
             reason=f'Job with id \'{JOB_ID}\' does not exist'
         )
 
-    _LOG.debug(f'Setting job status to RUNNING')
+    _LOG.debug('Setting job status to RUNNING')
     job = job_service.set_status(
         job=job,
         status=JobStatusEnum.JOB_RUNNING_STATUS.value)
 
-    scan_tenants = job_service.get_scan_tenants(job=job)
-    licensed_parent_id = job.parent_id
-    licensed_parent = parent_service.get_parent_by_id(
-        parent_id=licensed_parent_id)
-    _LOG.debug(f'Parent: \'{licensed_parent_id}\'')
-    if not licensed_parent or licensed_parent.is_deleted:
-        _LOG.error(f'Parent \'{licensed_parent_id}\' does not exist')
-        raise ExecutorException(
-            step_name=JOB_STEP_INITIALIZATION,
-            reason=f'Parent \'{licensed_parent_id}\' does not exist'
-        )
-
-    licensed_parent_meta = parent_service.get_parent_meta(
-        parent=licensed_parent)
-    license_key = licensed_parent_meta.license_key
-
-    application_id = licensed_parent.application_id
     application = application_service.get_application_by_id(
-        application_id=application_id)
-    if not application or application.is_deleted:
-        _LOG.error(f'Application \'{licensed_parent_id}\' does not exist')
-        raise ExecutorException(
-            step_name=JOB_STEP_INITIALIZATION,
-            reason=f'Application \'{licensed_parent_id}\' does not exist'
-        )
-    application_meta = application_service.get_application_meta(
-        application=application
+        application_id=APPLICATION_ID
     )
-    algorithm_name = licensed_parent_meta.algorithm
-    algorithm = algorithm_service.get_by_name(name=algorithm_name)
-    _LOG.debug(f'Algorithm: \'{algorithm_name}\'')
-    if not algorithm:
-        _LOG.error(f'Application \'{application_id}\' does not have algorithm '
-                   f'specified')
+    _LOG.debug(f'RIGHTSIZER Application: {APPLICATION_ID}')
+    if not application:
+        _LOG.error(f'Application \'{APPLICATION_ID}\' does not exist')
         raise ExecutorException(
             step_name=JOB_STEP_INITIALIZATION,
-            reason=f'Application \'{application_id}\' does not have algorithm '
-                   f'specified'
+            reason=f'Application \'{APPLICATION_ID}\' does not exist'
         )
 
-    input_storage_name = application_meta.input_storage
+    scan_tenants = job_service.get_scan_tenants(job=job)
+    licensed_application = application_service.get_application_by_id(
+        application_id=LICENSED_APPLICATION_ID)
+    _LOG.debug(f'Application: \'{LICENSED_APPLICATION_ID}\'')
+    if not licensed_application or licensed_application.is_deleted:
+        _LOG.error(f'Application \'{LICENSED_APPLICATION_ID}\' does not exist')
+        raise ExecutorException(
+            step_name=JOB_STEP_INITIALIZATION,
+            reason=f'Application \'{LICENSED_APPLICATION_ID}\' does not exist'
+        )
+
+    licensed_application_meta = application_service.get_application_meta(
+        application=licensed_application)
+    license_key = licensed_application_meta.license_key
+
+    host_application = application_service.get_host_application(
+        customer=licensed_application.customer_id)
+    if not host_application:
+        _LOG.error(f'Host application for licenses application '
+                   f'{LICENSED_APPLICATION_ID} not found')
+        raise ExecutorException(
+            step_name=JOB_STEP_INITIALIZATION,
+            reason=f'Host application for licenses application '
+                   f'{LICENSED_APPLICATION_ID} not found'
+        )
+    host_application_meta = application_service.get_application_meta(
+        application=host_application
+    )
+    algorithm_name_map = licensed_application_meta.algorithm_map.as_dict()
+    algorithm_map = {}
+
+    for resource_type, algorithm_name in algorithm_name_map.items():
+        algorithm_obj = algorithm_service.get_by_name(name=algorithm_name)
+        _LOG.debug(f'Algorithm: \'{algorithm_name}\'')
+        if not algorithm_obj:
+            _LOG.error(f'Algorithm \'{algorithm_name}\' not found')
+            raise ExecutorException(
+                step_name=JOB_STEP_INITIALIZATION,
+                reason=f'Algorithm \'{algorithm_name}\' not found'
+            )
+        algorithm_map[resource_type] = algorithm_obj
+
+    input_storage_name = host_application_meta.input_storage
     _LOG.debug(f'Input storage: \'{input_storage_name}\'')
     input_storage: Storage = storage_service.get_by_name(
         name=input_storage_name)
@@ -282,7 +423,7 @@ def main():
             reason=f'Input storage \'{input_storage_name}\' does not exist.'
         )
 
-    output_storage_name = application_meta.output_storage
+    output_storage_name = host_application_meta.output_storage
     _LOG.debug(f'Output storage: \'{output_storage_name}\'')
     output_storage: Storage = storage_service.get_by_name(
         name=output_storage_name)
@@ -293,17 +434,22 @@ def main():
             reason=f'Output storage \'{output_storage_name}\' does not exist.'
         )
 
-    _LOG.info(f'Resolving RIGHTSIZER parent for license')
-    parent = parent_service.resolve(
-        licensed_parent=licensed_parent,
-        scan_tenants=scan_tenants
+    _LOG.info(f'Resolving RIGHTSIZER_LICENSES parents for application '
+              f'{LICENSED_APPLICATION_ID}')
+    parents = parent_service.get_job_parents(
+        application_id=LICENSED_APPLICATION_ID,
+        parent_id=PARENT_ID
     )
-    if not parent:
-        _LOG.error(f'Can\'t resolve RIGHTSIZER parent for license '
-                   f'\'{licensed_parent_id}\'. Shape rules won\'t be applied.')
-        parent_meta = ParentMeta()
-    else:
-        parent_meta = parent_service.get_parent_meta(parent=parent)
+    if not parents:
+        _LOG.error(f'Can\'t resolve RIGHTSIZER_LICENSES parents for license '
+                   f'application: \'{LICENSED_APPLICATION_ID}\'')
+        raise ExecutorException(
+            step_name=JOB_STEP_INITIALIZATION,
+            reason=f'Can\'t resolve RIGHTSIZER_LICENSES parents for license '
+                   f'application: \'{LICENSED_APPLICATION_ID}\''
+        )
+    tenant_meta_map = parent_service.resolve_tenant_parent_meta_map(
+        parents=parents)
 
     _LOG.debug(f'Describing License \'{license_key}\'')
     license_: License = license_service.get_license(license_id=license_key)
@@ -311,18 +457,38 @@ def main():
     for tenant in scan_tenants:
         try:
             _LOG.info(f'Processing tenant {tenant}')
-            process_tenant_instances(
-                metrics_dir=metrics_dir,
-                reports_dir=reports_dir,
-                input_storage=input_storage,
-                output_storage=output_storage,
-                parent_meta=parent_meta,
-                licensed_parent=licensed_parent,
-                algorithm=algorithm,
+
+            _LOG.debug(f'Submitting licensed job for tenant {tenant}')
+            licensed_job_data = submit_licensed_job(
+                application=licensed_application,
                 license_=license_,
-                customer=parent.customer_id,
+                tenant_name=tenant)
+            for algorithm in algorithm_map.values():
+                _LOG.debug(f'Syncing licensed algorithm from license '
+                           f'{license_.license_key}')
+                algorithm_service.update_from_licensed_job(
+                    algorithm=algorithm,
+                    licensed_job=licensed_job_data
+                )
+            for algorithm in algorithm_map.values():
+                process_tenant_instances(
+                    metrics_dir=metrics_dir,
+                    reports_dir=reports_dir,
+                    input_storage=input_storage,
+                    output_storage=output_storage,
+                    parent_meta=tenant_meta_map[tenant],
+                    application=application,
+                    licensed_application=licensed_application,
+                    algorithm=algorithm,
+                    tenant=tenant
+                )
+
+            _LOG.info(f'Setting tenant status to "SUCCEEDED"')
+            job_service.set_licensed_job_status(
+                job=job,
                 tenant=tenant,
-                job=job
+                status=JobTenantStatusEnum.TENANT_SUCCEEDED_STATUS,
+                customer=licensed_application.customer_id
             )
         except LicenseForbiddenException as e:
             _LOG.error(e)
@@ -341,18 +507,18 @@ def main():
             )
 
     _LOG.debug(f'Job {JOB_ID} has finished successfully')
-    _LOG.debug(f'Setting job state to SUCCEEDED')
+    _LOG.debug('Setting job state to SUCCEEDED')
     job_service.set_status(job=job,
                            status=JobStatusEnum.JOB_SUCCEEDED_STATUS.value)
 
     if os.path.exists(PROFILE_LOG_PATH):
-        _LOG.debug(f'Uploading profile log')
+        _LOG.debug('Uploading profile log')
         storage_service.upload_profile_log(
             storage=output_storage,
             job_id=JOB_ID,
             file_path=PROFILE_LOG_PATH
         )
-    _LOG.debug(f'Cleaning workdir')
+    _LOG.debug('Cleaning workdir')
     os_service.clean_workdir(work_dir=work_dir)
 
 

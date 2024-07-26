@@ -6,8 +6,9 @@ import pandas as pd
 from commons.exception import ExecutorException
 from tests_executor.base_executor_test import BaseExecutorTest
 from tests_executor.constants import POINTS_IN_DAY
-from tests_executor.utils import constant_to_series, \
-    generate_timestamp_series, generate_constant_metric_series, dateparse
+from tests_executor.utils import (generate_constant_metric_series,
+                                  constant_to_series,
+                                  generate_timestamp_series, dateparse)
 
 
 class TestMissingMetricKey(BaseExecutorTest):
