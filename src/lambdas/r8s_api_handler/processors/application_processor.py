@@ -12,7 +12,7 @@ from commons.constants import POST_METHOD, GET_METHOD, PATCH_METHOD, \
     DESCRIPTION_ATTR, OUTPUT_STORAGE_ATTR, INPUT_STORAGE_ATTR, \
     CONNECTION_ATTR, PORT_ATTR, PROTOCOL_ATTR, HOST_ATTR, USERNAME_ATTR, \
     PASSWORD_ATTR, APPLICATION_ID_ATTR, MAESTRO_RIGHTSIZER_APPLICATION_TYPE, \
-    FORCE_ATTR
+    FORCE_ATTR, USER_ID_ATTR
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -95,6 +95,7 @@ class ApplicationProcessor(AbstractCommandProcessor):
         validate_params(event, (CUSTOMER_ATTR, DESCRIPTION_ATTR,
                                 INPUT_STORAGE_ATTR, OUTPUT_STORAGE_ATTR,
                                 CONNECTION_ATTR))
+        user_id = event.get(USER_ID_ATTR)
         description = event.get(DESCRIPTION_ATTR)
         if not description:
             _LOG.error(f'Attribute \'{DESCRIPTION_ATTR}\' can\'t be empty.')
