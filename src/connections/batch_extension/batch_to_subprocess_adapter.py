@@ -123,7 +123,9 @@ class BatchToSubprocessAdapter:
             BATCH_ENV_SUBMITTED_AT: utc_iso()  # for scheduled jobs
         }.items() if v}
 
-        _LOG.info('Executing sub-process')
+        _LOG.info(f'Executing sub-process: venv path: \'{path_to_venv}\'; '
+                  f'executor path: \'{path_to_executor}\', '
+                  f'env: \'{env}\'')
         process = subprocess.Popen([
             path_to_venv, path_to_executor
         ], env=env, shell=False)
