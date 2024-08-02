@@ -13,9 +13,15 @@ from commons.constants import BATCH_ENV_SUBMITTED_AT, BATCH_ENV_JOB_ID, \
     ENV_MONGODB_DATABASE, ENV_MINIO_HOST, ENV_MINIO_PORT, ENV_MINIO_ACCESS_KEY, \
     ENV_MINIO_SECRET_ACCESS_KEY, ENV_VAULT_TOKEN, ENV_VAULT_HOST, \
     ENV_VAULT_PORT, ENV_AWS_ACCESS_KEY_ID, ENV_AWS_SECRET_ACCESS_KEY, \
-    ENV_AWS_SESSION_TOKEN, ENV_RABBITMQ_APPLICATION_ID, MONGODB_CONNECTION_URI_PARAMETER
+    ENV_AWS_SESSION_TOKEN, ENV_RABBITMQ_APPLICATION_ID, \
+    MONGODB_CONNECTION_URI_PARAMETER
 from commons.log_helper import get_logger
 from commons.time_helper import utc_iso
+from modular_sdk.commons.constants import (MODULAR_SERVICE_MODE_ENV,
+                                           PARAM_MONGO_USER,
+                                           PARAM_MONGO_PASSWORD,
+                                           PARAM_MONGO_URL,
+                                           PARAM_MONGO_DB_NAME)
 from models.job import Job
 
 _LOG = get_logger(__name__)
@@ -49,7 +55,12 @@ ALLOWED_ENV_KEYS = (
     ENV_AWS_ACCESS_KEY_ID,
     ENV_AWS_SECRET_ACCESS_KEY,
     ENV_AWS_SESSION_TOKEN,
-    MONGODB_CONNECTION_URI_PARAMETER
+    MONGODB_CONNECTION_URI_PARAMETER,
+    MODULAR_SERVICE_MODE_ENV,
+    PARAM_MONGO_USER,
+    PARAM_MONGO_PASSWORD,
+    PARAM_MONGO_URL,
+    PARAM_MONGO_DB_NAME
 )
 
 
