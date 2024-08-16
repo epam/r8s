@@ -45,6 +45,7 @@ HOST_ATTR = 'host'
 PORT_ATTR = 'port'
 PROTOCOL_ATTR = 'protocol'
 ATTACHMENT_MODEL_ATTR = 'attachment_model'
+API_KEY_ATTR = 'api_key'
 
 SERVICE_ATTR = 'service'
 TYPE_ATTR = 'type'
