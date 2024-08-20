@@ -1,6 +1,8 @@
 import os.path
 
 from modular_sdk.models.application import Application
+from modular_sdk.models.parent import Parent
+from modular_sdk.commons.constants import ParentType
 
 from commons.constants import (JOB_STEP_INITIALIZATION,
                                TENANT_LICENSE_KEY_ATTR, PROFILE_LOG_PATH,
@@ -13,9 +15,11 @@ from models.algorithm import Algorithm
 from models.job import Job, JobStatusEnum, JobTenantStatusEnum
 from models.license import License
 from models.parent_attributes import LicensesParentMeta
+from models.recommendation_history import RecommendationTypeEnum
 from models.storage import Storage
 from services import SERVICE_PROVIDER
 from services.algorithm_service import AlgorithmService
+from services.defect_dojo_service import DefectDojoService
 from services.environment_service import EnvironmentService
 from services.job_service import JobService
 from services.license_manager_service import LicenseManagerService
@@ -120,7 +124,11 @@ def process_tenant_instances(metrics_dir, reports_dir,
                              application: Application,
                              licensed_application: Application,
                              algorithm: Algorithm,
-                             tenant: str):
+                             tenant: str,
+                             dojo_application: Application = None,
+                             dojo_parent: Parent = None):
+    tenant_recommendations = []
+
     _LOG.info(f'Downloading metrics from storage \'{input_storage.name}\', '
               f'for tenant: {tenant}, for resource type: '
               f'{algorithm.resource_type}')
@@ -260,6 +268,20 @@ def process_tenant_instances(metrics_dir, reports_dir,
                     instance_meta_mapping=instance_meta_mapping
                 )
 
+    dojo_service = None
+    if dojo_application and dojo_parent:
+        try:
+            _LOG.debug(f'Initializing dojo service')
+            dojo_service = DefectDojoService(
+                ssm_service=SERVICE_PROVIDER.ssm_service(),
+                application=dojo_application
+            )
+        except ExecutorException as e:
+            _LOG.error(str(e))
+        except Exception as e:
+            _LOG.error(f'Unexpected exception occurred on '
+                       f'Dojo initialization: {e}')
+
     group_results = {}
     group_history_items = []
     instance_region_mapping = {}
@@ -306,8 +328,25 @@ def process_tenant_instances(metrics_dir, reports_dir,
                 item=result
             )
             if history_items:
+                tenant_recommendations.extend(history_items)
                 recommendation_service.save_history_items(
                     history_items=history_items)
+
+    tenant_recommendations = [i for i in tenant_recommendations if
+                              i.recommendation_type !=
+                              RecommendationTypeEnum.ACTION_EMPTY]
+    if dojo_service and tenant_recommendations:
+        try:
+            _LOG.debug(f'Pushing recommendations to Dojo')
+            dojo_service.push_findings(
+                parent=dojo_parent,
+                recommendation_history_items=tenant_recommendations
+            )
+        except ExecutorException as e:
+            _LOG.error(str(e))
+        except Exception as e:
+            _LOG.error(f'Unexpected exception occurred on '
+                       f'Dojo upload: {e}')
 
     if group_results:
         _LOG.debug('Filtering contradictory recommendations '
@@ -454,6 +493,11 @@ def main():
     _LOG.debug(f'Describing License \'{license_key}\'')
     license_: License = license_service.get_license(license_id=license_key)
 
+    _LOG.debug(f'Searching for active Dojo Applications for customer: '
+               f'{application.customer_id}')
+    dojo_application = application_service.get_dojo_application(
+        customer=application.customer_id)
+
     for tenant in scan_tenants:
         try:
             _LOG.info(f'Processing tenant {tenant}')
@@ -470,6 +514,17 @@ def main():
                     algorithm=algorithm,
                     licensed_job=licensed_job_data
                 )
+            dojo_parent = None
+            if dojo_application:
+                _LOG.debug(f'Searching for active Dojo parents for '
+                           f'tenant {tenant}, '
+                           f'application {dojo_application.application_id}')
+                dojo_parent = parent_service.get_linked_parent(
+                    tenant_name=tenant,
+                    customer_name=application.customer_id,
+                    cloud=None,
+                    type_=ParentType.RIGHTSIZER_SIEM_DEFECT_DOJO
+                )
             for algorithm in algorithm_map.values():
                 process_tenant_instances(
                     metrics_dir=metrics_dir,
@@ -480,7 +535,9 @@ def main():
                     application=application,
                     licensed_application=licensed_application,
                     algorithm=algorithm,
-                    tenant=tenant
+                    tenant=tenant,
+                    dojo_application=dojo_application,
+                    dojo_parent=dojo_parent
                 )
 
             _LOG.info(f'Setting tenant status to "SUCCEEDED"')
