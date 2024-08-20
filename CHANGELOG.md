@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.10.0] - 2024-08-16
 * Implement DefectDojo integration
   * Implement API/CLI for Dojo-related Application/Parent management
+  * Implement uploading RightSizer recommendation to DefectDojo
 
 ## [3.9.1] - 2024-07-24
 * fix non-overwriting recommendation type while updating recent instance recommendation
