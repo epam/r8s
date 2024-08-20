@@ -1,5 +1,4 @@
 commons
 models
 services
-lambdas
 connections
