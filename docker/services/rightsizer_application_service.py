@@ -15,6 +15,15 @@ class RightSizerApplicationService(ApplicationService):
         self._excess_attributes_cache = {}
         super().__init__(customer_service=customer_service)
 
+    def get_dojo_application(self, customer):
+        applications = list(self.list(
+            customer=customer,
+            _type=ApplicationType.DEFECT_DOJO,
+            deleted=False,
+            limit=1
+        ))
+        return applications[0] if applications else None
+
     def get_host_application(self, customer):
         applications = list(self.list(
             customer=customer,

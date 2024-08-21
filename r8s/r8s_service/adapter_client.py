@@ -587,6 +587,41 @@ class AdapterClient:
                                    method=HTTP_DELETE,
                                    payload=request)
 
+    def application_dojo_get(self, application_id=None):
+        request = {}
+        if application_id:
+            request[PARAM_APPLICATION_ID] = application_id
+
+        return self.__make_request(resource=API_APPLICATION_DOJO,
+                                   method=HTTP_GET,
+                                   payload=request)
+
+    def application_dojo_post(self, customer, description, host,
+                              port, protocol, stage, api_key):
+        request = {
+            PARAM_CUSTOMER: customer,
+            PARAM_DESCRIPTION: description,
+            PARAM_HOST: host,
+            PARAM_PORT: port,
+            PARAM_PROTOCOL: protocol,
+            PARAM_STAGE: stage,
+            PARAM_API_KEY: api_key,
+        }
+
+        return self.__make_request(resource=API_APPLICATION_DOJO,
+                                   method=HTTP_POST,
+                                   payload=request)
+
+    def application_dojo_delete(self, application_id, force=None):
+        request = {
+            PARAM_APPLICATION_ID: application_id
+        }
+        if force:
+            request[PARAM_FORCE] = force
+        return self.__make_request(resource=API_APPLICATION_DOJO,
+                                   method=HTTP_DELETE,
+                                   payload=request)
+
     def application_policies_get(self, application_id, group_id=None):
         request = {
             PARAM_APPLICATION_ID: application_id
@@ -671,6 +706,42 @@ class AdapterClient:
             request[PARAM_FORCE] = force
 
         return self.__make_request(resource=API_PARENT,
+                                   method=HTTP_DELETE,
+                                   payload=request)
+
+    def parent_dojo_get(self, application_id=None, parent_id=None):
+        request = {}
+        if application_id:
+            request[PARAM_APPLICATION_ID] = application_id
+        if parent_id:
+            request[PARAM_PARENT_ID] = parent_id
+
+        return self.__make_request(resource=API_PARENT_DOJO,
+                                   method=HTTP_GET,
+                                   payload=request)
+
+    def parent_dojo_post(self, application_id, description,
+                         tenant, scope):
+        request = {
+            PARAM_APPLICATION_ID: application_id,
+            PARAM_DESCRIPTION: description,
+            PARAM_SCOPE: scope
+        }
+        if tenant:
+            request[PARAM_TENANT] = tenant
+
+        return self.__make_request(resource=API_PARENT_DOJO,
+                                   method=HTTP_POST,
+                                   payload=request)
+
+    def parent_dojo_delete(self, parent_id, force=None):
+        request = {
+            PARAM_PARENT_ID: parent_id
+        }
+        if force:
+            request[PARAM_FORCE] = force
+
+        return self.__make_request(resource=API_PARENT_DOJO,
                                    method=HTTP_DELETE,
                                    payload=request)
 
