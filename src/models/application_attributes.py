@@ -21,3 +21,10 @@ class RightsizerLicensesApplicationMeta(MapAttribute):
     algorithm_map = MapAttribute(null=True)
     license_key = UnicodeAttribute(null=True)
     tenants = ListAttribute(of=UnicodeAttribute, default=[])
+
+
+class RightSizerDojoApplicationMeta(MapAttribute):
+    host = UnicodeAttribute(null=True)
+    port = NumberAttribute(null=True)
+    protocol = UnicodeAttribute(null=True)
+    stage = UnicodeAttribute(null=True)

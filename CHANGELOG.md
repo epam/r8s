@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.10.0] - 2024-08-16
+* Implement DefectDojo integration
+  * Implement API/CLI for Dojo-related Application/Parent management
+  * Implement uploading RightSizer recommendation to DefectDojo
+
+## [3.9.1] - 2024-07-24
+* fix non-overwriting recommendation type while updating recent instance recommendation
+* fix compatibility with latest modular_sdk 
+
 ## [3.9.0] - 2024-02-15
 * extend tenant mail report content with full instance specs
 * fix update algorithm timezone extraction from RIGHTSIZER_LICENSES application

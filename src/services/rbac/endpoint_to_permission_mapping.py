@@ -75,11 +75,23 @@ ENDPOINT_PERMISSION_MAPPING = {
         PATCH_METHOD: 'r8s:application:update_application',
         DELETE_METHOD: 'r8s:application:remove_application',
     },
+    '/applications/dojo/': {
+        GET_METHOD: 'r8s:application:describe_dojo_application',
+        POST_METHOD: 'r8s:application:create_dojo_application',
+        PATCH_METHOD: 'r8s:application:update_dojo_application',
+        DELETE_METHOD: 'r8s:application:remove_dojo_application',
+    },
     '/parents/': {
         GET_METHOD: 'r8s:parent:describe_parent',
         POST_METHOD: 'r8s:parent:create_parent',
         PATCH_METHOD: 'r8s:parent:update_parent',
         DELETE_METHOD: 'r8s:parent:remove_parent',
+    },
+    '/parents/dojo/': {
+        GET_METHOD: 'r8s:parent:describe_dojo_parent',
+        POST_METHOD: 'r8s:parent:create_dojo_parent',
+        PATCH_METHOD: 'r8s:parent:update_dojo_parent',
+        DELETE_METHOD: 'r8s:parent:remove_dojo_parent',
     },
     '/parents/shape-rules/': {
         GET_METHOD: 'r8s:parent:describe_shape_rule',

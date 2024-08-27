@@ -143,6 +143,7 @@ class RecommendationHistoryService:
             current_instance_type=current_instance_type,
             current_month_price_usd=current_month_price_usd,
             recommendation=recommendation,
+            recommendation_type=recommendation_type,
             savings=savings,
             instance_meta=instance_meta,
             last_metric_capture_date=last_metric_capture_date

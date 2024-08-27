@@ -13,7 +13,8 @@ from commons.constants import APPLICATION_ID_ATTR, \
     MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE, ID_ATTR
 from commons.log_helper import get_logger
 from models.application_attributes import RightsizerApplicationMeta, \
-    ConnectionAttribute, RightsizerLicensesApplicationMeta
+    ConnectionAttribute, RightsizerLicensesApplicationMeta, \
+    RightSizerDojoApplicationMeta
 from models.storage import Storage
 from services.abstract_api_handler_lambda import PARAM_USER_CUSTOMER
 from services.ssm_service import SSMService
@@ -51,6 +52,30 @@ class RightSizerApplicationService(ApplicationService):
         secret_name = self._create_application_secret(
             application_id=application.application_id,
             password=password
+        )
+        application.secret = secret_name
+        return application
+
+    def create_dojo_application(
+            self, customer_id: str, description: str, host: str,
+            port: int, protocol: str, stage: str,
+            created_by: str, api_key: str):
+        app_meta = RightSizerDojoApplicationMeta(
+            host=host,
+            port=port,
+            stage=stage,
+            protocol=protocol
+        )
+        application = self.build(
+            customer_id=customer_id,
+            type=ApplicationType.DEFECT_DOJO,
+            description=description,
+            created_by=created_by,
+            meta=app_meta.as_dict()
+        )
+        secret_name = self._create_application_secret(
+            application_id=application.application_id,
+            password=api_key
         )
         application.secret = secret_name
         return application
@@ -235,7 +260,7 @@ class RightSizerApplicationService(ApplicationService):
 
     @staticmethod
     def update_group_policy_in_meta(meta: RightsizerApplicationMeta,
-                                    group_policy:dict):
+                                    group_policy: dict):
         if not meta.group_policies:
             return
         target_group_id = group_policy.get(ID_ATTR)
