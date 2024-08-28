@@ -21,3 +21,4 @@ scipy==1.11.3
 cron-converter==1.0.2
 kneed==0.8.5
 tslearn==0.6.2
+msgspec==0.18.6
