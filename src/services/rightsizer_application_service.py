@@ -121,6 +121,27 @@ class RightSizerApplicationService(ApplicationService):
         )
         return application
 
+    def force_delete(self, application: Application):
+        _LOG.debug(f'Going to force delete application '
+                   f'{application.application_id}')
+        self._delete_application_secret(
+            application=application
+        )
+        application.delete()
+        _LOG.debug('Application has been deleted')
+
+    def _delete_application_secret(self, application: Application) -> None:
+        _LOG.debug(f'Going to delete application {application.application_id} '
+                   f'secret')
+        secret_name = application.secret
+        if not secret_name:
+            _LOG.debug(f'Application {application.application_id} '
+                       f'secret is not specified.')
+            return
+        self.ssm_service.delete_secret(secret_name=secret_name)
+        _LOG.debug(f'Application {application.application_id} '
+                   f'secret has been deleted.')
+
     def get_host_application(self, customer):
         applications = list(self.list(
             customer=customer,

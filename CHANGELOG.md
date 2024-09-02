@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.10.1] - 2024-08-30
+* Add SSM secret deletion on Application force delete
+* Support multiple DEFECT_DOJO application per customer
+
 ## [3.10.0] - 2024-08-16
 * Implement DefectDojo integration
   * Implement API/CLI for Dojo-related Application/Parent management

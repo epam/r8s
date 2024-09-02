@@ -1,4 +1,5 @@
 import os.path
+from typing import Tuple, Optional
 
 from modular_sdk.models.application import Application
 from modular_sdk.models.parent import Parent
@@ -75,6 +76,8 @@ SCAN_TO_DATE = environment_service.get_scan_to_date()
 APPLICATION_ID = environment_service.get_application_id()
 LICENSED_APPLICATION_ID = environment_service.get_licensed_application_id()
 PARENT_ID = environment_service.get_licensed_parent_id()
+
+DOJO_APPLICATION_MAP = {}
 
 
 def set_job_fail_reason(exception: Exception):
@@ -378,6 +381,46 @@ def process_tenant_instances(metrics_dir, reports_dir,
     )
 
 
+def get_dojo_tenant_config(customer_name: str,
+        tenant_name:str) -> Tuple[Optional[Application], Optional[Parent]]:
+    _LOG.debug(f'Describing Dojo parent for tenant {tenant_name}')
+    dojo_parent = parent_service.get_linked_parent(
+        tenant_name=tenant_name,
+        customer_name=customer_name,
+        cloud=None,
+        type_=ParentType.RIGHTSIZER_SIEM_DEFECT_DOJO
+    )
+    if not dojo_parent:
+        _LOG.debug(f'No dojo parent found for tenant {tenant_name}')
+        return None, None
+
+    _LOG.debug(f'Dojo parent to be used with tenant {tenant_name}: '
+               f'{dojo_parent.parent_id}. '
+               f'Describing linked application '
+               f'{dojo_parent.application_id}')
+    if dojo_parent.application_id in DOJO_APPLICATION_MAP:
+        _LOG.debug(f'Using cached application '
+                   f'{dojo_parent.application_id}')
+        dojo_application = DOJO_APPLICATION_MAP[
+            dojo_parent.application_id]
+    else:
+        _LOG.debug(f'Describing application '
+                   f'{dojo_parent.application_id}')
+        dojo_application = application_service.get_application_by_id(
+            application_id=dojo_parent.application_id
+        )
+        if not dojo_application:
+            _LOG.debug(f'Parent {dojo_parent.parent_id} '
+                       f'application {dojo_parent.application_id} '
+                       f'does not exist')
+        DOJO_APPLICATION_MAP[dojo_parent.application_id] = (
+            dojo_application)
+
+    if dojo_application and dojo_parent:
+        return dojo_application, dojo_parent
+    return None, None
+
+
 def main():
     _LOG.debug('Creating directories')
     work_dir, metrics_dir, reports_dir = \
@@ -493,10 +536,6 @@ def main():
     _LOG.debug(f'Describing License \'{license_key}\'')
     license_: License = license_service.get_license(license_id=license_key)
 
-    _LOG.debug(f'Searching for active Dojo Applications for customer: '
-               f'{application.customer_id}')
-    dojo_application = application_service.get_dojo_application(
-        customer=application.customer_id)
 
     for tenant in scan_tenants:
         try:
@@ -514,17 +553,12 @@ def main():
                     algorithm=algorithm,
                     licensed_job=licensed_job_data
                 )
-            dojo_parent = None
-            if dojo_application:
-                _LOG.debug(f'Searching for active Dojo parents for '
-                           f'tenant {tenant}, '
-                           f'application {dojo_application.application_id}')
-                dojo_parent = parent_service.get_linked_parent(
-                    tenant_name=tenant,
-                    customer_name=application.customer_id,
-                    cloud=None,
-                    type_=ParentType.RIGHTSIZER_SIEM_DEFECT_DOJO
-                )
+
+            dojo_application, dojo_parent = get_dojo_tenant_config(
+                customer_name=licensed_application.customer_id,
+                tenant_name=tenant
+            )
+
             for algorithm in algorithm_map.values():
                 process_tenant_instances(
                     metrics_dir=metrics_dir,
