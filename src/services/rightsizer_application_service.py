@@ -1,3 +1,4 @@
+import json
 from typing import List, Union
 
 from modular_sdk.models.application import Application
@@ -73,9 +74,10 @@ class RightSizerApplicationService(ApplicationService):
             created_by=created_by,
             meta=app_meta.as_dict()
         )
+        secret_value = json.dumps({'api_key': api_key})
         secret_name = self._create_application_secret(
             application_id=application.application_id,
-            password=api_key
+            password=secret_value
         )
         application.secret = secret_name
         return application
@@ -103,9 +105,11 @@ class RightSizerApplicationService(ApplicationService):
             if application.secret:
                 self.ssm_service.delete_secret(
                     secret_name=application.secret)
+
+            secret_value = json.dumps({'api_key': password})
             secret_name = self._create_application_secret(
                 application_id=application.application_id,
-                password=password
+                password=secret_value
             )
             application.secret = secret_name
             update_attributes.append(Application.secret)
