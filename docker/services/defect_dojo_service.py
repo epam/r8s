@@ -122,6 +122,8 @@ class DefectDojoService:
                        f'api key from ssm. Application id: '
                        f'\'{application.application_id}\''
             )
+        if isinstance(secret_value, dict):
+            secret_value = secret_value.get('api_key')
         return secret_value
 
     @staticmethod
