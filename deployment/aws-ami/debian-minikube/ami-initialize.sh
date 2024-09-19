@@ -260,7 +260,7 @@ lm_response=$(request_to_lm)
 code=$?
 if [ $code -ne 0 ];
 then
-  log_err "Unsuccessful response from the license manager"
+  log_err "Unsuccessful response from the license manager: $lm_response"
   exit 1
 fi
 lm_response=$(echo "$lm_response" | jq --indent 0 ".items[0]")
