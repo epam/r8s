@@ -51,7 +51,7 @@ class DojoV2Client:
             method=POST_METHOD,
             data={
                 'product_type_name': product_type_name,
-                'product_name': product_name,
+                'product_name': "RightSizer " + product_name,
                 'engagement_name': engagement_name,
                 'test_title': test_title,
                 'auto_create_context': auto_create_context,
