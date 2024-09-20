@@ -256,6 +256,7 @@ sudo chown -R $FIRST_USER:$FIRST_USER "$R8S_LOCAL_PATH"
 
 
 log "Going to make request to license manager"
+log "LM Api Link to be used: $LM_API_LINK"
 lm_response=$(request_to_lm)
 code=$?
 if [ $code -ne 0 ];
