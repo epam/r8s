@@ -30,7 +30,7 @@ source <(wget -O - "https://github.com/epam/r8s/releases/download/$RIGHTSIZER_RE
 
 modular_api_pod_name=$(kubectl get pods -n default -l app.kubernetes.io/name=modular-api -o jsonpath='{.items[0].metadata.name}')
 log "Waiting for modular api pod to be Running: ${modular_api_pod_name}"
-kubectl wait --for=condition=Running --timeout=300s "pod/${modular_api_pod_name}"
+kubectl wait --for=condition=ready --timeout=300s pod/${modular_api_pod_name}
 
 
 # will be downloaded by line above
