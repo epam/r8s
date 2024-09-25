@@ -23,14 +23,15 @@ def parse_args():
     parser.add_argument('-t', '--session_token', help='AWS Session Token',
                         required=False)
     parser.add_argument('-r', '--region', help='AWS Region',
-                        required=True, choices=ALLOWED_REGIONS)
+                        required=False, choices=ALLOWED_REGIONS, default='eu-central-1')
     parser.add_argument('-uri', '--r8s_mongodb_connection_uri',
                         help='MongoDB Connection string', required=False)
     parser.add_argument('-pr', '--price_region', action='append',
                         required=False, choices=ALLOWED_REGIONS,
+                        default=ALLOWED_REGIONS,
                         help='List of AWS regions to populate price for')
     parser.add_argument('-os', '--operating_system', action='append',
-                        required=False, choices=ALLOWED_OS,
+                        required=False, choices=ALLOWED_OS, default=ALLOWED_OS,
                         help='List of AWS operation systems '
                              'to populate price for')
     args = vars(parser.parse_args())
