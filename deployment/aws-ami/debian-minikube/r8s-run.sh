@@ -28,6 +28,11 @@ log "Executing ami-initialize from release $RIGHTSIZER_RELEASE"
 # shellcheck disable=SC1090
 source <(wget -O - "https://github.com/epam/r8s/releases/download/$RIGHTSIZER_RELEASE/ami-initialize.sh")
 
+modular_api_pod_name=$(kubectl get pods -n default -l app.kubernetes.io/name=modular-api -o jsonpath='{.items[0].metadata.name}')
+log "Waiting for modular api pod to be Running: ${modular_api_pod_name}"
+kubectl wait --for=condition=Running --timeout=300s "pod/${modular_api_pod_name}"
+
+
 # will be downloaded by line above
 log "Executing r8s-init --system"
 sudo -u "$FIRST_USER" r8s-init --system | sudo tee -a $LOG_PATH >/dev/null
