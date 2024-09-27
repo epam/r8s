@@ -6,7 +6,8 @@ from botocore.config import Config
 
 from commons.constants import DOCKER_SERVICE_MODE, \
     ENV_MINIO_HOST, ENV_MINIO_PORT, ENV_MINIO_ACCESS_KEY, \
-    ENV_MINIO_SECRET_ACCESS_KEY, ENV_SERVICE_MODE_S3
+    ENV_MINIO_SECRET_ACCESS_KEY, ENV_SERVICE_MODE_S3, ENV_MINIO_ROOT_USER, \
+    ENV_MINIO_ROOT_PASSWORD
 from commons.log_helper import get_logger
 
 UTF_8_ENCODING = 'utf-8'
@@ -38,8 +39,10 @@ class S3Client:
         config = self.build_config()
         if self.IS_DOCKER:
             host, port = os.getenv(ENV_MINIO_HOST), os.getenv(ENV_MINIO_PORT)
-            access_key = os.getenv(ENV_MINIO_ACCESS_KEY)
-            secret_access_key = os.getenv(ENV_MINIO_SECRET_ACCESS_KEY)
+            access_key = os.getenv(ENV_MINIO_ACCESS_KEY,
+                                   os.getenv(ENV_MINIO_ROOT_USER))
+            secret_access_key = os.getenv(ENV_MINIO_SECRET_ACCESS_KEY,
+                                          os.getenv(ENV_MINIO_ROOT_PASSWORD))
             assert (host and port and access_key and secret_access_key), \
                 f"\'{ENV_MINIO_HOST}\', \'{ENV_MINIO_PORT}\', " \
                 f"\'{ENV_MINIO_ACCESS_KEY}\', " \
