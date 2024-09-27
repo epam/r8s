@@ -2,10 +2,11 @@ import json
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
+import string
+import secrets
 
 from commons.constants import SETTING_IAM_PERMISSIONS, ENV_SYSTEM_USER_PASSWORD
 from commons.log_helper import get_logger
-from scripts.configure_environment import generate_password
 
 _LOG = get_logger(__name__)
 
@@ -16,6 +17,12 @@ INDEX_NAME_ATTR, KEY_SCHEMA_ATTR = 'index_name', 'key_schema'
 
 ATTRIBUTE_NAME_ATTR, KEY_TYPE_ATTR = 'AttributeName', 'KeyType'
 HASH_KEY_TYPE, RANGE_KEY_TYPE = 'HASH', 'RANGE'
+
+
+def generate_password():
+    alphabet = string.ascii_letters + string.digits + '&*<>-_'
+    password = ''.join(secrets.choice(alphabet) for _ in range(20))
+    return password
 
 
 def resolve_scripts_path():
