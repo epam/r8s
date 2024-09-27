@@ -278,7 +278,7 @@ initialize_system() {
 
   echo "Logging in to RightSizer using system user"
   syndicate r8s configure --api_link http://rightsizer:8000/r8s --json
-  syndicate r8s login --username system_user --password "$(get_kubectl_secret rightsizer-secret system-password)" --json
+  syndicate r8s login --username SYSTEM_ADMIN --password "$(get_kubectl_secret rightsizer-secret system-password)" --json
 
   echo "Logging in to Modular Service using system user"
   syndicate admin configure --api_link http://modular-service:8040/dev --json
@@ -298,12 +298,10 @@ initialize_system() {
 
   echo "Creating rightsizer lm setting"
   LM_API_LINK=$(get_kubectl_secret lm-data api-link)
-  stage=$(basename $LM_API_LINK)
-  host=$(dirname $LM_API_LINK)
-  syndicate r8s setting config add --host $host --port 443 --protocol "HTTPS" --stage $stage --json
+  syndicate r8s setting config add --host $LM_API_LINK --port 443 --protocol "HTTPS" --stage '/' --json
 
   echo "Creating rightsizer lm client"
-  syndicate r8s setting lm client add --key_id "$(echo "$lm_response" | jq ".private_key.key_id" -r)" --algorithm "$(echo "$lm_response" | jq ".private_key.algorithm" -r)" --private_key "$(echo "$lm_response" | jq ".private_key.value" -r)" --format "PEM" --b64encoded --json
+  syndicate r8s setting client add --key_id "$(echo "$lm_response" | jq ".private_key.key_id" -r)" --algorithm "$(echo "$lm_response" | jq ".private_key.algorithm" -r)" --private_key "$(echo "$lm_response" | jq ".private_key.value" -r)" --format "PEM" --b64encoded --json
 
   echo "Creating rightsizer customer users"
   syndicate r8s register --username "$RIGHTSIZER_USERNAME" --password "$rightsizer_password" --role_name admin_role --customer_id "$customer_name" --json
@@ -323,12 +321,11 @@ initialize_system() {
   done
 
   log "Setting up RightSizer Licensed Application"
-  output=$(syndicate r8s application licenses add --customer_id "$customer_name" --description "$customer_name application" --cloud "AWS" --tenant_license_key "$(echo "$lm_response" | jq ".tenant_license_key" -r)" --json | jq ".items[0].license_key" -r)
-  licensed_application_id=$(get_application_id "$output")
-  echo $licensed_application_id
+  output=$(syndicate r8s application licenses add --customer_id "$customer_name" --description "$customer_name application" --cloud "AWS" --tenant_license_key "$(echo "$lm_response" | jq ".tenant_license_key" -r)" --json)
+  licensed_application_id=$(echo "$output" | jq ".items[0].application_id" -r)
 
   log "Setting up Licensed Parent"
-  syndicate r8s parent add --application_id "$licensed_application_id" --description "$customer_name parent" --scope SPECIFIC --tenant "$(account_id)" --json
+  syndicate r8s parent add --application_id "$licensed_application_id" --description "$customer_name parent" --scope "SPECIFIC" --tenant "$(account_id)" --json
 
   log "Setting up Metrics storage"
   syndicate r8s storage add --storage_name input_storage --type DATA_SOURCE --bucket_name r8s-metrics --json
