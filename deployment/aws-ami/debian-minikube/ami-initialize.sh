@@ -241,6 +241,7 @@ helm repo add syndicate s3://charts-repository/syndicate/
 helm repo update syndicate
 
 helm install "$HELM_RELEASE_NAME" syndicate/rightsizer --version $RIGHTSIZER_RELEASE
+helm install metric-collector syndicate/metric-collector
 helm install defectdojo syndicate/defectdojo
 EOF
 
