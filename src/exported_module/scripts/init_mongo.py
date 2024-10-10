@@ -124,6 +124,7 @@ def create_lm_grace_period_setting(grace_config):
         'value': grace_config
     }
     Setting(**setting_data).save()
+    _LOG.debug(f'Creating {SETTING_LM_GRACE_CONFIG} setting')
 
 
 def create_admin_role():
@@ -182,6 +183,7 @@ def create_customer():
 
 
 def init_mongo(grace_config=None):
+    _LOG.debug(f'Initializing mongo. Grace config to apply: {grace_config}')
     mcdm_models = [
         Customer, Tenant, Parent, RegionModel, TenantSettings, Application
     ]
@@ -197,4 +199,8 @@ def init_mongo(grace_config=None):
 
 
 if __name__ == '__main__':
-    init_mongo()
+    init_mongo(grace_config={
+        'period_seconds': 604800,
+        'grace_period_count': 12,
+        'failed_count': 0
+    })
