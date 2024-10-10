@@ -5,7 +5,7 @@ from modular_sdk.services.impl.maestro_credentials_service import AccessMeta
 from mongoengine.errors import DoesNotExist
 
 from commons.constants import SETTING_IAM_PERMISSIONS, \
-    SETTING_LAST_SHAPE_UPDATE
+    SETTING_LAST_SHAPE_UPDATE, SETTING_LM_GRACE_CONFIG
 from models.setting import Setting
 
 KEY_ACCESS_DATA_LM = 'ACCESS_DATA_LM'
@@ -87,3 +87,28 @@ class SettingsService:
         )
         self.save(setting=setting)
         return setting
+
+    def lm_grace_is_job_allowed(self):
+        grace_config = self.get(SETTING_LM_GRACE_CONFIG)
+        if not grace_config:
+            return False
+        grace_config = dict(grace_config)
+        grace_period_count = grace_config.get('grace_period_count')
+        failed_count = grace_config.get('failed_count')
+        if failed_count > grace_period_count:
+            return False
+        return True
+
+    def lm_grace_increment_failed(self):
+        grace_config = self.get(SETTING_LM_GRACE_CONFIG, value=False)
+        if not grace_config:
+            return
+        grace_config.value['failed_count'] += 1
+        grace_config.save()
+
+    def lm_grace_reset(self):
+        grace_config = self.get(SETTING_LM_GRACE_CONFIG, value=False)
+        if not grace_config:
+            return
+        grace_config.value['failed_count'] = 0
+        grace_config.save()

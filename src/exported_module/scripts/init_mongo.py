@@ -12,7 +12,7 @@ from modular_sdk.models.region import RegionModel
 from modular_sdk.models.tenant import Tenant
 from modular_sdk.models.tenant_settings import TenantSettings
 
-from commons.constants import SETTING_IAM_PERMISSIONS
+from commons.constants import SETTING_IAM_PERMISSIONS, SETTING_LM_GRACE_CONFIG
 from commons.log_helper import get_logger
 from scripts.configure_environment import generate_password
 
@@ -110,6 +110,22 @@ def create_iam_permissions_settings():
     Setting(**iam_permissions_data).save()
 
 
+def create_lm_grace_period_setting(grace_config):
+    from services import SERVICE_PROVIDER
+    from models.setting import Setting
+    settings_service = SERVICE_PROVIDER.settings_service()
+
+    if settings_service.get(SETTING_LM_GRACE_CONFIG):
+        _LOG.debug(f'Setting {SETTING_LM_GRACE_CONFIG} already exist.')
+        return
+    _LOG.debug(f'Creating {SETTING_LM_GRACE_CONFIG} setting')
+    setting_data = {
+        'name': SETTING_LM_GRACE_CONFIG,
+        'value': grace_config
+    }
+    Setting(**setting_data).save()
+
+
 def create_admin_role():
     from services import SERVICE_PROVIDER
     from services.rbac.iam_service import IamService
@@ -165,7 +181,7 @@ def create_customer():
     Customer(name=customer_name, display_name=customer_name).save()
 
 
-def init_mongo():
+def init_mongo(grace_config=None):
     mcdm_models = [
         Customer, Tenant, Parent, RegionModel, TenantSettings, Application
     ]
@@ -173,6 +189,8 @@ def init_mongo():
         create_indexes_for_model(model)
 
     create_iam_permissions_settings()
+    if grace_config:
+        create_lm_grace_period_setting(grace_config)
     create_admin_role()
     create_admin_user()
     create_customer()

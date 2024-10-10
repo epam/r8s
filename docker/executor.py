@@ -457,19 +457,19 @@ def main():
     for tenant in scan_tenants:
         try:
             _LOG.info(f'Processing tenant {tenant}')
-
-            _LOG.debug(f'Submitting licensed job for tenant {tenant}')
-            licensed_job_data = submit_licensed_job(
-                application=licensed_application,
-                license_=license_,
-                tenant_name=tenant)
-            for algorithm in algorithm_map.values():
-                _LOG.debug(f'Syncing licensed algorithm from license '
-                           f'{license_.license_key}')
-                algorithm_service.update_from_licensed_job(
-                    algorithm=algorithm,
-                    licensed_job=licensed_job_data
-                )
+            if not settings_service.lm_grace_is_job_allowed():
+                _LOG.debug(f'Submitting licensed job for tenant {tenant}')
+                licensed_job_data = submit_licensed_job(
+                    application=licensed_application,
+                    license_=license_,
+                    tenant_name=tenant)
+                for algorithm in algorithm_map.values():
+                    _LOG.debug(f'Syncing licensed algorithm from license '
+                               f'{license_.license_key}')
+                    algorithm_service.update_from_licensed_job(
+                        algorithm=algorithm,
+                        licensed_job=licensed_job_data
+                    )
             for algorithm in algorithm_map.values():
                 process_tenant_instances(
                     metrics_dir=metrics_dir,
@@ -482,14 +482,14 @@ def main():
                     algorithm=algorithm,
                     tenant=tenant
                 )
-
-            _LOG.info(f'Setting tenant status to "SUCCEEDED"')
-            job_service.set_licensed_job_status(
-                job=job,
-                tenant=tenant,
-                status=JobTenantStatusEnum.TENANT_SUCCEEDED_STATUS,
-                customer=licensed_application.customer_id
-            )
+            if not settings_service.lm_grace_is_job_allowed():
+                _LOG.info(f'Setting tenant status to "SUCCEEDED"')
+                job_service.set_licensed_job_status(
+                    job=job,
+                    tenant=tenant,
+                    status=JobTenantStatusEnum.TENANT_SUCCEEDED_STATUS,
+                    customer=licensed_application.customer_id
+                )
         except LicenseForbiddenException as e:
             _LOG.error(e)
             job_service.set_licensed_job_status(
@@ -500,11 +500,12 @@ def main():
         except Exception as e:
             _LOG.error(f'Unexpected error occurred while processing '
                        f'tenant {tenant}: {e}')
-            job_service.set_licensed_job_status(
-                job=job,
-                tenant=tenant,
-                status=JobTenantStatusEnum.TENANT_FAILED_STATUS
-            )
+            if not settings_service.lm_grace_is_job_allowed():
+                job_service.set_licensed_job_status(
+                    job=job,
+                    tenant=tenant,
+                    status=JobTenantStatusEnum.TENANT_FAILED_STATUS
+                )
 
     _LOG.debug(f'Job {JOB_ID} has finished successfully')
     _LOG.debug('Setting job state to SUCCEEDED')

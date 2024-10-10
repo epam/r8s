@@ -4,10 +4,12 @@ helps fast and be safe from importing not existing packages
 """
 import logging
 import logging.config
+from datetime import timedelta
 import multiprocessing
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional
+from scheduler import Scheduler
 
 from bottle import Bottle
 
@@ -27,6 +29,8 @@ ENV_ACTION = 'env'
 DEFAULT_HOST = '0.0.0.0'
 DEFAULT_PORT = 8010
 DEFAULT_NUMBER_OF_WORKERS = (multiprocessing.cpu_count() * 2) + 1
+
+
 # DEFAULT_ON_PREM_API_LINK = f'http://{DEFAULT_HOST}:{str(DEFAULT_PORT)}/caas'
 # DEFAULT_API_GATEWAY_NAME = 'r8s-api'
 
@@ -101,6 +105,58 @@ class Run(ActionHandler):
             app.run(host=host, port=port)
 
 
+def license_manager_sync():
+    _LOG.debug(f'Going to sync licenses')
+    license_service = SERVICE_PROVIDER.license_service()
+    algorithm_service = SERVICE_PROVIDER.algorithm_service()
+    license_manager_service=SERVICE_PROVIDER.license_manager_service()
+    settings_service = SERVICE_PROVIDER.settings_service()
+
+    licenses = license_service.list_licenses()
+    if not licenses:
+        _LOG.debug(f'No active licenses found, LM sync will be skipped.')
+        return
+    algorithms = algorithm_service.list()
+    if not algorithms:
+        _LOG.debug(f'No algorithms found, LM sync will be skipped.')
+        return
+    try:
+        for license_ in licenses:
+            _LOG.info(f'Syncing license \'{license_.license_key}\'')
+            customer = list(license_.customers.keys())[0]
+
+            response = license_manager_service.synchronize_license(
+                license_key=license_.license_key,
+                customer=customer
+            )
+            if not response.status_code == 200:
+                raise AssertionError()
+            license_data = response.json()['items'][0]
+
+            _LOG.debug(f'Updating license {license_.license_key}')
+            license_ = license_service.update_license(
+                license_obj=license_,
+                license_data=license_data
+            )
+            _LOG.debug(f'Updating licensed algorithm')
+            for customer in license_.customers.keys():
+                algorithm_service.sync_licensed_algorithm(
+                    license_data=license_data,
+                    customer=customer
+                )
+    except:
+        _LOG.debug(f'License sync failed')
+        settings_service.lm_grace_increment_failed()
+    else:
+        _LOG.debug(f'License(s) synced successfully')
+        settings_service.lm_grace_reset()
+
+    if not settings_service.lm_grace_is_job_allowed():
+        _LOG.debug(f'License Manager grace period has ended.')
+        for algorithm in algorithms:
+            _LOG.debug(f'Deleting algorithm {algorithm.name}')
+            algorithm.delete()
+
 def main():
     from exported_module.scripts.init_vault import init_vault
     from exported_module.scripts.init_minio import init_minio
@@ -108,7 +164,16 @@ def main():
 
     init_vault()
     init_minio()
-    init_mongo()
+
+    grace_config = {
+        'period_seconds': 60,
+        'grace_period_count': 5,
+        'failed_count': 0
+    }
+    init_mongo(grace_config)
+    schedule = Scheduler()
+    schedule.cyclic(timedelta(seconds=grace_config['period_seconds']),
+                    license_manager_sync)
     Run()()
 
 

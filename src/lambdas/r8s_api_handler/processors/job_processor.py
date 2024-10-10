@@ -252,11 +252,17 @@ class JobProcessor(AbstractCommandProcessor):
         _LOG.debug(f'Checking permission to submit job on license '
                    f'\'{application_meta.license_key}\' '
                    f'for tenants: {scan_tenants}')
-        tenant_status_map = self._validate_licensed_job(
-            application=licensed_application,
-            license_key=application_meta.license_key,
-            scan_tenants=scan_tenants
-        )
+        if not self.settings_service.lm_grace_is_job_allowed():
+            tenant_status_map = self._validate_licensed_job(
+                application=licensed_application,
+                license_key=application_meta.license_key,
+                scan_tenants=scan_tenants
+            )
+        else:
+            tenant_status_map = {
+                tenant: JobStatusEnum.JOB_RUNNABLE_STATUS.value
+                for tenant in scan_tenants
+            }
 
         scan_from_date = event.get(SCAN_FROM_DATE_ATTR)
         if scan_from_date:
