@@ -190,8 +190,9 @@ def main():
     init_mongo(grace_config)
 
     _LOG.debug(f'Creating scheduled license sync job')
-    thread = Thread(target=run_scheduled_sync, args=(grace_config,))
-    thread.start()
+    run_scheduled_sync(grace_config)
+    # thread = Thread(target=run_scheduled_sync, args=(grace_config,))
+    # thread.start()
 
     _LOG.debug(f'Starting r8s application')
     Run()()
