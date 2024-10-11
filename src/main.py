@@ -4,6 +4,7 @@ helps fast and be safe from importing not existing packages
 """
 import logging
 import logging.config
+import os
 from datetime import timedelta
 import multiprocessing
 from abc import ABC, abstractmethod
@@ -48,12 +49,23 @@ def get_logger():
         'version': 1,
         'disable_existing_loggers': True
     }
+    _name_to_level = {
+        'CRITICAL': logging.CRITICAL,
+        'FATAL': logging.FATAL,
+        'ERROR': logging.ERROR,
+        'WARNING': logging.WARNING,
+        'INFO': logging.INFO,
+        'DEBUG': logging.DEBUG
+    }
     logging.config.dictConfig(config)
     logger = logging.getLogger()
     handler = logging.StreamHandler()
     handler.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
     logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
+
+    log_level = os.environ.get('log_level', "INFO")
+    log_level = _name_to_level.get(log_level, logging.INFO)
+    logger.setLevel(log_level)
     return logger
 
 
@@ -190,10 +202,8 @@ def main():
     init_mongo(grace_config)
 
     _LOG.debug(f'Creating scheduled license sync job')
-    # run_scheduled_sync(grace_config)
-    license_manager_sync()
-    # thread = Thread(target=run_scheduled_sync, args=(grace_config,))
-    # thread.start()
+    thread = Thread(target=run_scheduled_sync, args=(grace_config,))
+    thread.start()
 
     _LOG.debug(f'Starting r8s application')
     Run()()
