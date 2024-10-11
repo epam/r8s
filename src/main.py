@@ -122,6 +122,7 @@ def license_manager_sync():
     if not algorithms:
         _LOG.debug(f'No algorithms found, LM sync will be skipped.')
         return
+    _LOG.debug(f'Licenses to update: {[l.license_key for l in licenses]}')
     try:
         for license_ in licenses:
             _LOG.info(f'Syncing license \'{license_.license_key}\'')
@@ -132,10 +133,13 @@ def license_manager_sync():
                 customer=customer
             )
             if not response.status_code == 200:
-                raise AssertionError()
+                _LOG.error(f'Invalid LM response obtained: {response}.')
+                raise ValueError(f'Invalid LM response obtained: {response}.')
+            _LOG.debug(f'Reading license data from LM response')
             license_data = response.json()['items'][0]
 
-            _LOG.debug(f'Updating license {license_.license_key}')
+            _LOG.debug(f'Updating license {license_.license_key} '
+                       f'with data: {license_data}')
             license_ = license_service.update_license(
                 license_obj=license_,
                 license_data=license_data
@@ -146,8 +150,8 @@ def license_manager_sync():
                     license_data=license_data,
                     customer=customer
                 )
-    except:
-        _LOG.debug(f'License sync failed')
+    except Exception as e:
+        _LOG.debug(f'License sync failed: {e}')
         settings_service.lm_grace_increment_failed()
     else:
         _LOG.debug(f'License(s) synced successfully')
