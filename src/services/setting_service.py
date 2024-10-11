@@ -6,10 +6,13 @@ from mongoengine.errors import DoesNotExist
 
 from commons.constants import SETTING_IAM_PERMISSIONS, \
     SETTING_LAST_SHAPE_UPDATE, SETTING_LM_GRACE_CONFIG
+from commons.log_helper import get_logger
 from models.setting import Setting
 
 KEY_ACCESS_DATA_LM = 'ACCESS_DATA_LM'
 KEY_LM_CLIENT_KEY = 'LM_CLIENT_KEY'
+
+_LOG = get_logger(__name__)
 
 
 class SettingsService:
@@ -100,15 +103,27 @@ class SettingsService:
         return True
 
     def lm_grace_increment_failed(self):
+        _LOG.debug(f'Incrementing \'{SETTING_LM_GRACE_CONFIG}\' setting')
         grace_config = self.get(SETTING_LM_GRACE_CONFIG, value=False)
         if not grace_config:
+            _LOG.warning(f'Setting \'{SETTING_LM_GRACE_CONFIG}\' '
+                         f'does not exist.')
             return
-        grace_config.value['failed_count'] += 1
+        grace_config_value = dict(grace_config.value)
+        grace_config_value['failed_count'] += 1
+        grace_config.value = grace_config_value
+        _LOG.debug(f'Updating setting with value {grace_config_value}')
         grace_config.save()
 
     def lm_grace_reset(self):
+        _LOG.debug(f'Resetting \'{SETTING_LM_GRACE_CONFIG}\' setting')
         grace_config = self.get(SETTING_LM_GRACE_CONFIG, value=False)
         if not grace_config:
+            _LOG.warning(f'Setting \'{SETTING_LM_GRACE_CONFIG}\' '
+                         f'does not exist.')
             return
-        grace_config.value['failed_count'] = 0
+        grace_config_value = dict(grace_config.value)
+        grace_config_value['failed_count'] = 0
+        grace_config.value = grace_config_value
+        _LOG.debug(f'Updating setting with value {grace_config_value}')
         grace_config.save()
