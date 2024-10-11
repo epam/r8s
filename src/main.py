@@ -10,6 +10,8 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional
 from scheduler import Scheduler
+import time
+from threading import Thread
 
 from bottle import Bottle
 
@@ -106,10 +108,10 @@ class Run(ActionHandler):
 
 
 def license_manager_sync():
-    _LOG.debug(f'Going to sync licenses')
+    _LOG.debug(f'Running scheduled license sync')
     license_service = SERVICE_PROVIDER.license_service()
     algorithm_service = SERVICE_PROVIDER.algorithm_service()
-    license_manager_service=SERVICE_PROVIDER.license_manager_service()
+    license_manager_service = SERVICE_PROVIDER.license_manager_service()
     settings_service = SERVICE_PROVIDER.settings_service()
 
     licenses = license_service.list_licenses()
@@ -157,6 +159,17 @@ def license_manager_sync():
             _LOG.debug(f'Deleting algorithm {algorithm.name}')
             algorithm.delete()
 
+
+def run_scheduled_sync(grace_config: dict):
+    schedule = Scheduler()
+    schedule.cyclic(timedelta(seconds=grace_config['period_seconds']),
+                    license_manager_sync)
+
+    while True:
+        schedule.exec_jobs()
+        time.sleep(1)
+
+
 def main():
     from exported_module.scripts.init_vault import init_vault
     from exported_module.scripts.init_minio import init_minio
@@ -171,9 +184,12 @@ def main():
         'failed_count': 0
     }
     init_mongo(grace_config)
-    schedule = Scheduler()
-    schedule.cyclic(timedelta(seconds=grace_config['period_seconds']),
-                    license_manager_sync)
+
+    _LOG.debug(f'Creating scheduled license sync job')
+    thread = Thread(target=run_scheduled_sync, args=(grace_config,))
+    thread.start()
+
+    _LOG.debug(f'Starting r8s application')
     Run()()
 
 
