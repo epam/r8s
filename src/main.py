@@ -190,7 +190,8 @@ def main():
     init_mongo(grace_config)
 
     _LOG.debug(f'Creating scheduled license sync job')
-    run_scheduled_sync(grace_config)
+    # run_scheduled_sync(grace_config)
+    license_manager_sync()
     # thread = Thread(target=run_scheduled_sync, args=(grace_config,))
     # thread.start()
 
