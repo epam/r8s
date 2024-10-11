@@ -195,8 +195,8 @@ def main():
     init_minio()
 
     grace_config = {
-        'period_seconds': 60,
-        'grace_period_count': 5,
+        'period_seconds': 604800,
+        'grace_period_count': 12,
         'failed_count': 0
     }
     init_mongo(grace_config)
