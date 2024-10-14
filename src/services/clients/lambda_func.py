@@ -59,23 +59,23 @@ class LambdaClient:
         if not package_name:
             return
         return getattr(
-            import_module(f'lambdas.{package_name}.handler'), 'HANDLER'
+            import_module(f'lambdas.{package_name}.handler'), 'lambda_handler'
         )
 
     def _invoke_function_docker(self, function_name, event=None, wait=False):
-        handler = self._derive_handler(function_name)
-        if handler:
-            _LOG.debug(f'Handler: {handler}')
+        lambda_handler = self._derive_handler(function_name)
+        if lambda_handler:
+            _LOG.debug(f'Handler: {lambda_handler}')
             args = [{}, RequestContext()]
             if event:
                 args[0] = event
             if wait:
                 response = self._handle_execution(
-                    handler.lambda_handler, *args
+                    lambda_handler, *args
                 )
             else:
                 Thread(target=self._handle_execution, args=(
-                    handler.lambda_handler, *args)).start()
+                    lambda_handler, *args)).start()
                 response = dict(StatusCode=202)
             return response
 

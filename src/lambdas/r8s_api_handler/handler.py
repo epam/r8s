@@ -417,36 +417,33 @@ class R8sApiHandler(AbstractApiHandlerLambda):
         )
 
 
-HANDLER = R8sApiHandler(
-    user_service=SERVICE_PROVIDER.user_service(),
-    access_control_service=SERVICE_PROVIDER.access_control_service(),
-    algorithm_service=SERVICE_PROVIDER.algorithm_service(),
-    iam_service=SERVICE_PROVIDER.iam_service(),
-    storage_service=SERVICE_PROVIDER.storage_service(),
-    environment_service=SERVICE_PROVIDER.environment_service(),
-    batch_client=SERVICE_PROVIDER.batch(),
-    job_service=SERVICE_PROVIDER.job_service(),
-    report_service=SERVICE_PROVIDER.report_service(),
-    customer_service=SERVICE_PROVIDER.customer_service(),
-    tenant_service=SERVICE_PROVIDER.tenant_service(),
-    settings_service=SERVICE_PROVIDER.settings_service(),
-    shape_service=SERVICE_PROVIDER.shape_service(),
-    shape_price_service=SERVICE_PROVIDER.shape_price_service(),
-    application_service=SERVICE_PROVIDER.rightsizer_application_service(),
-    parent_service=SERVICE_PROVIDER.rightsizer_parent_service(),
-    ssm_service=SERVICE_PROVIDER.ssm_service(),
-    api_gateway_client=SERVICE_PROVIDER.api_gateway_client(),
-    s3_client=SERVICE_PROVIDER.s3(),
-    shape_rules_filter_service=SERVICE_PROVIDER.shape_rules_filter_service(),
-    recommendation_history_service=SERVICE_PROVIDER.recommendation_history_service(),
-    lambda_client=SERVICE_PROVIDER.lambda_client(),
-    customer_preferences_service=SERVICE_PROVIDER.customer_preferences_service(),
-    resize_service=SERVICE_PROVIDER.resize_service(),
-    key_management_service=SERVICE_PROVIDER.key_management_service(),
-    license_manager_service=SERVICE_PROVIDER.license_manager_service(),
-    license_service=SERVICE_PROVIDER.license_service()
-)
-
-
 def lambda_handler(event, context):
-    return HANDLER.lambda_handler(event=event, context=context)
+    return R8sApiHandler(
+        user_service=SERVICE_PROVIDER.user_service(),
+        access_control_service=SERVICE_PROVIDER.access_control_service(),
+        algorithm_service=SERVICE_PROVIDER.algorithm_service(),
+        iam_service=SERVICE_PROVIDER.iam_service(),
+        storage_service=SERVICE_PROVIDER.storage_service(),
+        environment_service=SERVICE_PROVIDER.environment_service(),
+        batch_client=SERVICE_PROVIDER.batch(),
+        job_service=SERVICE_PROVIDER.job_service(),
+        report_service=SERVICE_PROVIDER.report_service(),
+        customer_service=SERVICE_PROVIDER.customer_service(),
+        tenant_service=SERVICE_PROVIDER.tenant_service(),
+        settings_service=SERVICE_PROVIDER.settings_service(),
+        shape_service=SERVICE_PROVIDER.shape_service(),
+        shape_price_service=SERVICE_PROVIDER.shape_price_service(),
+        application_service=SERVICE_PROVIDER.rightsizer_application_service(),
+        parent_service=SERVICE_PROVIDER.rightsizer_parent_service(),
+        ssm_service=SERVICE_PROVIDER.ssm_service(),
+        api_gateway_client=SERVICE_PROVIDER.api_gateway_client(),
+        s3_client=SERVICE_PROVIDER.s3(),
+        shape_rules_filter_service=SERVICE_PROVIDER.shape_rules_filter_service(),
+        recommendation_history_service=SERVICE_PROVIDER.recommendation_history_service(),
+        lambda_client=SERVICE_PROVIDER.lambda_client(),
+        customer_preferences_service=SERVICE_PROVIDER.customer_preferences_service(),
+        resize_service=SERVICE_PROVIDER.resize_service(),
+        key_management_service=SERVICE_PROVIDER.key_management_service(),
+        license_manager_service=SERVICE_PROVIDER.license_manager_service(),
+        license_service=SERVICE_PROVIDER.license_service()
+    ).lambda_handler(event=event, context=context)
