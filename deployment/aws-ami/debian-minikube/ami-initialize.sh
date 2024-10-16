@@ -271,8 +271,14 @@ EOF
 log "License information was received"
 
 
-dojo_pod=$(kubectl get pods | awk '{print $1}' | grep defectdojo-initializer)
-log "Getting Defect dojo password. Dojo pod: $dojo_pod"
+log "Describing DefectDojo pod"
+while [[ -z "$dojo_pod" ]]; do
+  dojo_pod=$(sudo su "$FIRST_USER" -c "kubectl get pods" | awk '{print $1}' | grep defectdojo-initializer)
+  sleep 5
+done
+log "Dojo pod name: $dojo_pod"
+
+log "Getting Defect dojo password"
 while [ -z "$dojo_pass" ]; do
   sleep 5
   dojo_pass=$(sudo su "$FIRST_USER" -c "kubectl logs $dojo_pod" | grep -oP "Admin password: \K\w+")
