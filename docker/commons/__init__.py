@@ -19,22 +19,21 @@ def dateparse(time_in_secs):
 def secure_event(event: dict,
                  secured_keys=(PASSWORD_ATTR, ID_TOKEN_ATTR,
                                REFRESH_TOKEN_ATTR, AUTHORIZATION_PARAM)):
-    return event # todo remove
-    # result_event = {}
-    # if not isinstance(event, dict):
-    #     return event
-    # for key, value in event.items():
-    #     if isinstance(value, dict):
-    #         result_event[key] = secure_event(
-    #             event=value,
-    #             secured_keys=secured_keys)
-    #     if isinstance(value, list):
-    #         result_event[key] = []
-    #         for item in value:
-    #             result_event[key].append(secure_event(item))
-    #     elif key in secured_keys:
-    #         result_event[key] = '*****'
-    #     else:
-    #         result_event[key] = secure_event(value)
-    #
-    # return result_event
+    result_event = {}
+    if not isinstance(event, dict):
+        return event
+    for key, value in event.items():
+        if isinstance(value, dict):
+            result_event[key] = secure_event(
+                event=value,
+                secured_keys=secured_keys)
+        if isinstance(value, list):
+            result_event[key] = []
+            for item in value:
+                result_event[key].append(secure_event(item))
+        elif key in secured_keys:
+            result_event[key] = '*****'
+        else:
+            result_event[key] = secure_event(value)
+
+    return result_event
