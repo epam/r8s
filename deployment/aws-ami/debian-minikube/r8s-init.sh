@@ -320,20 +320,20 @@ initialize_system() {
     syndicate admin tenant regions activate --tenant_name "$CURRENT_ACCOUNT_TENANT_NAME" --region_name "$r" --json > /dev/null
   done
 
-  log "Setting up RightSizer Licensed Application"
+  echo "Setting up RightSizer Licensed Application"
   output=$(syndicate r8s application licenses add --customer_id "$customer_name" --description "$customer_name application" --cloud "AWS" --tenant_license_key "$(echo "$lm_response" | jq ".tenant_license_key" -r)" --json)
   licensed_application_id=$(echo "$output" | jq ".items[0].application_id" -r)
 
-  log "Setting up Licensed Parent"
+  echo "Setting up Licensed Parent"
   syndicate r8s parent add --application_id "$licensed_application_id" --description "$customer_name parent" --scope "SPECIFIC" --tenant "$(account_id)" --json
 
-  log "Setting up Metrics storage"
+  echo "Setting up Metrics storage"
   syndicate r8s storage add --storage_name input_storage --type DATA_SOURCE --bucket_name r8s-metrics --json
 
-  log "Setting up Scan results storage"
+  echo "Setting up Scan results storage"
   syndicate r8s storage add --storage_name output_storage --type STORAGE --bucket_name r8s-results --json
 
-  log "Setting up RIGHTSIZER Application"
+  echo "Setting up RIGHTSIZER Application"
   syndicate r8s application add --customer_id "$customer_name" --description "$customer_name application" --input_storage input_storage --output_storage output_storage --username "ADMIN" --password "ADMIN" --host "0.0.0.0" --port 8000 --protocol HTTP --json
 
   echo "Getting Defect dojo token"
