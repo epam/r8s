@@ -345,10 +345,10 @@ initialize_system() {
   echo "Activating dojo installation for rightsizer"
 
   echo "Creating RightSizer Dojo Application"
-  output=$(syndicate r8s application dojo add --customer_id "$customer_name" --description "$customer_name Dojo Application" --host "http://defectdojo" --port "8080" --protocol "http" --stage "api/v2 " --api_key "$dojo_token" --json)
-  dojo_application_id=$(get_application_id "$output")
+  output=$(syndicate r8s application dojo add --customer_id "$customer_name" --description "$customer_name Dojo Application" --host "http://defectdojo" --port "8080" --protocol "HTTPS" --stage "api/v2 " --api_key "$dojo_token" --json)
+  dojo_application_id=$(echo "$output" | jq ".items[0].application_id" -r)
 
-  echo "Creating RightSizer Dojo Parent"
+  echo "Creating RightSizer Dojo Parent for application $dojo_application_id"
   syndicate r8s parent dojo add --application_id "$dojo_application_id" --description "$customer_name Dojo parent" --tenant "$CURRENT_ACCOUNT_TENANT_NAME" --scope "SPECIFIC" --json
 
 }
