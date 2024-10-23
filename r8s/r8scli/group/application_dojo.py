@@ -1,7 +1,7 @@
 import click
 
-from r8s_group import cli_response, ViewCommand
-from r8s_service.constants import ALLOWED_PROTOCOLS, \
+from r8scli.group import cli_response, ViewCommand
+from r8scli.service.constants import ALLOWED_PROTOCOLS, \
     PROTOCOL_HTTPS
 
 
@@ -18,7 +18,7 @@ def describe(application_id=None):
     """
     Describes a DEFECT_DOJO Application.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().application_dojo_get(
         application_id=application_id)
 
@@ -45,7 +45,7 @@ def add(customer_id, description, host, port, protocol, stage, api_key):
     """
     Creates Maestro RIGHTSIZER Application
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
 
     return init_configuration().application_dojo_post(
         customer=customer_id,
@@ -68,7 +68,7 @@ def delete(application_id, force):
     """
     Deletes DEFECT_DOJO Application.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     if force:
         click.confirm(
             f'Do you really want to completely '

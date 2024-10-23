@@ -1,7 +1,7 @@
 import click
 
-from r8s_group import cli_response, ViewCommand
-from r8s_service.constants import (AVAILABLE_PARENT_SCOPES)
+from r8scli.group import cli_response, ViewCommand
+from r8scli.service.constants import (AVAILABLE_PARENT_SCOPES)
 
 
 @click.group(name='dojo')
@@ -19,7 +19,7 @@ def describe(application_id=None, parent_id=None):
     """
     Describes a RIGHTSIZER_SIEM_DEFECT_DOJO Parent.
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().parent_dojo_get(
         application_id=application_id,
         parent_id=parent_id
@@ -40,7 +40,7 @@ def add(application_id, description, tenant, scope):
     """
     Creates RIGHTSIZER_SIEM_DEFECT_DOJO parent
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     return init_configuration().parent_dojo_post(
         application_id=application_id,
         description=description,
@@ -59,7 +59,7 @@ def delete(parent_id, force):
     """
     Deletes RIGHTSIZER_SIEM_DEFECT_DOJO Parent
     """
-    from r8s_service.initializer import init_configuration
+    from r8scli.service.initializer import init_configuration
     if force:
         click.confirm(
             f'Do you really want to completely '
