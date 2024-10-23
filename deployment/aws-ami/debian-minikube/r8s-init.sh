@@ -325,7 +325,7 @@ initialize_system() {
   licensed_application_id=$(echo "$output" | jq ".items[0].application_id" -r)
 
   echo "Setting up Licensed Parent"
-  syndicate r8s parent add --application_id "$licensed_application_id" --description "$customer_name parent" --scope "SPECIFIC" --tenant "$(account_id)" --json
+  syndicate r8s parent add --application_id "$licensed_application_id" --description "$customer_name parent" --scope "SPECIFIC" --tenant "$CURRENT_ACCOUNT_TENANT_NAME" --json
 
   echo "Setting up Metrics storage"
   syndicate r8s storage add --storage_name input_storage --type DATA_SOURCE --bucket_name r8s-metrics --json
@@ -345,7 +345,7 @@ initialize_system() {
   echo "Activating dojo installation for rightsizer"
 
   echo "Creating RightSizer Dojo Application"
-  output=$(syndicate r8s application dojo add --customer_id "$customer_name" --description "$customer_name Dojo Application" --host "http://defectdojo" --port "8080" --protocol "HTTPS" --stage "api/v2 " --api_key "$dojo_token" --json)
+  output=$(syndicate r8s application dojo add --customer_id "$customer_name" --description "$customer_name Dojo Application" --host "http://defectdojo" --port "8080" --protocol "HTTPS" --stage "api/v2" --api_key "$dojo_token" --json)
   dojo_application_id=$(echo "$output" | jq ".items[0].application_id" -r)
 
   echo "Creating RightSizer Dojo Parent for application $dojo_application_id"
