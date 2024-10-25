@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.11.0] - 2024-09-17
 * Update onprem version of the service
+* Add readable recommendation text to DefectDojo findings
 
 ## [3.10.2] - 2024-09-16
 * Unify DEFECT_DOJO Application secret format with SRE

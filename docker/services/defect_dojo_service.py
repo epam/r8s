@@ -13,16 +13,180 @@ from modular_sdk.services.impl.maestro_credentials_service import (
 )
 
 from models.parent_attributes import DojoParentMeta
-from models.recommendation_history import RecommendationHistory
+from models.recommendation_history import RecommendationHistory, \
+    RecommendationTypeEnum
 from services.clients.dojo_client import DojoV2Client
 from services.ssm_service import SSMService
 
 _LOG = get_logger('defect-dojo-service')
 
 
+class RecommendationToTextConverter:
+    SHUTDOWN_TEMPLATE = ("Shutting down is suggested for the instances with "
+                         "minimum load, which allows to suppose that the "
+                         "instance is not actually used. \nIt is recommended to "
+                         "carefully review the instance purpose and "
+                         "role within the infrastructure before the shutdown.")
+    SPLIT_TEMPLATE = (
+        "Your instance utilisation is not homogenous. You can optimise "
+        "it by splitting the instance into several ones, so that each "
+        "one would fit the specific load."
+    )
+    SPLIT_ITEM_TEMPLATE = (
+        "- The {instance_type} fits {coverage}% of analyzed time period."
+    )
+    SCALE_UP_TEMPLATE = (
+        "Scaling up allows to increase instance capacity by selecting a "
+        "new shape with larger CPU and RAM."
+        "\nThis allows to adjust the instance configuration to its real "
+        "workload and get maximum value for the reasonable price."
+        "\nRecommended shapes: {instance_types}"
+    )
+    SCALE_DOWN_TEMPLATE = (
+        "Scaling down allows to decrease instance capacity by selecting a "
+        "new shape with smaller CPU and RAM."
+        "\nThis allows to adjust the instance configuration to its real "
+        "workload and get maximum value for the reasonable price."
+        "\nRecommended shapes: {instance_types}"
+    )
+    RESIZE_TEMPLATE = (
+        "Changing instance shape allows to adjust the instance capacity "
+        "to its actual load and purpose."
+        "\nRecommended shapes: {instance_types}"
+    )
+    SCHEDULE_TEMPLATE = (
+        "Your instance load has a rhythmic pattern that allows to set up "
+        "start/stop schedules to cut its costs."
+        "\nThe following runtime schedules are suggested:\n"
+    )
+    SCHEDULE_ITEM_TEMPLATE = (
+        "{weekdays}: [start - {time_start}, "
+        "stop - {time_stop}]"
+    )
+
+    @property
+    def type_converter_mapping(self):
+        return {
+            RecommendationTypeEnum.ACTION_SHUTDOWN.value:
+                self._convert_shutdown,
+            RecommendationTypeEnum.ACTION_SCHEDULE.value:
+                self._convert_schedule,
+            RecommendationTypeEnum.ACTION_SPLIT.value:
+                self._convert_split,
+            RecommendationTypeEnum.ACTION_SCALE_DOWN.value:
+                self._convert_scale_down,
+            RecommendationTypeEnum.ACTION_SCALE_UP.value:
+                self._convert_scale_up,
+            RecommendationTypeEnum.ACTION_CHANGE_SHAPE.value:
+                self._convert_resize
+        }
+
+    def convert(self, recommendation: RecommendationHistory):
+        recommendation_type = recommendation.recommendation_type.value
+        converter = self.type_converter_mapping.get(recommendation_type)
+
+        common_prefix = (f"{recommendation.recommendation_type.value} "
+                         f"recommendation for "
+                         f"\'{recommendation.resource_id}\' instance.")
+        readable_part = None
+        if converter:
+            readable_part: str | None = converter(recommendation)
+
+        raw_part = self._jsonify_history_item(recommendation)
+
+        description_parts = [common_prefix, readable_part, raw_part]
+        description_parts = [i for i in description_parts if i]
+        result = '\n\n'.join(description_parts)
+        if not result:
+            result = ''
+        return result
+
+    def _convert_shutdown(self, item: RecommendationHistory) -> str:
+        return self.SHUTDOWN_TEMPLATE
+
+    def _convert_scale_down(self, item: RecommendationHistory) -> str:
+        instance_types = [i.get('name') for i in item.recommendation]
+        instance_types = ', '.join(instance_types)
+        return self.SCALE_DOWN_TEMPLATE.format(instance_types=instance_types)
+
+    def _convert_scale_up(self, item: RecommendationHistory) -> str:
+        instance_types = [i.get('name') for i in item.recommendation]
+        instance_types = ', '.join(instance_types)
+        return self.SCALE_UP_TEMPLATE.format(instance_types=instance_types)
+
+    def _convert_resize(self, item: RecommendationHistory) -> str:
+        instance_types = [i.get('name') for i in item.recommendation]
+        instance_types = ', '.join(instance_types)
+        return self.RESIZE_TEMPLATE.format(instance_types=instance_types)
+
+    def _convert_schedule(self, item: RecommendationHistory) -> str | None:
+        schedules = list(item.recommendation)
+        if not schedules:
+            return
+
+        parts = [self.SCHEDULE_TEMPLATE]
+
+        for schedule_item_data in schedules:
+            weekday_start = schedule_item_data.get('weekdays')[0]
+            weekday_stop = schedule_item_data.get('weekdays')[-1]
+            start = schedule_item_data.get('start')
+            stop = schedule_item_data.get('stop')
+
+            if not weekday_start or not weekday_stop or not start or not stop:
+                continue
+            if weekday_start == weekday_stop:
+                weekdays = weekday_start
+            else:
+                weekdays = f'{weekday_start} - {weekday_stop}'
+            part = self.SCHEDULE_ITEM_TEMPLATE.format(
+                weekdays=weekdays,
+                time_start=start,
+                time_stop=stop
+            )
+            parts.append(part)
+
+        if len(parts) > 1:
+            return '\n'.join(parts)
+        return
+
+    def _convert_split(self, item: RecommendationHistory) -> str:
+        recommended_instances = list(item.recommendation)
+        parts = [self.SPLIT_TEMPLATE]
+
+        for instance_data in recommended_instances:
+            instance_name = instance_data.get('name')
+            coverage = instance_data.get('probability', 0)
+            coverage_percent = int(coverage * 100)
+            if instance_name and coverage_percent is not None \
+                    and 0 < coverage_percent <= 100:
+                part_item = self.SPLIT_ITEM_TEMPLATE.format(
+                    instance_type=instance_name,
+                    coverage=coverage_percent
+                )
+                parts.append(part_item)
+
+        if len(parts) > 1:
+            return '\n'.join(parts)
+        return self.SPLIT_TEMPLATE
+
+    @staticmethod
+    def _jsonify_history_item(recommendation: RecommendationHistory):
+        item_dict = recommendation.get_json()
+
+        item_dict.pop('_id')
+        dt_attrs = ['added_at', 'feedback_dt', 'last_metric_capture_date']
+
+        for attr_name in dt_attrs:
+            attr_value = item_dict.get(attr_name)
+            if attr_value and isinstance(attr_value, datetime.datetime):
+                item_dict[attr_name] = item_dict[attr_name].isoformat()
+        return json.dumps(item_dict, indent=4)
+
+
 class DefectDojoService:
     def __init__(self, ssm_service: SSMService,
                  application: Application):
+        _LOG.debug(f'Initializing DefectDojo service')
         self.ssm_service = ssm_service
 
         if not application.type == ApplicationType.DEFECT_DOJO.value:
@@ -87,22 +251,12 @@ class DefectDojoService:
         findings = []
 
         for item in recommendation_history_items:
-            json_data = self._jsonify_history_item(item)
-            base64_encoded = (base64.b64encode(json_data.encode('utf-8'))
-                              .decode('utf-8'))
+            converter = RecommendationToTextConverter()
             finding = {
                 'title': f"{item.resource_id}",
-                'description': f"{item.recommendation_type.value} "
-                               f"recommendation for \'{item.resource_id}\' "
-                               f"instance.",
+                'description': converter.convert(item),
                 'severity': "Info",
-                'date': item.added_at.isoformat(),
-                'files': [
-                    {
-                        'title': "recommendation.json",
-                        'data': base64_encoded
-                    }
-                ]
+                'date': item.added_at.isoformat()
             }
             findings.append(finding)
         return {'findings': findings}
@@ -122,19 +276,11 @@ class DefectDojoService:
                        f'api key from ssm. Application id: '
                        f'\'{application.application_id}\''
             )
+        if isinstance(secret_value, str):
+            try:
+                secret_value = json.loads(secret_value)
+            except json.decoder.JSONDecodeError:
+                pass
         if isinstance(secret_value, dict):
             secret_value = secret_value.get('api_key')
         return secret_value
-
-    @staticmethod
-    def _jsonify_history_item(recommendation: RecommendationHistory):
-        item_dict = recommendation.get_json()
-
-        item_dict.pop('_id')
-        dt_attrs = ['added_at', 'feedback_dt', 'last_metric_capture_date']
-
-        for attr_name in dt_attrs:
-            attr_value = item_dict.get(attr_name)
-            if attr_value and isinstance(attr_value, datetime.datetime):
-                item_dict[attr_name] = item_dict[attr_name].isoformat()
-        return json.dumps(item_dict)
