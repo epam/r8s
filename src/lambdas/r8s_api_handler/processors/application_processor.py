@@ -18,7 +18,8 @@ from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
 from models.application_attributes import ConnectionAttribute
 from models.storage import Storage, StorageTypeEnum
-from services.abstract_api_handler_lambda import PARAM_USER_CUSTOMER
+from services.abstract_api_handler_lambda import PARAM_USER_CUSTOMER, \
+    PARAM_USER_ID
 from services.algorithm_service import AlgorithmService
 from services.clients.api_gateway_client import ApiGatewayClient
 from services.rbac.access_control_service import PARAM_USER_SUB
@@ -133,6 +134,7 @@ class ApplicationProcessor(AbstractCommandProcessor):
 
         customer = event.get(CUSTOMER_ATTR)
         user_customer = event.get(PARAM_USER_CUSTOMER)
+        user_id = event.get(PARAM_USER_ID)
 
         _LOG.debug(f'Validating user access to customer \'{customer}\'')
         if not self._is_allowed_customer(user_customer=user_customer,

@@ -12,7 +12,10 @@ DEFAULT_LM_TOKEN_LIFETIME_MINUTES = 120
 class EnvironmentService:
     @staticmethod
     def aws_region():
-        return os.environ.get('AWS_REGION')
+        region = os.environ.get('AWS_REGION')
+        if not region:
+            region = os.environ.get('AWS_DEFAULT_REGION', 'eu-central-1')
+        return region
 
     @staticmethod
     def get_user_pool_name():

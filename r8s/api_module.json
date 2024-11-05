@@ -1,5 +1,5 @@
 {
-    "module_name": "r8s",
-    "cli_path": "/r8s_group",
+    "module_name": "r8scli",
+    "cli_path": "/r8scli/group",
     "mount_point": "/r8s"
 }

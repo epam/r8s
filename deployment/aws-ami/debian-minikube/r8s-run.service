@@ -1,0 +1,8 @@
+[Unit]
+Description=r8s-run script running at bootstrap
+
+[Service]
+ExecStart=/usr/local/bin/r8s-run.sh
+
+[Install]
+WantedBy=multi-user.target

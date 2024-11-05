@@ -17,33 +17,42 @@ def parse_args():
         description='Script for r8s Shape/Shape Price '
                     'collections population')
     parser.add_argument('-ak', '--access_key', help='AWS Access Key',
-                        required=True)
+                        required=False)
     parser.add_argument('-sk', '--secret_key', help='AWS Secret Access Key',
-                        required=True)
+                        required=False)
     parser.add_argument('-t', '--session_token', help='AWS Session Token',
-                        required=True)
+                        required=False)
     parser.add_argument('-r', '--region', help='AWS Region',
-                        required=True, choices=ALLOWED_REGIONS)
+                        required=False, choices=ALLOWED_REGIONS, default='eu-central-1')
     parser.add_argument('-uri', '--r8s_mongodb_connection_uri',
-                        help='MongoDB Connection string', required=True)
+                        help='MongoDB Connection string', required=False)
     parser.add_argument('-pr', '--price_region', action='append',
-                        required=True, choices=ALLOWED_REGIONS,
+                        required=False, choices=ALLOWED_REGIONS,
+                        default=ALLOWED_REGIONS,
                         help='List of AWS regions to populate price for')
     parser.add_argument('-os', '--operating_system', action='append',
-                        required=True, choices=ALLOWED_OS,
+                        required=False, choices=ALLOWED_OS, default=ALLOWED_OS,
                         help='List of AWS operation systems '
                              'to populate price for')
-    return vars(parser.parse_args())
+    args = vars(parser.parse_args())
+    if not args.get('price_region'):
+        args['price_region'] = ALLOWED_REGIONS
+    if not args.get('operating_system'):
+        args['operating_system'] = ALLOWED_OS
+    return args
 
 
 def export_args(access_key, secret_key, session_token,
                 region, r8s_mongodb_connection_uri, *args, **kwargs):
-    os.environ['AWS_ACCESS_KEY_ID'] = access_key
-    os.environ['AWS_SECRET_ACCESS_KEY'] = secret_key
-    os.environ['AWS_SESSION_TOKEN'] = session_token
+    if access_key and secret_key:
+        os.environ['AWS_ACCESS_KEY_ID'] = access_key
+        os.environ['AWS_SECRET_ACCESS_KEY'] = secret_key
+    if session_token:
+        os.environ['AWS_SESSION_TOKEN'] = session_token
     os.environ['AWS_DEFAULT_REGION'] = region
     os.environ['AWS_REGION'] = region
-    os.environ['r8s_mongodb_connection_uri'] = r8s_mongodb_connection_uri
+    if r8s_mongodb_connection_uri:
+        os.environ['r8s_mongodb_connection_uri'] = r8s_mongodb_connection_uri
 
 
 def export_src_path():
