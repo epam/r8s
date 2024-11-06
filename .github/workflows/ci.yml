@@ -1,19 +1,17 @@
 name: ci-for-build-and-tests
 
 on:
-  push:
-    branches: [ "feature/ci_implement_tests" ]
   pull_request:
     branches: [ "main", "develop" ]
 
 jobs:
-  # build-package:
-  #   uses: ./.github/workflows/build-and-check-python-package.yml
-  #   with:
-  #     path: ./r8s
+  build-package:
+    uses: ./.github/workflows/build-and-check-python-package.yml
+    with:
+      path: ./r8s
 
   tests:
-    # needs: build-package
+    needs: build-package
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
