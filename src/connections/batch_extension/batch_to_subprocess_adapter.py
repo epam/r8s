@@ -4,25 +4,35 @@ import subprocess
 import sys
 
 import psutil
-
-from commons import generate_id, build_response
-from commons.constants import BATCH_ENV_SUBMITTED_AT, BATCH_ENV_JOB_ID, \
-    ENV_CUSTOMER_NAME, ENV_SCAN_TENANTS, ENV_FORCE_RESCAN, \
-    ENV_LM_TOKEN_LIFETIME_MINUTES, APPLICATION_ID_ATTR, ENV_SERVICE_MODE, \
-    ENV_MONGODB_USER, ENV_MONGODB_PASSWORD, ENV_MONGODB_URL, \
-    ENV_MONGODB_DATABASE, ENV_MINIO_HOST, ENV_MINIO_PORT, ENV_MINIO_ACCESS_KEY, \
-    ENV_MINIO_SECRET_ACCESS_KEY, ENV_VAULT_TOKEN, ENV_VAULT_HOST, \
-    ENV_VAULT_PORT, ENV_AWS_ACCESS_KEY_ID, ENV_AWS_SECRET_ACCESS_KEY, \
-    ENV_AWS_SESSION_TOKEN, ENV_RABBITMQ_APPLICATION_ID, \
-    MONGODB_CONNECTION_URI_PARAMETER, ENV_HTTP_PROXY, ENV_HTTPS_PROXY, \
-    ENV_NO_PROXY
-from commons.log_helper import get_logger
-from commons.time_helper import utc_iso
 from modular_sdk.commons.constants import (MODULAR_SERVICE_MODE_ENV,
                                            PARAM_MONGO_USER,
                                            PARAM_MONGO_PASSWORD,
                                            PARAM_MONGO_URL,
                                            PARAM_MONGO_DB_NAME)
+
+from commons import generate_id, build_response
+from commons.constants import (BATCH_ENV_SUBMITTED_AT, BATCH_ENV_JOB_ID, \
+                               ENV_CUSTOMER_NAME, ENV_SCAN_TENANTS,
+                               ENV_FORCE_RESCAN, \
+                               ENV_LM_TOKEN_LIFETIME_MINUTES,
+                               APPLICATION_ID_ATTR, ENV_SERVICE_MODE, \
+                               ENV_MONGODB_USER, ENV_MONGODB_PASSWORD,
+                               ENV_MONGODB_URL, \
+                               ENV_MONGODB_DATABASE, ENV_MINIO_HOST,
+                               ENV_MINIO_PORT, ENV_MINIO_ACCESS_KEY, \
+                               ENV_MINIO_SECRET_ACCESS_KEY, ENV_VAULT_TOKEN,
+                               ENV_VAULT_HOST, \
+                               ENV_VAULT_PORT, ENV_AWS_ACCESS_KEY_ID,
+                               ENV_AWS_SECRET_ACCESS_KEY, \
+                               ENV_AWS_SESSION_TOKEN,
+                               ENV_RABBITMQ_APPLICATION_ID, \
+                               MONGODB_CONNECTION_URI_PARAMETER,
+                               ENV_HTTP_PROXY, ENV_HTTPS_PROXY, \
+                               ENV_NO_PROXY, ENV_MINIO_ROOT_USER,
+                               ENV_MINIO_ROOT_PASSWORD, \
+                               ENV_MINIO_ENDPOINT)
+from commons.log_helper import get_logger
+from commons.time_helper import utc_iso
 from models.job import Job
 
 _LOG = get_logger(__name__)
@@ -49,6 +59,9 @@ ALLOWED_ENV_KEYS = (
     ENV_MINIO_PORT,
     ENV_MINIO_ACCESS_KEY,
     ENV_MINIO_SECRET_ACCESS_KEY,
+    ENV_MINIO_ROOT_USER,
+    ENV_MINIO_ROOT_PASSWORD,
+    ENV_MINIO_ENDPOINT,
     ENV_VAULT_TOKEN,
     ENV_VAULT_HOST,
     ENV_VAULT_PORT,
