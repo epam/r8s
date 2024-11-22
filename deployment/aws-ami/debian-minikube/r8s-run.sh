@@ -39,7 +39,7 @@ cf_signal() {
   else
     url="https://cloudformation.$region.amazonaws.com/"
   fi
-  query="Action=SignalResource&LogicalResourceId=SyndicateRuleEngineInstance&StackName=$2&UniqueId=$instance_id&Status=$1&ContentType=JSON&Version=2010-05-15"
+  query="Action=SignalResource&LogicalResourceId=SyndicateRightSizerInstance&StackName=$2&UniqueId=$instance_id&Status=$1&ContentType=JSON&Version=2010-05-15"
   curl -sf -X GET --header 'Accept: application/json' --header "Authorization: CFN_V1 $doc:$sig" --header "User-Agent: CloudFormation Tools" "$url?$query"
 }
 
@@ -47,7 +47,7 @@ send_cf_signal() {
   if [ -n "$CF_STACK_NAME" ]; then
     log "Sending $1 signal to CloudFormation"
     if ! cf_signal "$1" "$CF_STACK_NAME"; then
-      log_err "Failed to send signal to Cloud Formation"
+      log "Failed to send signal to Cloud Formation"
     fi
   else
     log "Not sending signal to Cloud Formation because CF_STACK_NAME is not set"
@@ -85,6 +85,9 @@ kubectl wait --for=condition=ready --timeout=300s pod/${modular_api_pod_name}
 # will be downloaded by line above
 log "Executing r8s-init --system"
 sudo -u "$FIRST_USER" r8s-init --system | sudo tee -a $LOG_PATH >/dev/null
+
+log "Sending CF Signal resource request with SUCCESS status"
+send_cf_signal "SUCCESS"
 
 log "Creating $R8S_LOCAL_PATH/success"
 sudo touch $R8S_LOCAL_PATH/success
