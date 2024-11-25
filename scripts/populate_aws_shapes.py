@@ -82,8 +82,14 @@ def populate_shapes(shapes_data):
     for shape_name, shape_data in shape_mapping.items():
         print(f'Processing shape: {shape_name}')
 
+        if shape_name.startswith('db.'):
+            resource_type = 'RDS'
+        else:
+            resource_type = 'VM'
+
         shape_obj_data = {
             'name': shape_name,
+            'resource_type': resource_type,
             'cloud': shape_data.get('cloud'),
             'cpu': shape_data.get('cpu'),
             'memory': shape_data.get('memory'),
