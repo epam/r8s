@@ -56,6 +56,13 @@ send_cf_signal() {
 on_exit() { local status=$?; [ "$status" -ne 0 ] && send_cf_signal "FAILURE"; }
 trap on_exit EXIT
 
+# here we load possible envs provided from outside.
+if user_data="$(get_from_metadata /user-data/)"; then
+  # shellcheck disable=SC1090
+  source <(echo "$user_data")
+fi
+
+
 log() { echo "[INFO] $(date) $1" >> $LOG_PATH; }
 
 if [ -f $R8S_LOCAL_PATH/success ]; then
