@@ -140,21 +140,31 @@ class JobProcessor(AbstractCommandProcessor):
 
     def post(self, event):
         _LOG.debug(f'Submit job event: {event}')
-        validate_params(event, (USER_ID_ATTR,
-                                APPLICATION_ID_ATTR))
+        validate_params(event, (USER_ID_ATTR,))
 
         application_id = event.get(APPLICATION_ID_ATTR)
-        licensed_application = self.application_service.get_application_by_id(
-            application_id=application_id)
 
-        if not licensed_application:
-            _LOG.error(f'Application with id \'{application_id}\' '
-                       f'does not exist')
+        resolved_applications = self.application_service.resolve_application(
+            event=event
+        )
+        if not resolved_applications:
+            _LOG.error('Application matching given query '
+                       'does not exist')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Application with id \'{application_id}\' '
-                        f'does not exist'
+                content='Application matching given query '
+                        'does not exist'
             )
+        if len(resolved_applications) > 1:
+            _LOG.error('More than one matching application found. Please '
+                       'try to specify application_id explicitly')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content='More than one matching application found. Please '
+                        'try to specify application_id explicitly'
+            )
+        licensed_application = resolved_applications[0]
+
         if (licensed_application.type !=
                 MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE):
             _LOG.error(f'Application of '
@@ -419,7 +429,8 @@ class JobProcessor(AbstractCommandProcessor):
                 content=', '.join(errors)
             )
 
-    def _validate_licensed_job(self, application: Application, license_key: str,
+    def _validate_licensed_job(self, application: Application,
+                               license_key: str,
                                scan_tenants: List[str]):
         _LOG.debug(f'Resolving Tenant list')
         if not scan_tenants:

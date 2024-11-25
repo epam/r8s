@@ -27,7 +27,7 @@ def describe(job_id=None, job_name=None, limit=None):
 
 
 @job.command(cls=ViewCommand, name='submit')
-@click.option('--application_id', '-aid', type=str, required=True,
+@click.option('--application_id', '-aid', type=str, required=False,
               help='Maestro RIGHTSIZER_LICENSES application id.')
 @click.option('--parent_id', '-pid', type=str, required=False,
               help='Maestro RIGHTSIZER_LICENSES parent id. If not specified, '
