@@ -482,8 +482,16 @@ def main():
                     algorithm=algorithm,
                     tenant=tenant
                 )
-            if not settings_service.lm_grace_is_job_allowed():
+            if settings_service.lm_grace_is_job_allowed():
                 _LOG.info(f'Setting tenant status to "SUCCEEDED"')
+                job_service.set_job_tenant_status(
+                    job=job,
+                    tenant=tenant,
+                    status=JobTenantStatusEnum.TENANT_SUCCEEDED_STATUS
+                )
+            else:
+                _LOG.info(f'Setting tenant status to "SUCCEEDED" '
+                          f'with LM request')
                 job_service.set_licensed_job_status(
                     job=job,
                     tenant=tenant,
@@ -500,7 +508,13 @@ def main():
         except Exception as e:
             _LOG.error(f'Unexpected error occurred while processing '
                        f'tenant {tenant}: {e}')
-            if not settings_service.lm_grace_is_job_allowed():
+            if settings_service.lm_grace_is_job_allowed():
+                job_service.set_job_tenant_status(
+                    job=job,
+                    tenant=tenant,
+                    status=JobTenantStatusEnum.TENANT_FAILED_STATUS
+                )
+            else:
                 job_service.set_licensed_job_status(
                     job=job,
                     tenant=tenant,

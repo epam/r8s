@@ -89,3 +89,13 @@ class JobService:
             status=status.value,
             customer=customer
         )
+
+    def set_job_tenant_status(self, job: Job, tenant: str,
+                              status: JobTenantStatusEnum):
+        allowed_statuses = (JobTenantStatusEnum.TENANT_FAILED_STATUS,
+                            JobTenantStatusEnum.TENANT_SUCCEEDED_STATUS)
+        if tenant not in job.tenant_status_map or \
+                status not in allowed_statuses:
+            return
+        job.tenant_status_map[tenant] = status.value
+        self._save(job=job)
