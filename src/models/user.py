@@ -1,9 +1,11 @@
-from mongoengine import StringField, BinaryField
+from mongoengine import StringField
 
 from models.base_model import BaseModel
 
 
 class User(BaseModel):
+    dto_skip_attrs = ['_id', 'password']
+
     user_id = StringField(hash_key=True)
     sub = StringField(unique=True)
     customer = StringField(null=True)
