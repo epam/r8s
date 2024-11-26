@@ -114,7 +114,7 @@ class MongoAndSSMAuthClient(BaseAuthClient):
     def respond_to_auth_challenge(self, challenge_name: str):
         pass
 
-    def sign_up(self, username, password, customer, role):
+    def sign_up(self, username, password, customer, role, tenants=None):
         user = User()
         user.user_id = username
         self._set_password(user, password)
@@ -138,6 +138,13 @@ class MongoAndSSMAuthClient(BaseAuthClient):
 
     def get_user_id(self, username: str):
         return self._get_user_attr(username, 'sub')
+
+    def list_users(self, attributes_to_get=None):
+        try:
+            users = list(User.objects.all())
+        except:
+            return
+        return [user.get_dto() for user in users]
 
     def get_user_role(self, username: str):
         return self._get_user_attr(username, 'role')
@@ -222,4 +229,4 @@ class MongoAndSSMAuthClient(BaseAuthClient):
             raise ApplicationException(
                 code=RESPONSE_BAD_REQUEST_CODE,
                 content=f'No user with username {username} was found')
-        return user
+        return user.get_dto()

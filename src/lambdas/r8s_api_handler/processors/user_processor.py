@@ -69,12 +69,10 @@ class UserProcessor(AbstractCommandProcessor):
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
                 content=f'No users found matching given query'
             )
-        _LOG.debug(f'Formatting users')
-        formatted_users = self._format_users(users=users)
-        _LOG.debug(f'Formatted users: {formatted_users}')
+        _LOG.debug(f'Response: {users}')
         return build_response(
             code=RESPONSE_OK_CODE,
-            content=formatted_users
+            content=users
         )
 
     def patch(self, event):
@@ -145,16 +143,6 @@ class UserProcessor(AbstractCommandProcessor):
             code=RESPONSE_OK_CODE,
             content=f'User with name \'{target_user}\' has been deleted'
         )
-
-    @staticmethod
-    def _format_users(users):
-        formatted_users = []
-        for user in users:
-            user_item = {'username': user.get('Username')}
-            for attribute in user.get('Attributes', []):
-                user_item[attribute['Name']] = attribute['Value']
-            formatted_users.append(user_item)
-        return formatted_users
 
     @staticmethod
     def _is_allowed_to_modify(current_user_id, user_customer,
