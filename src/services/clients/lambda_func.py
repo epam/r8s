@@ -35,6 +35,7 @@ class LambdaClient:
 
     def invoke_function_async(self, function_name, event=None):
         if self.is_docker:
+            _LOG.debug(f'Going to invoke {function_name} in onprem mode')
             return self._invoke_function_docker(
                 function_name=function_name,
                 event=event
@@ -42,6 +43,7 @@ class LambdaClient:
         else:
             if self.alias:
                 function_name = f'{function_name}:{self.alias}'
+            _LOG.debug(f'Going to invoke {function_name} in saas mode')
             return self.client.invoke(
                 FunctionName=function_name,
                 InvocationType='Event',
@@ -57,32 +59,39 @@ class LambdaClient:
         _LOG.debug(f'Importing lambda \'{function_name}\'')
         package_name = LAMBDA_TO_PACKAGE_MAPPING.get(function_name)
         if not package_name:
+            _LOG.warning(f'No package found for lambda {function_name}')
             return
         return getattr(
             import_module(f'lambdas.{package_name}.handler'), 'lambda_handler'
         )
 
     def _invoke_function_docker(self, function_name, event=None, wait=False):
+        _LOG.debug(f'Loading {function_name} handler')
         lambda_handler = self._derive_handler(function_name)
+        _LOG.debug(f'Extracted lambda {function_name} package: {lambda_handler}')
         if lambda_handler:
             _LOG.debug(f'Handler: {lambda_handler}')
             args = [{}, RequestContext()]
             if event:
                 args[0] = event
             if wait:
+                _LOG.debug(f'Invoking {function_name} sync with event: {event}')
                 response = self._handle_execution(
                     lambda_handler, *args
                 )
             else:
+                _LOG.debug(f'Invoking {function_name} async with event: {event}')
                 Thread(target=self._handle_execution, args=(
                     lambda_handler, *args)).start()
                 response = dict(StatusCode=202)
             return response
+        _LOG.warning(f'No handler found for lambda {function_name}')
 
     @staticmethod
     def _handle_execution(handler: Callable, *args):
         try:
             _response = handler(*args)
         except ApplicationException as e:
+            _LOG.error(f'Exception occurred while invoking {handler}: {e}')
             _response = dict(code=e.code, body=dict(message=e.content))
         return _response
