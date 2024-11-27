@@ -1,5 +1,6 @@
 from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    validate_params, RESPONSE_FORBIDDEN_CODE, RESPONSE_OK_CODE, build_response
+    validate_params, RESPONSE_FORBIDDEN_CODE, RESPONSE_OK_CODE, build_response, \
+    RequestContext
 from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import POST_METHOD, CUSTOMER_ATTR, TENANTS_ATTR
 from commons.log_helper import get_logger
@@ -46,17 +47,15 @@ class MailReportProcessor(AbstractCommandProcessor):
                 content=f'User is not allowed to access customer '
                         f'\'{customer}\' resource'
             )
-        _LOG.debug(f'Invoking report generation for customer \'{customer}\' '
+        _LOG.debug(f'Importing generator package')
+        from lambdas.r8s_report_generator.handler import lambda_handler
+
+        _LOG.debug(f'Starting report generation for customer \'{customer}\' '
                    f'tenants: {tenants}')
-        response = self.lambda_client.invoke_function_async(
-            function_name=REPORT_GENERATOR_LAMBDA_NAME,
-            event={CUSTOMER_ATTR: customer, TENANTS_ATTR: tenants}
+        return lambda_handler(
+            event={CUSTOMER_ATTR: customer, TENANTS_ATTR: tenants},
+            context=RequestContext()
         )
-        if response.get('StatusCode') == 202:
-            _LOG.debug(f'Lambda \'{REPORT_GENERATOR_LAMBDA_NAME}\' '
-                       f'has been invoked.')
-            return build_response(
-                code=RESPONSE_OK_CODE,
-                content=f'Report generation has been initiated for customer '
-                        f'\'{customer}\' tenants: {", ".join(tenants)}'
-            )
+
+
+

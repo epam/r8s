@@ -587,7 +587,7 @@ class ReportGenerator(AbstractLambda):
 
 
 def lambda_handler(event, context):
-    ReportGenerator(
+    return ReportGenerator(
         job_service=SERVICE_PROVIDER.job_service(),
         customer_service=SERVICE_PROVIDER.customer_service(),
         tenant_service=SERVICE_PROVIDER.tenant_service(),
