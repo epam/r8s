@@ -9,7 +9,7 @@ from commons import RequestContext, ApplicationException
 from commons.log_helper import get_logger
 from services.environment_service import EnvironmentService
 
-_LOG = get_logger(__name__)
+_LOG = get_logger('r8s-lambda-client')
 
 REPORT_GENERATOR_LAMBDA_NAME = 'r8s-report-generator'
 
@@ -38,7 +38,8 @@ class LambdaClient:
             _LOG.debug(f'Going to invoke {function_name} in onprem mode')
             return self._invoke_function_docker(
                 function_name=function_name,
-                event=event
+                event=event,
+                wait=True
             )
         else:
             if self.alias:
