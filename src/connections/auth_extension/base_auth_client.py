@@ -73,3 +73,7 @@ class BaseAuthClient(ABC):
     @abstractmethod
     def get_system_user(self):
         ...
+
+    @abstractmethod
+    def refresh_token(self, token: str):
+        ...

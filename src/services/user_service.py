@@ -117,3 +117,6 @@ class CognitoUserService:
 
     def delete_user(self, username):
         self.client.delete_user(username=username)
+
+    def refresh_token(self, token):
+        return self.client.refresh_token(token)
