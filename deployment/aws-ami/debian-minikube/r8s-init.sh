@@ -273,7 +273,7 @@ initialize_system() {
   mip="$(minikube_ip)"
 
   ensure_in_path "$HOME/.local/bin"
-
+  sleep 5m # todo temporary
 #  echo "Installing obfuscation manager"
 #  pip3 install --user --break-system-packages --upgrade "$R8S_RELEASES_PATH/$(get_latest_local_release)/${OBFUSCATOR_ARTIFACT_NAME}[xlsx]"
   echo "Installing modular-cli"
