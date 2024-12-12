@@ -107,10 +107,20 @@ class MetricsService:
         instance_id = df['instance_id'][0]
         instance_type = df['instance_type'][0]
         df = df[~df.index.duplicated(keep='last')]
-        df = df.resample(diff).ffill()
+
+        complete_index = pd.date_range(df.index.min(), df.index.max(),
+                                       freq=TIMESTAMP_FREQUENCY)
+        missing_timestamps = complete_index.difference(df.index)
+        missing_df = pd.DataFrame(index=missing_timestamps, columns=df.columns)
+        missing_df['cpu_load'].fillna(0, inplace=True)
+        missing_df['memory_load'].fillna(0, inplace=True)
+        missing_df['net_output_load'].fillna(0, inplace=True)
+        missing_df['avg_disk_iops'].fillna(-1, inplace=True)
+        missing_df['avg_disk_iops'].fillna(-1, inplace=True)
+        df = pd.concat([df, missing_df]).sort_index()
         df = df.assign(instance_id=instance_id)
         df = df.assign(instance_type=instance_type)
-        df.fillna(0, inplace=True)
+        df = df.resample(diff).ffill()
         return df
 
     def validate_metric_file(self, algorithm: Algorithm, metric_file_path):
@@ -302,7 +312,6 @@ class MetricsService:
         over_util_periods = []
         centroids = []
         for index, df_day in enumerate(df):
-            # print(f'Processing day: {index}/{len(cpu_df)}')
             shutdown, low, medium, high, day_centroids = self.process_day(
                 df=df_day, algorithm=algorithm)
             shutdown_periods.extend(shutdown)
@@ -402,6 +411,12 @@ class MetricsService:
             step_minutes_options.append(
                 r_settings.optimized_aggregation_step_minutes)
 
+        # compare algorithm-allowed step minutes with actual in df,
+        # leave real one if matches
+        record_step_minutes = self.get_diff_minutes(df.index[1], df.index[0])
+        if record_step_minutes in step_minutes_options:
+            step_minutes_options = [record_step_minutes]
+
         result = [self.get_time_ranges(
             cluster, step_minutes_options=step_minutes_options) for cluster in
             (shutdown, low_util, good_util, over_util)]
@@ -442,15 +457,13 @@ class MetricsService:
                 diff_minutes = self.get_diff_minutes(
                     row.Index, last_row.Index
                 )
-                if (period_start_row_index and period_end_row_index and
-                        diff_minutes not in step_minutes_options):
+                if diff_minutes in step_minutes_options:
+                    period_end_row_index = row.Index
+                elif period_end_row_index:
                     dfs_.append(df[(df.index >= period_start_row_index) &
                                    (df.index <= period_end_row_index)])
-
                     period_start_row_index = row.Index
                     period_end_row_index = None
-                else:
-                    period_end_row_index = row.Index
             last_row = row
         if period_start_row_index and period_end_row_index:
             dfs_.append(df[(df.index >= period_start_row_index) & (
