@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from tests_executor.constants import STATS_KEY, STATUS_KEY, MESSAGE_KEY, \
-    ACTIONS_KEY, START_KEY, STOP_KEY, WEEKDAYS_KEY, RESOURCE_ID_KEY
+    ACTIONS_KEY, START_KEY, STOP_KEY, WEEKDAYS_KEY, RESOURCE_ID_KEY, ACTIONS
 from commons.constants import STATUS_OK, OK_MESSAGE, WEEK_DAYS
 
 os.environ['r8s_mongodb_connection_uri'] = "mongomock://localhost/testdb"
@@ -28,9 +28,9 @@ class BaseExecutorTest(TestCase, ABC):
         self._init_dirs()
         self._init_services()
 
-    def tearDown(self) -> None:
-        shutil.rmtree(self.reports_path)
-        shutil.rmtree(self.metrics_dir_root)
+    # def tearDown(self) -> None:
+        # shutil.rmtree(self.reports_path)
+        # shutil.rmtree(self.metrics_dir_root)
 
     def _init_algorithm(self):
         from models.algorithm import Algorithm
@@ -49,6 +49,7 @@ class BaseExecutorTest(TestCase, ABC):
                               format_version='1.0')
         algorithm.recommendation_settings.target_timezone_name = 'UTC'
         algorithm.recommendation_settings.ignore_savings = True
+        algorithm.recommendation_settings.allowed_actions = ACTIONS
         self.algorithm = algorithm
 
     def _init_dirs(self):
@@ -137,7 +138,8 @@ class BaseExecutorTest(TestCase, ABC):
             environment_service=self.environment_service,
             saving_service=self.saving_service,
             meta_service=self.meta_service,
-            recommendation_history_service=self.recommendation_history_service
+            recommendation_history_service=self.recommendation_history_service,
+            shape_service=self.shape_service
         )
 
     def assert_stats(self, result, status=STATUS_OK,
