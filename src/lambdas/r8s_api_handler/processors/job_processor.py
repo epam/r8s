@@ -142,8 +142,6 @@ class JobProcessor(AbstractCommandProcessor):
         _LOG.debug(f'Submit job event: {event}')
         validate_params(event, (USER_ID_ATTR,))
 
-        application_id = event.get(APPLICATION_ID_ATTR)
-
         resolved_applications = self.application_service.resolve_application(
             event=event
         )
@@ -178,10 +176,10 @@ class JobProcessor(AbstractCommandProcessor):
             )
 
         parent_id = event.get(PARENT_ID_ATTR)
-        _LOG.debug(f'Extracting application {application_id} parents. '
+        _LOG.debug(f'Extracting application {licensed_application.application_id} parents. '
                    f'Parent id {parent_id}')
         parents = self._get_parents(
-            application_id=application_id,
+            application_id=licensed_application.application_id,
             parent_id=parent_id
         )
 
@@ -284,7 +282,7 @@ class JobProcessor(AbstractCommandProcessor):
                    f'\'{licensed_application.application_id}\'')
         response = self.job_service.submit_job(
             job_owner=user_id,
-            application_id=application_id,
+            application_id=licensed_application.application_id,
             parent_id=parent_id,
             envs=envs,
             tenant_status_map=tenant_status_map
