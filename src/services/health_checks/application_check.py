@@ -37,7 +37,9 @@ class ApplicationConnectionCheck(AbstractHealthCheck):
         self.ssm_service = ssm_service
         self.environment_service = environment_service
 
-        self.r8s_api_host = self.api_gateway_client.get_r8s_api_host()
+        self.r8s_api_host = None
+        if not self.environment_service.is_docker():
+            self.api_gateway_client.get_r8s_api_host()
 
     def identifier(self) -> str:
         return CHECK_ID_CONNECTION_CHECK
