@@ -458,7 +458,7 @@ EOF
   if [ -n "$re_username" ]; then
     echo "Logging in to RightSizer"
     sudo su - "$target_user" <<EOF
-    ~/.local/bin/syndicate r8s configure --api_link http://rightsizer:8000/caas
+    ~/.local/bin/syndicate r8s configure --api_link http://rightsizer:8000/r8s
     ~/.local/bin/syndicate r8s login --username "$r8s_username" --password "$r8s_password"
 EOF
   fi
