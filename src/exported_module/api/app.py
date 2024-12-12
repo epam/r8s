@@ -41,7 +41,8 @@ class DynamicAPI:
     @cached_property
     def paths_without_jwt(self) -> set:
         return {
-            '/r8s/signin'
+            '/r8s/signin',
+            '/r8s/refresh'
         }
 
     @staticmethod
