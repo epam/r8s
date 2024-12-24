@@ -69,7 +69,7 @@ class TestPrioritySeries(BaseExecutorTest):
 
     @patch.dict(os.environ, {'KMP_DUPLICATE_LIB_OK': "TRUE"})
     def test_priority_series(self):
-        from models.parent_attributes import ParentMeta
+        from models.parent_attributes import LicensesParentMeta
         shape_rule = {
             "id": "any_c6a",
             "action": "prioritize",
@@ -78,8 +78,8 @@ class TestPrioritySeries(BaseExecutorTest):
             "value": "c6a.+"
         }
 
-        parent_meta = ParentMeta(shape_rules=[shape_rule])
-        result = self.recommendation_service.process_instance(
+        parent_meta = LicensesParentMeta(shape_rules=[shape_rule])
+        result, _ = self.recommendation_service.process_instance(
             metric_file_path=self.metrics_file_path,
             algorithm=self.algorithm,
             reports_dir=self.reports_path,

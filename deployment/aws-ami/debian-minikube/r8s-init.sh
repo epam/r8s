@@ -254,6 +254,13 @@ patch_kubectl_secret() {
   secret=$(base64 <<< "$3")
   kubectl patch secret "$1" -p="{\"data\":{\"$2\":\"$secret\"}}"
 }
+update_modular_api_policy() {
+  modular_api_pod_name=$(kubectl get pods -n default -l app.kubernetes.io/name=modular-api -o jsonpath='{.items[0].metadata.name}')
+  echo $MODULAR_ADMIN_POLICY > /tmp/modular-admin-policy.json
+  kubectl cp /tmp/modular-admin-policy.json $modular_api_pod_name:/src/admin_policy.json
+  kubectl exec service/modular-api -- ./modular.py policy update --policy admin_policy --policy_path /src/admin_policy.json
+  rm /tmp/modular-admin-policy.json
+}
 
 initialize_system() {
   # creates:
@@ -266,11 +273,15 @@ initialize_system() {
   mip="$(minikube_ip)"
 
   ensure_in_path "$HOME/.local/bin"
-
+  sleep 5m # todo temporary
 #  echo "Installing obfuscation manager"
 #  pip3 install --user --break-system-packages --upgrade "$R8S_RELEASES_PATH/$(get_latest_local_release)/${OBFUSCATOR_ARTIFACT_NAME}[xlsx]"
   echo "Installing modular-cli"
   MODULAR_CLI_ENTRY_POINT=$MODULAR_CLI_ENTRY_POINT pip3 install --user --break-system-packages --upgrade "$R8S_RELEASES_PATH/$(get_latest_local_release)/$MODULAR_CLI_ARTIFACT_NAME"
+
+  echo "Updating modular admin policy"
+  update_modular_api_policy
+  echo "Modular API policy has been updated."
 
   echo "Logging in to modular-cli"
   syndicate setup --username admin --password "$(get_kubectl_secret modular-api-secret system-password)" --api_path "http://$mip:32105" --json
@@ -447,7 +458,7 @@ EOF
   if [ -n "$re_username" ]; then
     echo "Logging in to RightSizer"
     sudo su - "$target_user" <<EOF
-    ~/.local/bin/syndicate r8s configure --api_link http://rightsizer:8000/caas
+    ~/.local/bin/syndicate r8s configure --api_link http://rightsizer:8000/r8s
     ~/.local/bin/syndicate r8s login --username "$r8s_username" --password "$r8s_password"
 EOF
   fi
@@ -771,6 +782,7 @@ MODULAR_CLI_ARTIFACT_NAME=modular_cli.tar.gz
 #OBFUSCATOR_ARTIFACT_NAME=r8s_obfuscator.tar.gz
 R8S_INIT_ARTIFACT_NAME=r8s-init.sh
 MODULAR_CLI_ENTRY_POINT=syndicate
+MODULAR_ADMIN_POLICY='[{"Description": "Admin policy", "Module": "*", "Effect": "Allow", "Resources": ["*"]}, {"Effect": "Deny", "Description": "Prohibited commands", "Module": "r8s", "Resources": ["algorithm:add", "algorithm:update_clustering_settings", "algorithm:update_general_settings", "algorithm:update_metric_format", "algorithm:update_recommendation_settings", "report:initiate_tenant_mail_report"]}]'
 FIRST_USER=$(getent passwd 1000 | cut -d : -f 1)
 
 case "$1" in

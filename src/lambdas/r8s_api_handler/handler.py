@@ -37,6 +37,8 @@ from lambdas.r8s_api_handler.processors.policies_processor import \
     PolicyProcessor
 from lambdas.r8s_api_handler.processors.recommendation_history_processor import \
     RecommendationHistoryProcessor
+from lambdas.r8s_api_handler.processors.refresh_processor import \
+    RefreshProcessor
 from lambdas.r8s_api_handler.processors.report_processor import ReportProcessor
 from lambdas.r8s_api_handler.processors.role_processor import RoleProcessor
 from lambdas.r8s_api_handler.processors.shape_price_processor import \
@@ -87,6 +89,7 @@ _LOG = get_logger('R8sApiHandler-handler')
 
 SIGNIN_ACTION = 'signin'
 SIGNUP_ACTION = 'signup'
+REFRESH_ACTION = 'refresh'
 POLICY_ACTION = 'policy'
 ROLE_ACTION = 'role'
 ALGORITHM_ACTION = 'algorithm'
@@ -171,6 +174,7 @@ class R8sApiHandler(AbstractApiHandlerLambda):
 
         self.processor_registry = {
             SIGNIN_ACTION: self._instantiate_signin_processor,
+            REFRESH_ACTION: self._instantiate_refresh_processor,
             SIGNUP_ACTION: self._instantiate_signup_processor,
             POLICY_ACTION: self._instantiate_policy_processor,
             ROLE_ACTION: self._instantiate_role_processor,
@@ -236,6 +240,11 @@ class R8sApiHandler(AbstractApiHandlerLambda):
 
     def _instantiate_signin_processor(self):
         return SignInProcessor(
+            user_service=self.user_service,
+        )
+
+    def _instantiate_refresh_processor(self):
+        return RefreshProcessor(
             user_service=self.user_service,
         )
 
@@ -388,7 +397,8 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             user_service=self.user_service,
             algorithm_service=self.algorithm_service,
             s3_client=self.s3_client,
-            settings_service=self.settings_service
+            settings_service=self.settings_service,
+            environment_service=self.environment_service
         )
 
     def _instantiate_recommendation_processor(self):

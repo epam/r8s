@@ -77,11 +77,16 @@ class ResizeService:
             provided=current_shape.iops,
             only_for_non_empty=True
         )
-
+        _LOG.debug(f'Searching for available shapes for cloud: '
+                   f'{current_shape.cloud.value}, '
+                   f'for resource type {algorithm.resource_type}')
         all_shapes = self.shape_service.list(
-            cloud=current_shape.cloud,
+            cloud=current_shape.cloud.value,
             resource_type=algorithm.resource_type
         )
+        _LOG.debug(f'{len(all_shapes)} shapes available '
+                   f'for cloud {current_shape.cloud.value}, '
+                   f'resource type {algorithm.resource_type}')
 
         if parent_meta:
             _LOG.debug(f'Applying parent meta: '
@@ -92,15 +97,26 @@ class ResizeService:
                 instances_data=all_shapes,
                 parent_meta=parent_meta
             )
+            _LOG.debug(f'Shapes available after shape '
+                       f'rule filters: {len(all_shapes)}')
+
+        _LOG.debug(f'Applying algorithm shape compatibility rule: '
+                   f'{shape_compatibility_rule}')
         all_shapes = ShapeCompatibilityFilter().apply_compatibility_filter(
             current_shape=current_shape,
             shapes=all_shapes,
             compatibility_rule=shape_compatibility_rule
         )
+        _LOG.debug(f'Shapes available after algorithm compatibility rule: '
+                   f'{len(all_shapes)}')
+
         if past_resize_recommendations:
+            _LOG.debug(f'Applying feedback-based shape adjustments')
             all_shapes = self.apply_adjustment(
                 shapes=all_shapes,
                 recommendations=past_resize_recommendations)
+            _LOG.debug(f'Shapes available after feedback-based adjustments: '
+                       f'{len(all_shapes)}')
 
         forbid_change_series = algorithm.recommendation_settings. \
             forbid_change_series

@@ -8,7 +8,7 @@ from models.base_model import BaseModel, CloudEnum
 
 
 class ResourceTypeEnum(ListEnum):
-    RESOURCE_TYPE_VM = 'VN'
+    RESOURCE_TYPE_VM = 'VM'
     RESOURCE_TYPE_RDS = 'RDS'
 
 

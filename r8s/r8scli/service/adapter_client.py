@@ -18,9 +18,10 @@ USER_LOG = get_user_logger('user')
 
 class AdapterClient:
 
-    def __init__(self, adapter_api, token):
+    def __init__(self, adapter_api, token, refresh_token):
         self.__api_link = adapter_api
         self.__token = token
+        self.__refresh_token = refresh_token
         self.__method_to_function = {
             HTTP_GET: requests.get,
             HTTP_POST: requests.post,
@@ -105,15 +106,51 @@ class AdapterClient:
                                      'for assistance.'}
                 )
         response = response.json()
-        token = response.get('items')[0].get('id_token')
-        if isinstance(token, tuple):
-            return token
-        if not isinstance(token, str):
+        access_token = response.get('items')[0].get('id_token')
+        refresh_token = response.get('items')[0].get('refresh_token')
+        if not isinstance(access_token, str):
             return LocalCommandResponse(
                 body={"message": "Mailformed response obtained. "
                                  "Please check your configuration."},
                 code=400)
-        return token
+        return access_token, refresh_token
+
+    def refresh(self):
+        request = {
+            PARAM_REFRESH_TOKEN: self.__refresh_token
+        }
+        response = self.__make_request(
+            resource=API_REFRESH,
+            method=HTTP_POST,
+            payload=request
+        )
+        if isinstance(response, dict):
+            return LocalCommandResponse(code=400, body=response)
+        if response.status_code != 200:
+            if 'Invalid refresh token' in response.text:
+                resp = LocalCommandResponse(
+                    code=response.status_code,
+                    body={"message": "Invalid refresh token provided."}
+                )
+                return resp
+            else:
+                SYSTEM_LOG.error(f'Error: {response.text}')
+                return LocalCommandResponse(
+                    code=response.status_code,
+                    body={'message': 'Malformed response obtained. '
+                                     'Please contact support team '
+                                     'for assistance.'}
+                )
+        response = response.json()
+        response = response.get('items')[0]
+
+        if isinstance(response, dict) and 'id_token' in response:
+            return response
+        else:
+            return LocalCommandResponse(
+                body={"message": "Malformed response obtained. "
+                                 "Please check your configuration."},
+                code=400)
 
     def policy_get(self, policy_name):
         request = {}

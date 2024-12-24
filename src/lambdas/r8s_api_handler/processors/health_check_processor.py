@@ -13,6 +13,7 @@ from lambdas.r8s_api_handler.processors.abstract_processor import \
 from services.algorithm_service import AlgorithmService
 from services.clients.api_gateway_client import ApiGatewayClient
 from services.clients.s3 import S3Client
+from services.environment_service import EnvironmentService
 from services.health_checks.application_check import ApplicationCheckHandler
 from services.health_checks.operation_mode_check import \
     OperationModeCheckHandler
@@ -47,7 +48,8 @@ class HealthCheckProcessor(AbstractCommandProcessor):
                  user_service: CognitoUserService,
                  algorithm_service: AlgorithmService,
                  settings_service: SettingsService,
-                 s3_client: S3Client):
+                 s3_client: S3Client,
+                 environment_service: EnvironmentService):
         self.application_service = application_service
         self.tenant_service = tenant_service
         self.shape_service = shape_service
@@ -60,6 +62,7 @@ class HealthCheckProcessor(AbstractCommandProcessor):
         self.algorithm_service = algorithm_service
         self.s3_client = s3_client
         self.settings_service = settings_service
+        self.environment_service = environment_service
 
         self.method_to_handler = {
             POST_METHOD: self.post,
@@ -127,7 +130,8 @@ class HealthCheckProcessor(AbstractCommandProcessor):
             api_gateway_client=self.api_gateway_client,
             user_service=self.user_service,
             ssm_service=self.ssm_service,
-            storage_service=self.storage_service
+            storage_service=self.storage_service,
+            environment_service=self.environment_service
         )
 
     def _init_parent_check_handler(self):

@@ -56,9 +56,30 @@ def login(username: str, password: str):
 
     response = init_configuration().login(
         username=username, password=password)
-    if isinstance(response, str):
-        return save_token(access_token=response)
+    if isinstance(response, tuple):
+        access_token = response[0]
+        refresh_token = response[1]
+        return save_token(access_token=access_token,
+                          refresh_token=refresh_token)
     return response
+
+
+@r8s.command(cls=ViewCommand, name='refresh')
+@cli_response()
+def refresh():
+    """
+    Refreshe r8s access token using stored refresh token.
+    """
+    from r8scli.service.initializer import init_configuration
+
+    response = init_configuration().refresh()
+    if isinstance(response, dict):
+        access_token = response.get('id_token')
+        refresh_token = response.get('refresh_token')
+        return save_token(access_token=access_token,
+                          refresh_token=refresh_token)
+    return response
+
 
 @r8s.command(cls=ViewCommand, name='register')
 @click.option('--username', '-u', type=str,

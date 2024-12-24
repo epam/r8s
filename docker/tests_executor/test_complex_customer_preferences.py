@@ -70,7 +70,7 @@ class TestComplexCustomerPreferences(BaseExecutorTest):
 
     @patch.dict(os.environ, {'KMP_DUPLICATE_LIB_OK': "TRUE"})
     def test_constant_custom_preferences(self):
-        from models.parent_attributes import ParentMeta
+        from models.parent_attributes import LicensesParentMeta
         allowed_series = ['c5', 'c6a']
         allowed_shapes = ['c5a.xlarge']
         shape_rules = [
@@ -110,8 +110,8 @@ class TestComplexCustomerPreferences(BaseExecutorTest):
                 "value": "c6a.2xlarge"
             }
         ]
-        parent_meta = ParentMeta(shape_rules=shape_rules)
-        result = self.recommendation_service.process_instance(
+        parent_meta = LicensesParentMeta(shape_rules=shape_rules)
+        result, _ = self.recommendation_service.process_instance(
             metric_file_path=self.metrics_file_path,
             algorithm=self.algorithm,
             reports_dir=self.reports_path,

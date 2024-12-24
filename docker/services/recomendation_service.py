@@ -183,6 +183,8 @@ class RecommendationService:
             _LOG.debug('Searching for better-fix instance types')
             compatibility_rule = algorithm.recommendation_settings. \
                 shape_compatibility_rule
+            _LOG.debug(f'Shape compatibility rule to be applied: '
+                       f'{compatibility_rule}')
 
             past_resize_recommendations = self.recommendation_history_service. \
                 filter_resize(recommendations=applied_recommendations)

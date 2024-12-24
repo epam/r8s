@@ -69,7 +69,7 @@ class TestExcludeGraviton(BaseExecutorTest):
 
     @patch.dict(os.environ, {'KMP_DUPLICATE_LIB_OK': "TRUE"})
     def test_exclude_graviton(self):
-        from models.parent_attributes import ParentMeta
+        from models.parent_attributes import LicensesParentMeta
         shape_rule = {
             "rule_id": "non_graviton",
             "action": "deny",
@@ -77,8 +77,8 @@ class TestExcludeGraviton(BaseExecutorTest):
             "field": "physical_processor",
             "value": "Graviton"
         }
-        parent_meta = ParentMeta(shape_rules=[shape_rule])
-        result = self.recommendation_service.process_instance(
+        parent_meta = LicensesParentMeta(shape_rules=[shape_rule])
+        result, _ = self.recommendation_service.process_instance(
             metric_file_path=self.metrics_file_path,
             algorithm=self.algorithm,
             reports_dir=self.reports_path,

@@ -41,7 +41,7 @@ def create_configuration(api_link, context):
     return LocalCommandResponse(body=response)
 
 
-def save_token(access_token: str):
+def save_token(access_token: str = None, refresh_token: str = None):
     context = click.get_current_context()
     configuration = CredentialsProvider(module_name=MODULE_NAME,
                                         context=context)
@@ -52,6 +52,8 @@ def save_token(access_token: str):
         return 'r8s tool is not configured. Please contact the support team.'
 
     config[CONF_ACCESS_TOKEN] = access_token
+    if refresh_token:
+        config[CONF_REFRESH_TOKEN] = refresh_token
     configuration.credentials_manager.store(config=config)
     response = {'message': 'Great! The r8s tool access token has been saved.'}
     return LocalCommandResponse(body=response)
@@ -68,6 +70,7 @@ def clean_up_configuration():
 
 
 CONF_ACCESS_TOKEN = 'access_token'
+CONF_REFRESH_TOKEN = 'refresh_token'
 CONF_API_LINK = 'api_link'
 
 REQUIRED_PROPS = [CONF_API_LINK]
@@ -104,3 +107,7 @@ class ConfigurationProvider:
     @property
     def access_token(self):
         return self.config_dict.get(CONF_ACCESS_TOKEN)
+
+    @property
+    def refresh_token(self):
+        return self.config_dict.get(CONF_REFRESH_TOKEN)
