@@ -22,7 +22,11 @@ If not, set such permission with the command: `chmod 400 $SSH_KEY_NAME` where
 command `syndicate --version`.
 
 ### Defect Dojo
-To access the Defect Dojo Web Interface do the following steps: 
+#### Get Defect Dojo user credentials
+Defect Dojo `admin` user will be created on Syndicate RightSizer instance start, with a password stored in K8s secret.
+To get the password, execute `kubectl get secret "defectdojo-secret" -o jsonpath="{.data.system-password}" | base64 --decode`
+
+#### Access Defect Dojo Web Interface
 1. Verify if the inbound/outbound HTTP traffic is allowed to 80 port by the 
 Security Group that is applied to the product instance;
 2. Open https://INSTANCE-PUBLIC-DNS:80 (replace INSTANCE-PUBLIC-DNS with the actual value) 
