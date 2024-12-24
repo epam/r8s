@@ -20,9 +20,9 @@ version, or a range of versions of the software.
 
 ![EPAM Syndicate RightSizer OnPrem diagram](./docs/images/r8s_onprem.png)
 
-### Maestro - RightSizer Workflow
+### EPAM Syndicate RightSizer Workflow
 
-![Maestro - RightSizer workflow diagram](./docs/images/r8s-maestro-workflow.png)
+![EPAM Syndicate RightSizer workflow diagram](./docs/images/r8s-maestro-workflow.png)
 
 ## Lambdas description
 
