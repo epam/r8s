@@ -20,10 +20,10 @@ Once log in to instance, please execute the following command in order to list a
 
 Here is the command output sample: 
 
-| Version | Release Date         | URL                                                                                                                 | Prerelease | Draft |
-|---------|----------------------|---------------------------------------------------------------------------------------------------------------------|------------|-------|
-| 3.12.0  | NEW RELEASE DATE     | [NEW RELEASE LINK](https://github.com/epam/syndicate-rule-engine/releases/tag/5.5.0)                                | false      | false |
-| 3.11.0* | 2024-01-01T09:01:13Z | [https://github.com/epam/r8s/releases/tag/3.11.0](https://github.com/epam/syndicate-rule-engine/releases/tag/5.5.0) | false      | false |
+| Version | Release Date         | URL                                                                                                | Prerelease | Draft |
+|---------|----------------------|----------------------------------------------------------------------------------------------------|------------|-------|
+| 3.12.0  | NEW RELEASE DATE     | [NEW RELEASE LINK](https://github.com/epam/r8s/releases/tag/3.12.0)                                | false      | false |
+| 3.11.0* | 2024-01-01T09:01:13Z | [https://github.com/epam/r8s/releases/tag/3.11.0](https://github.com/epam/r8s/releases/tag/3.11.0) | false      | false |
 
 The installed version is marked with asteriks `*` nearby the version number: `3.11.0*`.
 
