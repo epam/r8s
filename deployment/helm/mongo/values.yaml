@@ -1,0 +1,22 @@
+service:
+  type: ClusterIP
+  port: 27017
+  nodePort: 32101
+
+image:
+  repository: mongo
+  tag: 5.0.28
+  pullPolicy: IfNotPresent
+
+
+persistence:
+  accessMode: ReadWriteOnce
+  size: 4Gi
+  storageClass: standard
+  hostPath: /data/mongo
+
+replicas: 1
+strategy:
+  type: RollingUpdate
+  maxUnavailable: 0
+  maxSurge: 100%
