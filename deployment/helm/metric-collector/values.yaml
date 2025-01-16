@@ -1,0 +1,27 @@
+image:
+  repository: public.ecr.aws/x4s4z8e1/rightsizer
+  tag: mc-awsmp
+  pullPolicy: Always
+
+replicas: 1
+strategy:
+  type: RollingUpdate
+  maxUnavailable: 0
+  maxSurge: 100%
+
+
+minioService: minio
+minioPort: 9000
+SERVICE_MODE: "docker"
+r8s_customer: "Marketplace"
+aws_account_id: ""  
+r8s_tenant: "CURRENT_ACCOUNT"
+r8s_scan_last_days: "30"
+r8s_metrics_config: >
+  [
+    {"name": "CPUUtilization", "namespace": "AWS/EC2", "statistics": "Average", "unit": "Percent", "column_name": "cpu_load"},
+    {"name": "mem_used_percent", "namespace": "CWAgent", "statistics": "Average", "unit": "Percent", "column_name": "memory_load"},
+    {"name": "NetworkOut", "namespace": "AWS/EC2", "statistics": "Average", "unit": "Bytes", "column_name": "net_output_load"}
+  ]
+r8s_metric_bucket_name: "r8s-metrics"
+log_level: "DEBUG"

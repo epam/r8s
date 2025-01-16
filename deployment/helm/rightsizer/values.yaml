@@ -43,4 +43,8 @@ modular-api:
   enabled: true
   fullnameOverride: modular-api
   image:
-    tag: 4.0.8-rightsizer
+    tag: 4.1.0-rightsizer
+metric-collector:
+  enabled: true
+  fullnameOverride: metric-collector
+

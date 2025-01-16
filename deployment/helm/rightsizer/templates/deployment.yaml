@@ -28,20 +28,14 @@ spec:
         app.kubernetes.io/managed-by: {{ .Release.Service }}
         helm.sh/chart: {{ include "rightsizer.chart" . }}
     spec:
+      initContainers:
+        - name: wait-for-three-minutes
+          image: busybox
+          command: ['sh', '-c', 'echo "Waiting for 30 minute" && sleep 60']
       containers:
         - name: rightsizer
           image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          livenessProbe:
-            httpGet:
-              path: '/caas/health/live'
-              scheme: HTTP
-              port: 8000
-            initialDelaySeconds: 20
-            periodSeconds: 40
-            timeoutSeconds: 5
-            successThreshold: 1
-            failureThreshold: 3
           ports:
             - containerPort: 8000
               name: http
@@ -66,9 +60,11 @@ spec:
                   key: modular-db-name
             - name: modular_service_mode
               value: docker
-            - name: CAAS_SERVICE_MODE
+            - name: SERVICE_MODE
               value: docker
-            - name: CAAS_MONGO_URI
+            - name: SERVICE_MODE_S3
+              value: docker
+            - name: MONGO_URI
               value: "mongodb://$(modular_mongo_user):$(modular_mongo_password)@$(modular_mongo_url)/"
             - name: CAAS_MONGO_DATABASE
               valueFrom:
@@ -79,9 +75,9 @@ spec:
               value: {{ .Values.vaultService }}
             - name: VAULT_SERVICE_SERVICE_PORT
               value: "{{ .Values.vaultPort }}"
-            - name: CAAS_VAULT_ENDPOINT
+            - name: VAULT_ENDPOINT
               value: "http://$(VAULT_URL):$(VAULT_SERVICE_SERVICE_PORT)"
-            - name: CAAS_VAULT_TOKEN
+            - name: VAULT_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: vault-secret
@@ -91,14 +87,14 @@ spec:
                 secretKeyRef:
                   name: vault-secret
                   key: token
-            - name: CAAS_MINIO_ENDPOINT
+            - name: MINIO_ENDPOINT
               value: "http://{{ .Values.minioService }}:{{ .Values.minioPort }}"
-            - name: CAAS_MINIO_ACCESS_KEY_ID
+            - name: MINIO_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
                   name: minio-secret
                   key: username
-            - name: CAAS_MINIO_SECRET_ACCESS_KEY
+            - name: MINIO_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
                   name: minio-secret
@@ -108,11 +104,13 @@ spec:
                 configMapKeyRef:
                   name: {{ include "rightsizer.fullname" . }}
                   key: inner-cache-ttl-seconds
-            - name: CAAS_SYSTEM_USER_PASSWORD
+            - name: R8S_SYSTEM_USER_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: rightsizer-secret
                   key: system-password
             - name: CAAS_TESTING
               value: 'false'
+            - name: log_level
+              value: "DEBUG"
       restartPolicy: Always
