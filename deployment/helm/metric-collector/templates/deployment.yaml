@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "metric-collector.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "metric-collector.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    helm.sh/chart: {{ include "metric-collector.chart" . }}
+spec:
+  replicas: {{ .Values.replicas }}
+  strategy:
+    type: {{ .Values.strategy.type }}
+    {{- if eq .Values.strategy.type "RollingUpdate" }}
+    rollingUpdate:
+      maxSurge: {{ .Values.strategy.maxSurge }}
+      maxUnavailable: {{ .Values.strategy.maxUnavailable }}
+    {{- end}}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "metric-collector.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "metric-collector.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/managed-by: {{ .Release.Service }}
+        helm.sh/chart: {{ include "metric-collector.chart" . }}
+    spec:
+      containers:
+        - name: metric-collector
+          image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: SERVICE_MODE
+              value: {{ .Values.SERVICE_MODE }}
+            - name: MINIO_ENDPOINT
+              value: "http://{{ .Values.minioService }}:{{ .Values.minioPort }}"
+            - name: MINIO_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret
+                  key: username
+            - name: MINIO_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret
+                  key: password
+            - name: r8s_customer
+              value: "Marketplace {{ .Values.aws_account_id }}"
+            - name: r8s_tenant
+              value: {{ .Values.r8s_tenant | quote }}
+            - name: r8s_scan_last_days
+              value: {{ .Values.r8s_scan_last_days | quote }}
+            - name: r8s_metrics_config
+              value: {{ .Values.r8s_metrics_config | quote }}
+            - name: r8s_metric_bucket_name
+              value: {{ .Values.r8s_metric_bucket_name | quote }}
+            - name: log_level
+              value: {{ .Values.log_level | quote }}
+      restartPolicy: Always
+            
