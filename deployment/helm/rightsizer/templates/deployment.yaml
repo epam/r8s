@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rightsizer.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "rightsizer.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    helm.sh/chart: {{ include "rightsizer.chart" . }}
+spec:
+  replicas: {{ .Values.replicas }}
+  strategy:
+    type: {{ .Values.strategy.type }}
+    {{- if eq .Values.strategy.type "RollingUpdate" }}
+    rollingUpdate:
+      maxSurge: {{ .Values.strategy.maxSurge }}
+      maxUnavailable: {{ .Values.strategy.maxUnavailable }}
+    {{- end}}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "rightsizer.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "rightsizer.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/managed-by: {{ .Release.Service }}
+        helm.sh/chart: {{ include "rightsizer.chart" . }}
+    spec:
+      initContainers:
+        - name: wait-for-three-minutes
+          image: busybox
+          command: ['sh', '-c', 'echo "Waiting for 30 minute" && sleep 60']
+      containers:
+        - name: rightsizer
+          image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+          env:
+            - name: modular_mongo_user
+              valueFrom:
+                secretKeyRef:
+                  name: mongo-secret
+                  key: username
+            - name: modular_mongo_password
+              valueFrom:
+                secretKeyRef:
+                  name: mongo-secret
+                  key: password
+            - name: modular_mongo_url
+              value: "{{ .Values.mongoService }}:{{ .Values.mongoPort }}"
+            - name: modular_mongo_db_name
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "rightsizer.fullname" . }}
+                  key: modular-db-name
+            - name: modular_service_mode
+              value: docker
+            - name: SERVICE_MODE
+              value: docker
+            - name: SERVICE_MODE_S3
+              value: docker
+            - name: MONGO_URI
+              value: "mongodb://$(modular_mongo_user):$(modular_mongo_password)@$(modular_mongo_url)/"
+            - name: CAAS_MONGO_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "rightsizer.fullname" . }}
+                  key: db-name
+            - name: VAULT_URL
+              value: {{ .Values.vaultService }}
+            - name: VAULT_SERVICE_SERVICE_PORT
+              value: "{{ .Values.vaultPort }}"
+            - name: VAULT_ENDPOINT
+              value: "http://$(VAULT_URL):$(VAULT_SERVICE_SERVICE_PORT)"
+            - name: VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: vault-secret
+                  key: token
+            - name: VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: vault-secret
+                  key: token
+            - name: MINIO_ENDPOINT
+              value: "http://{{ .Values.minioService }}:{{ .Values.minioPort }}"
+            - name: MINIO_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret
+                  key: username
+            - name: MINIO_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret
+                  key: password
+            - name: CAAS_INNER_CACHE_TTL_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "rightsizer.fullname" . }}
+                  key: inner-cache-ttl-seconds
+            - name: R8S_SYSTEM_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rightsizer-secret
+                  key: system-password
+            - name: CAAS_TESTING
+              value: 'false'
+            - name: log_level
+              value: "DEBUG"
+      restartPolicy: Always

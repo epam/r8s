@@ -2,6 +2,7 @@
 
 LOG_PATH=/var/log/r8s-init.log
 ERROR_LOG_PATH=$LOG_PATH
+SYNDICATE_HELM_REPOSITORY="${SYNDICATE_HELM_REPOSITORY:-https://charts-repository.s3.eu-west-1.amazonaws.com/syndicate/}"
 HELM_RELEASE_NAME=rightsizer
 DOCKER_VERSION='5:27.1.1-1~debian.12~bookworm'
 MINIKUBE_VERSION=v1.33.1
@@ -236,8 +237,7 @@ kubectl create secret generic modular-api-secret --from-literal=system-password=
 kubectl create secret generic modular-service-secret --from-literal=system-password=$(generate_password 30)
 kubectl create secret generic defectdojo-secret --from-literal=secret-key="$(generate_password 50)" --from-literal=credential-aes-256-key=$(generate_password) --from-literal=db-username=defectdojo --from-literal=db-password=$(generate_password 30 -hex)
 
-helm plugin install https://github.com/hypnoglow/helm-s3.git
-helm repo add syndicate s3://charts-repository/syndicate/
+helm repo add syndicate "$SYNDICATE_HELM_REPOSITORY"
 helm repo update syndicate
 
 helm install "$HELM_RELEASE_NAME" syndicate/rightsizer --version $RIGHTSIZER_RELEASE
