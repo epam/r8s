@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # shellcheck disable=SC2034
-LM_API_LINK="https://lm-qa.syndicate.team" # todo change to PROD url
+LM_API_LINK="https://lm.syndicate.team"
 GITHUB_REPO=epam/r8s
 FIRST_USER=$(getent passwd 1000 | cut -d : -f 1)
 R8S_LOCAL_PATH=/usr/local/r8s
