@@ -1,12 +1,11 @@
+from modular_sdk.commons import ModularException
 from modular_sdk.commons.constants import AWS_CLOUD, AZURE_CLOUD, GOOGLE_CLOUD, \
     RIGHTSIZER_LICENSES_TYPE
-from modular_sdk.commons import ModularException
 from modular_sdk.services.customer_service import CustomerService
 
-from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
+from commons import RESPONSE_BAD_REQUEST_CODE, build_response, \
+    RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
     validate_params, RESPONSE_FORBIDDEN_CODE
-from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import GET_METHOD, POST_METHOD, DELETE_METHOD, \
     APPLICATION_ID_ATTR, DESCRIPTION_ATTR, \
     CLOUD_ATTR, CLOUD_ALL, TENANT_LICENSE_KEY_ATTR, \
@@ -50,17 +49,6 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
             POST_METHOD: self.post,
             DELETE_METHOD: self.delete,
         }
-
-    def process(self, event) -> dict:
-        method = event.get(PARAM_HTTP_METHOD)
-        command_handler = self.method_to_handler.get(method)
-        if not command_handler:
-            message = f'Unable to handle command {method} in ' \
-                      f'job definition processor'
-            _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
-                       f'process error: {message}')
-            raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
-        return command_handler(event=event)
 
     def get(self, event):
         _LOG.debug(f'Describe application licenses event: {event}')

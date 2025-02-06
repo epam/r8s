@@ -1,10 +1,9 @@
 from modular_sdk.services.tenant_service import TenantService
 
-from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
+from commons import RESPONSE_BAD_REQUEST_CODE, build_response, \
+    RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
     validate_params
-from commons.abstract_lambda import PARAM_HTTP_METHOD
-from commons.constants import GET_METHOD, PARENT_ID_ATTR, CLOUD_ATTR
+from commons.constants import GET_METHOD, PARENT_ID_ATTR
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -32,17 +31,6 @@ class ShapeRuleDryRunProcessor(AbstractCommandProcessor):
         self.method_to_handler = {
             GET_METHOD: self.get
         }
-
-    def process(self, event) -> dict:
-        method = event.get(PARAM_HTTP_METHOD)
-        command_handler = self.method_to_handler.get(method)
-        if not command_handler:
-            message = f'Unable to handle command {method} in ' \
-                      f'shape rule processor'
-            _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
-                       f'process error: {message}')
-            raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
-        return command_handler(event=event)
 
     def get(self, event):
         _LOG.debug(f'Dry run shape rule event: {event}')

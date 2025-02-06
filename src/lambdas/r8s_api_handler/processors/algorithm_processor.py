@@ -4,10 +4,9 @@ from typing import Type
 from modular_sdk.services.customer_service import CustomerService
 from mongoengine import ValidationError
 
-from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
+from commons import RESPONSE_BAD_REQUEST_CODE, build_response, \
+    RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
     validate_params, RESPONSE_FORBIDDEN_CODE
-from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import POST_METHOD, ID_ATTR, NAME_ATTR, \
     GET_METHOD, PATCH_METHOD, DELETE_METHOD, \
     REQUIRED_DATA_ATTRS_ATTR, METRIC_ATTRS_ATTR, TIMESTAMP_ATTR, \
@@ -48,17 +47,6 @@ class AlgorithmProcessor(AbstractCommandProcessor):
             PATCH_METHOD: self.patch,
             DELETE_METHOD: self.delete,
         }
-
-    def process(self, event) -> dict:
-        method = event.get(PARAM_HTTP_METHOD)
-        command_handler = self.method_to_handler.get(method)
-        if not command_handler:
-            message = f'Unable to handle command {method} in ' \
-                      f'algorithm processor'
-            _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
-                       f'process error: {message}')
-            raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
-        return command_handler(event=event)
 
     def get(self, event):
         _LOG.debug(f'Describe algorithm event: {event}')

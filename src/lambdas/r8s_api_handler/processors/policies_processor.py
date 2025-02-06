@@ -1,7 +1,5 @@
-from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
+from commons import RESPONSE_BAD_REQUEST_CODE, build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
     validate_params
-from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import GET_METHOD, POST_METHOD, DELETE_METHOD, \
     PATCH_METHOD, NAME_ATTR, PERMISSIONS_ATTR, \
     PERMISSIONS_ADMIN_ATTR, PERMISSIONS_TO_ATTACH, PERMISSIONS_TO_DETACH
@@ -28,17 +26,6 @@ class PolicyProcessor(AbstractCommandProcessor):
             PATCH_METHOD: self.patch,
             DELETE_METHOD: self.delete,
         }
-
-    def process(self, event) -> dict:
-        method = event.get(PARAM_HTTP_METHOD)
-        command_handler = self.method_to_handler.get(method)
-        if not command_handler:
-            message = f'Unable to handle command {method} in ' \
-                      f'policy processor'
-            _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
-                       f'process error: {message}')
-            raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
-        return command_handler(event=event)
 
     def get(self, event):
         _LOG.debug(f'Get policy event: {event}')
@@ -167,7 +154,7 @@ class PolicyProcessor(AbstractCommandProcessor):
             if to_attach:
                 _LOG.debug(f'going to attach permissions to policy: '
                            f'\'{to_attach}\'')
-                non_existing = self.access_control_service.\
+                non_existing = self.access_control_service. \
                     get_non_existing_permissions(permissions=to_attach)
 
                 if non_existing:

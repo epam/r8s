@@ -1,6 +1,4 @@
-from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    build_response, RESPONSE_OK_CODE
-from commons.abstract_lambda import PARAM_HTTP_METHOD
+from commons import RESPONSE_BAD_REQUEST_CODE, build_response, RESPONSE_OK_CODE
 from commons.constants import POST_METHOD, USERNAME_ATTR, PASSWORD_ATTR, \
     ROLE_ATTR, CUSTOMER_ATTR
 from commons.log_helper import get_logger
@@ -20,17 +18,6 @@ class SignUpProcessor(AbstractCommandProcessor):
         self.method_to_handler = {
             POST_METHOD: self.post,
         }
-
-    def process(self, event) -> dict:
-        method = event.get(PARAM_HTTP_METHOD)
-        command_handler = self.method_to_handler.get(method)
-        if not command_handler:
-            message = f'Unable to handle command {method} in ' \
-                      f'signup processor'
-            _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
-                       f'process error: {message}')
-            raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
-        return command_handler(event=event)
 
     def post(self, event):
         username = event.get(USERNAME_ATTR)

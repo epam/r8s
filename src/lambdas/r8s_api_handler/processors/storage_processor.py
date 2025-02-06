@@ -1,10 +1,8 @@
-from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    validate_params, build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, \
+from commons import RESPONSE_BAD_REQUEST_CODE, validate_params, build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, \
     RESPONSE_OK_CODE
-from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import GET_METHOD, POST_METHOD, PATCH_METHOD, \
     DELETE_METHOD, NAME_ATTR, TYPE_ATTR, ACCESS_ATTR, ID_ATTR, SERVICE_ATTR, \
-    TENANT_ATTR, BUCKET_NAME_ATTR, PREFIX_ATTR
+    BUCKET_NAME_ATTR, PREFIX_ATTR
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -24,17 +22,6 @@ class StorageProcessor(AbstractCommandProcessor):
             PATCH_METHOD: self.patch,
             DELETE_METHOD: self.delete,
         }
-
-    def process(self, event) -> dict:
-        method = event.get(PARAM_HTTP_METHOD)
-        command_handler = self.method_to_handler.get(method)
-        if not command_handler:
-            message = f'Unable to handle command {method} in ' \
-                      f'role processor'
-            _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
-                       f'process error: {message}')
-            raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
-        return command_handler(event=event)
 
     def get(self, event):
         _LOG.debug(f'Get storage event: {event}')

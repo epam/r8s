@@ -1,6 +1,4 @@
-from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    RESPONSE_OK_CODE, RESPONSE_RESOURCE_NOT_FOUND_CODE, build_response
-from commons.abstract_lambda import PARAM_HTTP_METHOD
+from commons import RESPONSE_OK_CODE, RESPONSE_RESOURCE_NOT_FOUND_CODE, build_response
 from commons.constants import LICENSE_KEY_ATTR
 from commons.constants import POST_METHOD
 from commons.log_helper import get_logger
@@ -25,17 +23,6 @@ class LicenseSyncProcessor(AbstractCommandProcessor):
         self.method_to_handler = {
             POST_METHOD: self.post,
         }
-
-    def process(self, event) -> dict:
-        method = event.get(PARAM_HTTP_METHOD)
-        command_handler = self.method_to_handler.get(method)
-        if not command_handler:
-            message = f'Unable to handle command {method} in ' \
-                      f'license processor'
-            _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
-                       f'process error: {message}')
-            raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
-        return command_handler(event=event)
 
     def post(self, event):
         _LOG.debug(f'Sync license event: {event}')

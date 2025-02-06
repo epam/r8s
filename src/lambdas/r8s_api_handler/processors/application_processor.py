@@ -2,11 +2,10 @@ from modular_sdk.commons import ModularException
 from modular_sdk.commons.constants import ParentType, ParentScope
 from modular_sdk.services.customer_service import CustomerService
 
-from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
+from commons import RESPONSE_BAD_REQUEST_CODE, build_response, \
+    RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
     validate_params, RESPONSE_FORBIDDEN_CODE, \
     RESPONSE_SERVICE_UNAVAILABLE_CODE, secure_event
-from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import POST_METHOD, GET_METHOD, PATCH_METHOD, \
     DELETE_METHOD, CUSTOMER_ATTR, \
     DESCRIPTION_ATTR, OUTPUT_STORAGE_ATTR, INPUT_STORAGE_ATTR, \
@@ -55,17 +54,6 @@ class ApplicationProcessor(AbstractCommandProcessor):
             PATCH_METHOD: self.patch,
             DELETE_METHOD: self.delete,
         }
-
-    def process(self, event) -> dict:
-        method = event.get(PARAM_HTTP_METHOD)
-        command_handler = self.method_to_handler.get(method)
-        if not command_handler:
-            message = f'Unable to handle command {method} in ' \
-                      f'job definition processor'
-            _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
-                       f'process error: {message}')
-            raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
-        return command_handler(event=event)
 
     def get(self, event):
         _LOG.debug(f'Describe application event: {event}')

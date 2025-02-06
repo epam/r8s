@@ -39,17 +39,6 @@ class ResourceGroupProcessor(AbstractCommandProcessor):
             PATCH_METHOD: self.patch,
         }
 
-    def process(self, event: dict) -> dict:
-        method = event.get(PARAM_HTTP_METHOD)
-        command_handler = self.method_to_handler.get(method)
-        if not command_handler:
-            message = f'Unable to handle command {method} in ' \
-                      f'resource group processor'
-            _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
-                       f'process error: {message}')
-            raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
-        return command_handler(event=event)
-
     def get(self, event: dict):
         _LOG.info(f'Describe parent resource group config: {event}')
         validate_params(event, (PARENT_ID_ATTR,))

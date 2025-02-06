@@ -1,27 +1,26 @@
+import os
 from datetime import datetime
 from typing import List
-import os
+
 from modular_sdk.commons.constants import (RIGHTSIZER_LICENSES_PARENT_TYPE,
-                                           ParentScope, ApplicationType,
-                                           ParentType)
+                                           ParentScope, ApplicationType)
 from modular_sdk.models.application import Application
-from modular_sdk.models.tenant import Tenant
 from modular_sdk.models.parent import Parent
+from modular_sdk.models.tenant import Tenant
 from modular_sdk.services.customer_service import CustomerService
 from modular_sdk.services.tenant_service import TenantService
 
-from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
+from commons import RESPONSE_BAD_REQUEST_CODE, build_response, \
+    RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
     validate_params, RESPONSE_FORBIDDEN_CODE, RESPONSE_SERVICE_UNAVAILABLE_CODE
-from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import CLOUD_AWS, TENANTS_ATTR, \
     ENV_TENANT_CUSTOMER_INDEX, FORBIDDEN_ATTR, ALLOWED_ATTR, \
     REMAINING_BALANCE_ATTR, ENV_LM_TOKEN_LIFETIME_MINUTES, LIMIT_ATTR, \
-    APPLICATION_ID_ATTR, MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE, \
-    APPLICATION_TENANTS_ALL, MAESTRO_RIGHTSIZER_APPLICATION_TYPE
+    MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE, \
+    APPLICATION_TENANTS_ALL
 from commons.constants import POST_METHOD, GET_METHOD, DELETE_METHOD, ID_ATTR, \
     NAME_ATTR, USER_ID_ATTR, PARENT_ID_ATTR, SCAN_FROM_DATE_ATTR, \
-    SCAN_TO_DATE_ATTR, TENANT_LICENSE_KEY_ATTR, PARENT_SCOPE_SPECIFIC_TENANT
+    SCAN_TO_DATE_ATTR, TENANT_LICENSE_KEY_ATTR
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -74,17 +73,6 @@ class JobProcessor(AbstractCommandProcessor):
             POST_METHOD: self.post,
             DELETE_METHOD: self.delete,
         }
-
-    def process(self, event) -> dict:
-        method = event.get(PARAM_HTTP_METHOD)
-        command_handler = self.method_to_handler.get(method)
-        if not command_handler:
-            message = f'Unable to handle command {method} in ' \
-                      f'job processor'
-            _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
-                       f'process error: {message}')
-            raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
-        return command_handler(event=event)
 
     def get(self, event):
         _LOG.debug(f'Describe job event: {event}')
@@ -176,8 +164,9 @@ class JobProcessor(AbstractCommandProcessor):
             )
 
         parent_id = event.get(PARENT_ID_ATTR)
-        _LOG.debug(f'Extracting application {licensed_application.application_id} parents. '
-                   f'Parent id {parent_id}')
+        _LOG.debug(
+            f'Extracting application {licensed_application.application_id} parents. '
+            f'Parent id {parent_id}')
         parents = self._get_parents(
             application_id=licensed_application.application_id,
             parent_id=parent_id

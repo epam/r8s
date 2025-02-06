@@ -1,8 +1,6 @@
-from commons import RESPONSE_BAD_REQUEST_CODE, RESPONSE_FORBIDDEN_CODE, \
-    raise_error_response, \
+from commons import RESPONSE_FORBIDDEN_CODE, \
     build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
     validate_params
-from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import GET_METHOD, DELETE_METHOD, \
     PATCH_METHOD, USER_ID_ATTR, PASSWORD_ATTR
 from commons.log_helper import get_logger
@@ -29,17 +27,6 @@ class UserProcessor(AbstractCommandProcessor):
             PATCH_METHOD: self.patch,
             DELETE_METHOD: self.delete,
         }
-
-    def process(self, event) -> dict:
-        method = event.get(PARAM_HTTP_METHOD)
-        command_handler = self.method_to_handler.get(method)
-        if not command_handler:
-            message = f'Unable to handle command {method} in ' \
-                      f'policy processor'
-            _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
-                       f'process error: {message}')
-            raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
-        return command_handler(event=event)
 
     def get(self, event):
         _LOG.debug(f'Get user event: {event}')
