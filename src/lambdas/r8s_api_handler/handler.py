@@ -40,6 +40,8 @@ from lambdas.r8s_api_handler.processors.recommendation_history_processor import 
 from lambdas.r8s_api_handler.processors.refresh_processor import \
     RefreshProcessor
 from lambdas.r8s_api_handler.processors.report_processor import ReportProcessor
+from lambdas.r8s_api_handler.processors.resource_group_processor import \
+    ResourceGroupProcessor
 from lambdas.r8s_api_handler.processors.role_processor import RoleProcessor
 from lambdas.r8s_api_handler.processors.shape_price_processor import \
     ShapePriceProcessor
@@ -103,6 +105,7 @@ MAIL_REPORT_ACTION = 'mail_report'
 STORAGE_DATA_ACTION = 'storage_data'
 SHAPE_RULE_ACTION = 'shape_rule'
 SHAPE_RULE_DRY_RUN_ACTION = 'shape_rule_dry_run'
+RESOURCE_GROUP_ACTION = 'resource_group'
 PARENT_ACTION = 'parent'
 PARENT_DOJO_ACTION = 'parent_dojo'
 PARENT_INSIGHTS_RESIZE_ACTION = 'parent_insights_resize'
@@ -192,6 +195,7 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             SHAPE_RULE_ACTION: self._instantiate_shape_rule_processor,
             SHAPE_RULE_DRY_RUN_ACTION:
                 self._instantiate_shape_rule_dry_run_processor,
+            RESOURCE_GROUP_ACTION: self._instantiate_resource_group_processor,
             PARENT_ACTION: self._instantiate_parent_processor,
             PARENT_DOJO_ACTION: self._instantiate_dojo_parent_processor,
             USER_ACTION: self._instantiate_user_processor,
@@ -334,6 +338,12 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             application_service=self.application_service,
             parent_service=self.parent_service,
             tenant_service=self.tenant_service
+        )
+
+    def _instantiate_resource_group_processor(self):
+        return ResourceGroupProcessor(
+            application_service=self.application_service,
+            parent_service=self.parent_service
         )
 
     def _instantiate_shape_rule_dry_run_processor(self):

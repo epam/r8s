@@ -45,6 +45,7 @@ API_PARENT_TENANT_LINK = 'parents/tenant-link'
 API_PARENT_INSIGHTS_RESIZE = 'parents/insights/resize'
 API_SHAPE_RULES = 'parents/shape-rules'
 API_SHAPE_RULES_DRY_RUN = 'parents/shape-rules/dry-run'
+API_RESOURCE_GROUPS = 'parents/resource-groups'
 API_SHAPE = 'shapes'
 API_SHAPE_PRICE = 'shapes/prices'
 API_HEALTH_CHECK = 'health-check'
@@ -189,6 +190,11 @@ ALLOWED_RULE_CONDITIONS = (
 
 ALLOWED_SHAPE_FIELDS = ('name', 'family_type', 'physical_processor',
                         'architecture')
+
+PARAM_ADD_TAGS = 'add_tags'
+PARAM_ADD_RESOURCE_GROUPS = 'add_resource_groups'
+PARAM_REMOVE_TAGS = 'remove_tags'
+PARAM_REMOVE_RESOURCE_GROUPS = 'remove_resource_groups'
 
 PARAM_DESCRIPTION = 'description'
 PARAM_INPUT_STORAGE = 'input_storage'

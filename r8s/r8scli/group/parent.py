@@ -8,6 +8,7 @@ from r8scli.service.constants import (AVAILABLE_CLOUDS, ALLOWED_PROTOCOLS, \
                                    PARENT_SCOPE_DISABLED)
 from r8scli.group.parent_shaperule import shaperule
 from r8scli.group.parent_dojo import dojo
+from r8scli.group.parent_group import group
 
 
 @click.group(name='parent')
@@ -98,3 +99,4 @@ def describe_resize_insights(parent_id, instance_type):
 
 parent.add_command(shaperule)
 parent.add_command(dojo)
+parent.add_command(group)
