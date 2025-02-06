@@ -20,6 +20,7 @@ def describe(license_key=None):
     return init_configuration().license_get(
         license_key=license_key)
 
+
 @license.command(cls=ViewCommand, name='delete')
 @click.option('--license_key', '-lk', type=str, required=True,
               help='License key to delete.')
@@ -31,6 +32,7 @@ def delete(license_key=None):
     from r8scli.service.initializer import init_configuration
     return init_configuration().license_delete(
         license_key=license_key)
+
 
 @license.command(cls=ViewCommand, name='sync')
 @click.option('--license_key', '-lk', type=str, required=True,

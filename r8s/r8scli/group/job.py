@@ -1,7 +1,6 @@
 import click
 
 from r8scli.group import cli_response, ViewCommand, cast_to_list
-from r8scli.service.constants import AVAILABLE_CLOUDS
 
 
 @click.group(name='job')
@@ -16,7 +15,7 @@ def job():
               help='Name of the job to describe.')
 @click.option('--limit', '-l', type=int,
               help='Limit maximum amount of jobs in the response.')
-@cli_response(reversed=True)
+@cli_response(reverse=True)
 def describe(job_id=None, job_name=None, limit=None):
     """
     Describes a R8s job.
@@ -41,7 +40,7 @@ def describe(job_id=None, job_name=None, limit=None):
 @click.option('--scan_to_date', '-std', type=str, required=False,
               help='Processing end date. Format: "%Y-%m-%d" '
                    'Example: 2023-06-20. If not set, scan will be '
-                   'limitated by tomorrow\'s date.')
+                   'limited by tomorrow\'s date.')
 @cli_response()
 def submit(application_id, parent_id, scan_tenants,
            scan_from_date, scan_to_date):

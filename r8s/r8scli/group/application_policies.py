@@ -1,10 +1,10 @@
 import click
 
 from r8scli.group import cli_response, ViewCommand
-from r8scli.service.constants import ALLOWED_PROTOCOLS, \
-    PROTOCOL_HTTPS, AVAILABLE_CLOUDS, PARAM_TAG, PARAM_COOLDOWN, \
-    PARAM_SCALE_STEP, SCAPE_STEP_AUTO_DETECT, PARAM_THRESHOLDS, PARAM_DESIRED, \
-    PARAM_MIN, PARAM_MAX, PARAM_TYPE, GROUP_POLICY_AUTO_SCALING, PARAM_ID
+from r8scli.service.constants import (
+    PARAM_TAG, PARAM_COOLDOWN, PARAM_ID,
+    PARAM_SCALE_STEP, SCAPE_STEP_AUTO_DETECT, PARAM_THRESHOLDS,
+    PARAM_DESIRED, PARAM_MIN, PARAM_MAX, PARAM_TYPE, GROUP_POLICY_AUTO_SCALING)
 from r8scli.service.local_response_processor import LocalCommandResponse
 
 

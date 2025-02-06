@@ -110,7 +110,7 @@ class AdapterClient:
         refresh_token = response.get('items')[0].get('refresh_token')
         if not isinstance(access_token, str):
             return LocalCommandResponse(
-                body={"message": "Mailformed response obtained. "
+                body={"message": "Malformed response obtained. "
                                  "Please check your configuration."},
                 code=400)
         return access_token, refresh_token
@@ -286,7 +286,7 @@ class AdapterClient:
                                    method=HTTP_POST,
                                    payload=request)
 
-    def algorithm_pathc_general_settings(self, algorithm_name, data_attribute,
+    def algorithm_patch_general_settings(self, algorithm_name, data_attribute,
                                          metric_attribute,
                                          timestamp_attribute):
         request = {
@@ -339,7 +339,7 @@ class AdapterClient:
             PARAM_WCSS_KMEANS_MAX_ITER: wcss_kmeans_max_iter,
             PARAM_WCSS_KMEANS_N_INIT: wcss_kmeans_n_init,
             PARAM_KNEE_INTERP_METHOD: knee_interp_method,
-            PARAM_KNEE_POLYMONIAL_DEGREE: knee_polynomial_degree,
+            PARAM_KNEE_POLYNOMIAL_DEGREE: knee_polynomial_degree,
         }
         clustering_settings = {k: v for k, v in clustering_settings.items() if
                                v is not None}
@@ -882,14 +882,14 @@ class AdapterClient:
                                    method=HTTP_GET,
                                    payload=request)
 
-    def shape_post(self, name, cloud, cpu, memory, network_throughtput, iops,
+    def shape_post(self, name, cloud, cpu, memory, network_throughput, iops,
                    family_type, physical_processor, architecture):
         request = {
             PARAM_NAME: name,
             PARAM_CLOUD: cloud,
             PARAM_CPU: cpu,
             PARAM_MEMORY: memory,
-            PARAM_NETWORK_THROUGHPUT: network_throughtput,
+            PARAM_NETWORK_THROUGHPUT: network_throughput,
             PARAM_IOPS: iops,
             PARAM_FAMILY_TYPE: family_type,
             PARAM_PHYSICAL_PROCESSOR: physical_processor,
@@ -900,14 +900,14 @@ class AdapterClient:
                                    method=HTTP_POST,
                                    payload=request)
 
-    def shape_patch(self, name, cloud, cpu, memory, network_throughtput, iops,
+    def shape_patch(self, name, cloud, cpu, memory, network_throughput, iops,
                     family_type, physical_processor, architecture):
         request = {
             PARAM_NAME: name,
             PARAM_CLOUD: cloud,
             PARAM_CPU: cpu,
             PARAM_MEMORY: memory,
-            PARAM_NETWORK_THROUGHPUT: network_throughtput,
+            PARAM_NETWORK_THROUGHPUT: network_throughput,
             PARAM_IOPS: iops,
             PARAM_FAMILY_TYPE: family_type,
             PARAM_PHYSICAL_PROCESSOR: physical_processor,
@@ -933,8 +933,7 @@ class AdapterClient:
             PARAM_CUSTOMER: customer,
             PARAM_CLOUD: cloud,
             PARAM_REGION: region,
-            PARAM_OS: os,
-            PARAM_CUSTOMER: customer
+            PARAM_OS: os
         }
         request = {k: v for k, v in request.items() if v}
         return self.__make_request(resource=API_SHAPE_PRICE,

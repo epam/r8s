@@ -69,7 +69,6 @@ def add(name, cloud, region, os, on_demand_price, customer_id):
 
 
 @price.command(cls=ViewCommand, name='update')
-
 @click.option('--name', '-n', type=str, required=True,
               help='Shape name.')
 @click.option('--cloud', '-c', required=True,

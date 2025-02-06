@@ -58,9 +58,8 @@ def remove_tags(parent_id, tag):
     """
     from r8scli.service.initializer import init_configuration
 
-    remove_tags = cast_to_list(tag)
     return init_configuration().resource_group_patch(
-        parent_id=parent_id, remove_tags=remove_tags)
+        parent_id=parent_id, remove_tags=cast_to_list(tag))
 
 
 @group.command(cls=ViewCommand, name='add_resource_group')

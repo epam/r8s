@@ -2,7 +2,7 @@ import click
 
 from r8scli.group import cli_response, ViewCommand
 from r8scli.service.constants import ALLOWED_RULE_ACTIONS, \
-    ALLOWED_SHAPE_FIELDS, ALLOWED_RULE_CONDITIONS, AVAILABLE_CLOUDS
+    ALLOWED_SHAPE_FIELDS, ALLOWED_RULE_CONDITIONS
 
 
 @click.group(name='shaperule')
@@ -108,7 +108,7 @@ def delete(rule_id):
 @cli_response()
 def dry_run(parent_id):
     """
-    Describes shapes that satisfy all of the specified Parent rules.
+    Describes shapes that satisfy all the specified Parent rules.
     """
     from r8scli.service.initializer import init_configuration
     return init_configuration().shape_rule_dry_run_get(
