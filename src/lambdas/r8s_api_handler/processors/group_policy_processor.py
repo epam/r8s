@@ -1,3 +1,5 @@
+from typing import Dict, Callable
+
 from modular_sdk.models.application import Application
 
 from commons import (RESPONSE_BAD_REQUEST_CODE, build_response,
@@ -34,7 +36,7 @@ class GroupPolicyProcessor(AbstractCommandProcessor):
             DELETE_METHOD: self.delete,
         }
 
-        self.type_builder = {
+        self.type_builder: Dict[str, Callable] = {
             GROUP_POLICY_AUTO_SCALING: self._build_autoscaling
         }
 
@@ -168,8 +170,10 @@ class GroupPolicyProcessor(AbstractCommandProcessor):
 
         _LOG.debug(f'Describing group {group_id} from application '
                    f'{application.application_id}')
-        group_policy = self.application_service.get_group_policy(meta=meta,
-                                                                 group_id=group_id)
+        group_policy = self.application_service.get_group_policy(
+            meta=meta,
+            group_id=group_id
+        )
         if not group_policy:
             _LOG.debug(f'Group {group_id} does not exist in application '
                        f'{application.application_id}')
@@ -318,8 +322,8 @@ class GroupPolicyProcessor(AbstractCommandProcessor):
                 value = thresholds.get(key)
                 self._validate_positive_int(key=f'{THRESHOLDS_ATTR}.{key}',
                                             value=value)
-            if not thresholds[MIN_ATTR] < thresholds[DESIRED_ATTR] < \
-                   thresholds[MAX_ATTR]:
+            if not (thresholds[MIN_ATTR] < thresholds[DESIRED_ATTR] <
+                    thresholds[MAX_ATTR]):
                 _LOG.error(f'Invalid thresholds specified. Thresholds must '
                            f'be in increasing order {MIN_ATTR} < '
                            f'{DESIRED_ATTR} < {MAX_ATTR}')
@@ -330,9 +334,9 @@ class GroupPolicyProcessor(AbstractCommandProcessor):
                             f'{DESIRED_ATTR} < {MAX_ATTR}'
                 )
             group_policy[THRESHOLDS_ATTR] = {
-                MIN_ATTR: thresholds.get(MIN_ATTR),
-                DESIRED_ATTR: thresholds.get(DESIRED_ATTR),
-                MAX_ATTR: thresholds.get(MAX_ATTR)
+                MIN_ATTR: thresholds[MIN_ATTR],
+                DESIRED_ATTR: thresholds[DESIRED_ATTR],
+                MAX_ATTR: thresholds[MAX_ATTR]
             }
 
         tag = event.get(TAG_ATTR)

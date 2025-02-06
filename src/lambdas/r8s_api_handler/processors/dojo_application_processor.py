@@ -6,10 +6,10 @@ from commons import RESPONSE_BAD_REQUEST_CODE, build_response, \
     RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
     validate_params, RESPONSE_FORBIDDEN_CODE, \
     secure_event
-from commons.constants import POST_METHOD, GET_METHOD, DELETE_METHOD, \
-    CUSTOMER_ATTR, \
-    DESCRIPTION_ATTR, PORT_ATTR, PROTOCOL_ATTR, HOST_ATTR, APPLICATION_ID_ATTR, \
-    FORCE_ATTR, STAGE_ATTR, API_KEY_ATTR
+from commons.constants import (POST_METHOD, GET_METHOD, DELETE_METHOD,
+                               CUSTOMER_ATTR, DESCRIPTION_ATTR, PORT_ATTR,
+                               PROTOCOL_ATTR, APPLICATION_ID_ATTR, HOST_ATTR,
+                               FORCE_ATTR, STAGE_ATTR, API_KEY_ATTR)
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor

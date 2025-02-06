@@ -135,7 +135,7 @@ class UserProcessor(AbstractCommandProcessor):
     def _is_allowed_to_modify(current_user_id, user_customer,
                               target_user_id, target_user_customer) -> bool:
         if user_customer == 'admin':
-            # for admins, its allowed to delete every user except other admins
+            # for admins, it's allowed to delete every user except other admins
             return target_user_customer != 'admin'
         if current_user_id == target_user_id:
             # allow to delete self

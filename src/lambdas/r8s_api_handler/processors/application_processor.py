@@ -169,8 +169,7 @@ class ApplicationProcessor(AbstractCommandProcessor):
         connection_obj = ConnectionAttribute(**connection)
         try:
             _LOG.debug('Creating application')
-            application = self.application_service. \
-                create_rightsizer_application(
+            app = self.application_service.create_rightsizer_application(
                 customer_id=customer,
                 description=description,
                 input_storage=input_storage_obj,
@@ -189,8 +188,8 @@ class ApplicationProcessor(AbstractCommandProcessor):
 
         _LOG.debug('Creating RIGHTSIZER parent with ALL scope')
         parent = self.parent_service.build(
-            application_id=application.application_id,
-            customer_id=application.customer_id,
+            application_id=app.application_id,
+            customer_id=app.customer_id,
             parent_type=ParentType.RIGHTSIZER_PARENT,
             description='Automatically created RIGHTSIZER parent',
             meta={},
@@ -199,15 +198,15 @@ class ApplicationProcessor(AbstractCommandProcessor):
         )
 
         _LOG.debug(f'Saving application '
-                   f'\'{application.application_id}\'')
-        self.application_service.save(application=application)
+                   f'\'{app.application_id}\'')
+        self.application_service.save(application=app)
 
         _LOG.debug(f'Saving parent: {parent.parent_id}')
         self.parent_service.save(parent=parent)
 
         _LOG.debug('Extracting created application dto')
         application_dto = self.application_service.get_dto(
-            application=application)
+            application=app)
 
         _LOG.debug(f'Response: {application_dto}')
         return build_response(

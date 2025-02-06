@@ -1,5 +1,6 @@
-from commons import RESPONSE_BAD_REQUEST_CODE, validate_params, build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, \
-    RESPONSE_OK_CODE
+from commons import (RESPONSE_BAD_REQUEST_CODE, validate_params,
+                     build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE,
+                     RESPONSE_OK_CODE)
 from commons.constants import GET_METHOD, POST_METHOD, PATCH_METHOD, \
     DELETE_METHOD, NAME_ATTR, TYPE_ATTR, ACCESS_ATTR, ID_ATTR, SERVICE_ATTR, \
     BUCKET_NAME_ATTR, PREFIX_ATTR
@@ -10,7 +11,7 @@ from models.storage import StorageServiceEnum, StorageTypeEnum, Storage, \
     S3Storage
 from services.storage_service import StorageService
 
-_LOG = get_logger('cslm-storage-processor')
+_LOG = get_logger('r8s-storage-processor')
 
 
 class StorageProcessor(AbstractCommandProcessor):
@@ -228,7 +229,7 @@ class StorageProcessor(AbstractCommandProcessor):
             return default_value
         service = service.upper()
         if service in StorageServiceEnum.list():
-            return StorageServiceEnum.__getattr__(service)
+            return getattr(StorageServiceEnum, service)
         _LOG.debug(f'Invalid service specified. Supported algorithms: '
                    f'{StorageServiceEnum.list()}')
         return build_response(
@@ -241,7 +242,7 @@ class StorageProcessor(AbstractCommandProcessor):
     def _validate_storage_type(storage_type):
         storage_type = storage_type.upper()
         if storage_type in StorageTypeEnum.list():
-            return StorageTypeEnum.__getattr__(storage_type)
+            return getattr(StorageTypeEnum, storage_type)
         _LOG.debug(f'Invalid \'type\' specified. Supported types: '
                    f'{StorageTypeEnum.list()}')
         return build_response(

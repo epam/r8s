@@ -1,5 +1,10 @@
+from typing import Dict, Callable
+
+from modular_sdk.models.tenant import Tenant
+from modular_sdk.services.tenant_service import TenantService
+
 from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
+    build_response, RESPONSE_OK_CODE, \
     validate_params
 from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import GET_METHOD, ID_ATTR, REPORT_TYPE_ATTR, \
@@ -10,12 +15,8 @@ from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
 from models.job import Job, JobStatusEnum
 from services.abstract_api_handler_lambda import PARAM_USER_CUSTOMER
-
 from services.job_service import JobService
 from services.report_service import ReportService
-
-from modular_sdk.services.tenant_service import TenantService
-from modular_sdk.models.tenant import Tenant
 
 _LOG = get_logger('r8s-report-processor')
 
@@ -27,7 +28,7 @@ class ReportProcessor(AbstractCommandProcessor):
         self.job_service = job_service
         self.report_service = report_service
         self.tenant_service = tenant_service
-        self.report_type_mapping = {
+        self.report_type_mapping: Dict[str, Callable] = {
             None: self.general_report,
             'download': self.download_report
         }

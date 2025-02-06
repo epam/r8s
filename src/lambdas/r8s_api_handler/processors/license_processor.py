@@ -63,19 +63,20 @@ class LicenseProcessor(AbstractCommandProcessor):
                 content=f'License with key \'{license_key}\' does not exist.'
             )
 
-        algorithm_name = license_.algorithm_id
+        algorithm_map = license_.algorithm_mapping
 
-        _LOG.debug(f'Describing licensed algorithm \'{algorithm_name}\'')
-        algorithm = self.algorithm_service.get_by_name(name=algorithm_name)
+        for _, algorithm_name in algorithm_map.items():
+            _LOG.debug(f'Describing licensed algorithm \'{algorithm_name}\'')
+            algorithm = self.algorithm_service.get_by_name(name=algorithm_name)
 
-        if algorithm:
-            _LOG.error(f'Algorithm \'{algorithm_name}\' linked to '
-                       f'license \'{license_key}\' must be deleted')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Algorithm \'{algorithm_name}\' linked to '
-                        f'license \'{license_key}\' must be deleted'
-            )
+            if algorithm:
+                _LOG.error(f'Algorithm \'{algorithm_name}\' linked to '
+                           f'license \'{license_key}\' must be deleted')
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content=f'Algorithm \'{algorithm_name}\' linked to '
+                            f'license \'{license_key}\' must be deleted'
+                )
 
         _LOG.debug(f'Deleting license \'{license_key}\'')
         self.license_service.delete(license_obj=license_)

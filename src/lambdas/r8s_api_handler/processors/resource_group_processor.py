@@ -5,10 +5,9 @@ from modular_sdk.commons.constants import (RIGHTSIZER_LICENSES_TYPE,
 from modular_sdk.models.application import Application
 from modular_sdk.models.parent import Parent
 
-from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    build_response, RESPONSE_OK_CODE, \
+from commons import RESPONSE_BAD_REQUEST_CODE, build_response, \
+    RESPONSE_OK_CODE, \
     validate_params
-from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import GET_METHOD, PATCH_METHOD, \
     PARENT_ID_ATTR, \
     ERROR_NO_APPLICATION_FOUND, ADD_TAGS_ATTR, \

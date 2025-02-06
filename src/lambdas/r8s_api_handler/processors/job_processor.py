@@ -18,9 +18,10 @@ from commons.constants import CLOUD_AWS, TENANTS_ATTR, \
     REMAINING_BALANCE_ATTR, ENV_LM_TOKEN_LIFETIME_MINUTES, LIMIT_ATTR, \
     MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE, \
     APPLICATION_TENANTS_ALL
-from commons.constants import POST_METHOD, GET_METHOD, DELETE_METHOD, ID_ATTR, \
-    NAME_ATTR, USER_ID_ATTR, PARENT_ID_ATTR, SCAN_FROM_DATE_ATTR, \
-    SCAN_TO_DATE_ATTR, TENANT_LICENSE_KEY_ATTR
+from commons.constants import (POST_METHOD, GET_METHOD, DELETE_METHOD,
+                               ID_ATTR, NAME_ATTR, USER_ID_ATTR,
+                               PARENT_ID_ATTR, SCAN_FROM_DATE_ATTR,
+                               SCAN_TO_DATE_ATTR, TENANT_LICENSE_KEY_ATTR)
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -165,8 +166,8 @@ class JobProcessor(AbstractCommandProcessor):
 
         parent_id = event.get(PARENT_ID_ATTR)
         _LOG.debug(
-            f'Extracting application {licensed_application.application_id} parents. '
-            f'Parent id {parent_id}')
+            f'Extracting application {licensed_application.application_id} '
+            f'parents. Parent id {parent_id}')
         parents = self._get_parents(
             application_id=licensed_application.application_id,
             parent_id=parent_id

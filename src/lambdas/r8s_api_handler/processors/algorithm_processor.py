@@ -81,12 +81,12 @@ class AlgorithmProcessor(AbstractCommandProcessor):
 
         _LOG.debug(f'Got {len(algorithms)} algorithms to describe.'
                    f' Converting to dto')
-        algs_gto = [algorithm.get_dto() for algorithm in algorithms]
+        algorithms_gto = [algorithm.get_dto() for algorithm in algorithms]
 
-        _LOG.debug(f'Response: {algs_gto}')
+        _LOG.debug(f'Response: {algorithms_gto}')
         return build_response(
             code=RESPONSE_OK_CODE,
-            content=algs_gto
+            content=algorithms_gto
         )
 
     def post(self, event):
