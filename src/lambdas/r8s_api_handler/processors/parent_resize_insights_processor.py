@@ -95,7 +95,7 @@ class ParentResizeInsightsProcessor(AbstractCommandProcessor):
             )
         allowed_instances, filter_allowed_mapping, filter_excluded_mapping = \
             self.customer_preferences_service.get_allowed_instance_types(
-                cloud=cloud, parent_meta=parent_meta, instances_data=shapes)
+                parent_meta=parent_meta, instances_data=shapes)
         _LOG.debug(f'Shapes allowed by shape rules: {len(allowed_instances)}')
         forbid_change_series = algorithm.recommendation_settings. \
             forbid_change_series

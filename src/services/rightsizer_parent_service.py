@@ -3,7 +3,7 @@ from typing import List, Union
 from modular_sdk.commons import generate_id
 from modular_sdk.commons.constants import RIGHTSIZER_PARENT_TYPE, \
     TENANT_PARENT_MAP_RIGHTSIZER_TYPE, RIGHTSIZER_LICENSES_PARENT_TYPE, \
-    TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE, ParentScope, ParentType
+    TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE, ParentScope
 from modular_sdk.models.parent import Parent
 from modular_sdk.services.customer_service import CustomerService
 from modular_sdk.services.parent_service import ParentService

@@ -105,6 +105,9 @@ class CognitoClient(BaseAuthClient):
                                                    Password=password,
                                                    Permanent=permanent)
 
+    def refresh_token(self, token: str):
+        raise NotImplementedError()
+
     def __get_client_id(self):
         user_pool_id = self.__get_user_pool_id()
         client = self.client.list_user_pool_clients(
@@ -123,7 +126,7 @@ class CognitoClient(BaseAuthClient):
             if pool.get('Name') == user_pool_name:
                 return pool['Id']
 
-    def get_user(self, username):
+    def get_user(self, username) -> dict:
         users = self.is_user_exists(username=username)
         if users:
             return users[0]
@@ -132,7 +135,7 @@ class CognitoClient(BaseAuthClient):
             code=RESPONSE_BAD_REQUEST_CODE,
             content=f'No user with username {username} was found')
 
-    def is_user_exists(self, username):
+    def is_user_exists(self, username) -> list:
         user_pool_id = self.__get_user_pool_id()
         users = self.client.list_users(
             UserPoolId=user_pool_id,

@@ -1,7 +1,7 @@
 import json
 import os
 from abc import ABC, abstractmethod
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 
 import boto3
 from botocore.client import ClientError
@@ -69,7 +69,8 @@ class SSMClient(AbstractSSMClient):
             _LOG.error(f'Can\'t get secret for name \'{secret_name}\', '
                        f'error code: \'{error_code}\'')
 
-    def create_secret(self, secret_name: str, secret_value: str,
+    def create_secret(self, secret_name: str,
+                      secret_value: Any[str, list, dict],
                       secret_type='SecureString'):
         try:
             if isinstance(secret_value, (list, dict)):

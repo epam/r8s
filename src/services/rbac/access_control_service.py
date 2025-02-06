@@ -5,7 +5,6 @@ from commons.constants import USER_ID_ATTR, CUSTOMER_ATTR
 from commons.log_helper import get_logger
 from models.policy import Policy
 from models.role import Role
-from models.user import User
 from services.rbac.iam_service import IamService
 from services.setting_service import SettingsService
 from services.user_service import CognitoUserService

@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from commons.constants import CUSTOMER_ATTR, INSTANCE_ID_ATTR, ADDED_AT_ATTR, \
+from commons.constants import CUSTOMER_ATTR, ADDED_AT_ATTR, \
     RECOMMENDATION_TYPE_ATTR, JOB_ID_ATTR, TENANT_ATTR, RESOURCE_ID_ATTR, \
     RESOURCE_TYPE_ATTR
 from commons.log_helper import get_logger

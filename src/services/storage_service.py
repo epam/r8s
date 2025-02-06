@@ -1,3 +1,5 @@
+from typing import Dict, Callable
+
 from bson import ObjectId
 from bson.errors import InvalidId
 from mongoengine.errors import DoesNotExist, ValidationError
@@ -65,7 +67,7 @@ class StorageService:
         storage.delete()
 
     def validate_storage_access(self, service, access):
-        access_validator_mapping = {
+        access_validator_mapping: Dict[StorageServiceEnum, Callable] = {
             StorageServiceEnum.S3_BUCKET: self._validate_s3_access
         }
         validator = access_validator_mapping.get(service)

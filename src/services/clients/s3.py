@@ -102,7 +102,7 @@ class S3Client:
         """
         Check if specified bucket exists.
         :param bucket_name: name of the bucket to check;
-        :return: True is exists, otherwise - False
+        :return: True if exists, otherwise - False
         """
         existing_buckets = self._list_buckets()
         return bucket_name in existing_buckets

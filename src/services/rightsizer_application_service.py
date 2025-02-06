@@ -190,9 +190,10 @@ class RightSizerApplicationService(ApplicationService):
             application_meta_obj = meta_attr_class()
         return application_meta_obj
 
-    def set_application_meta(self, application: Application,
-                             meta: Union[RightsizerApplicationMeta,
-                             RightsizerLicensesApplicationMeta]):
+    def set_application_meta(
+            self, application: Application,
+            meta: Union[RightsizerApplicationMeta, RightsizerLicensesApplicationMeta]
+    ):
         meta_dict = meta.as_dict()
 
         excess_attributes = self._excess_attributes_cache.get(
@@ -212,9 +213,10 @@ class RightSizerApplicationService(ApplicationService):
                 filtered.append(application)
         return filtered
 
-    def resolve_application(self, event: dict,
-                            type_=MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE) -> \
-            List[Application]:
+    def resolve_application(
+            self, event: dict,
+            type_=MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE
+    ) -> List[Application]:
         user_customer = event.get(PARAM_USER_CUSTOMER)
         event_application = event.get(APPLICATION_ID_ATTR)
 

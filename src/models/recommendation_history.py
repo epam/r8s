@@ -9,6 +9,7 @@ from models.base_model import BaseModel
 RESOURCE_TYPE_INSTANCE = 'INSTANCE'
 RESOURCE_TYPE_GROUP = 'GROUP'
 
+
 class FeedbackStatusEnum(ListEnum):
     APPLIED = 'APPLIED'
     DONT_RECOMMEND = 'DONT_RECOMMEND'

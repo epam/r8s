@@ -188,7 +188,7 @@ class LicenseManagerClient:
         proper delegated handler. Apart from that, catches any risen
         request related exception.
         :parameter url: str
-        :parameter method:str
+        :parameter method: str
         :parameter payload: dict
         :return: Union[Response, Type[None]]
         """

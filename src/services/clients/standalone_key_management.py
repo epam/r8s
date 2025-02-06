@@ -511,7 +511,7 @@ class StandaloneKeyManagementClient(AbstractKeyManagementClient):
         raw_mode = data.get(DSS_MODE_ATTR, default)
         try:
             parameters['mode'] = str(raw_mode)
-        except (ValueError, Exception) as e:
+        except (ValueError, Exception):
             _LOG.warning(f'Improper DSS mode value: \'{raw_mode}\'.')
             return None
 

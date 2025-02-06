@@ -62,7 +62,7 @@ class RegionPriceCheck(AbstractHealthCheck):
         price_map = self.get_region_map(prices=prices)
 
         clouds = (CLOUD_AWS, CLOUD_AZURE, CLOUD_GOOGLE)
-        if not all([price_map.get('DEFAULT', {}).get(cloud) for cloud in clouds]):
+        if not all([price_map.get('DEFAULT', {}).get(c) for c in clouds]):
             return self.not_ok_result(
                 details=price_map
             )
@@ -146,9 +146,10 @@ class SuspiciousPriceCheck(AbstractHealthCheck):
     def check(self, aws_shapes: List[Shape], azure_shapes: List[Shape],
               gcp_shapes: List[Shape], prices: List[ShapePrice]) \
             -> Union[List[CheckResult], CheckResult]:
-
+        shapes = list(itertools.chain(aws_shapes, azure_shapes, gcp_shapes))
         shape_name_cpu_mapping = self._shape_cpu_mapping(
-            shapes=itertools.chain(aws_shapes, azure_shapes, gcp_shapes))
+            shapes=shapes
+        )
         suspicious_prices = []
 
         for price in prices:
