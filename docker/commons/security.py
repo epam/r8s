@@ -1,19 +1,18 @@
 from abc import ABC, abstractmethod
-from commons.constants import KID_ATTR, ALG_ATTR, TYP_ATTR
-from services.clients.abstract_key_management import \
-    AbstractKeyManagementClient
-
 from base64 import urlsafe_b64encode
+from datetime import datetime
 from json import dumps
 
-from datetime import datetime
+from commons.constants import KID_ATTR, ALG_ATTR, TYP_ATTR
+
+from services.clients.abstract_key_management import \
+    AbstractKeyManagementClient
 
 EXPIRATION_ATTR = 'exp'
 ENCODING = 'utf-8'
 
 
 class AbstractTokenEncoder(ABC):
-
     # Token: Header fields
     kid: str
     typ: str
