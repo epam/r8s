@@ -1,14 +1,13 @@
 import os.path
 from typing import Tuple, Optional
 
+from modular_sdk.commons.constants import ParentType
 from modular_sdk.models.application import Application
 from modular_sdk.models.parent import Parent
-from modular_sdk.commons.constants import ParentType
 
 from commons.constants import (JOB_STEP_INITIALIZATION,
                                TENANT_LICENSE_KEY_ATTR, PROFILE_LOG_PATH,
-                               JOB_STEP_INITIALIZE_ALGORITHM, RESOURCE_TYPE_VM,
-                               RESOURCE_TYPE_ATTR)
+                               JOB_STEP_INITIALIZE_ALGORITHM, RESOURCE_TYPE_VM)
 from commons.exception import ExecutorException, LicenseForbiddenException
 from commons.log_helper import get_logger
 from commons.profiler import profiler
@@ -46,7 +45,8 @@ from services.storage_service import StorageService
 algorithm_service: AlgorithmService = SERVICE_PROVIDER.algorithm_service()
 storage_service: StorageService = SERVICE_PROVIDER.storage_service()
 job_service: JobService = SERVICE_PROVIDER.job_service()
-environment_service: EnvironmentService = SERVICE_PROVIDER.environment_service()
+environment_service: EnvironmentService = (
+    SERVICE_PROVIDER.environment_service())
 os_service: OSService = SERVICE_PROVIDER.os_service()
 metrics_service: MetricsService = SERVICE_PROVIDER.metrics_service()
 schedule_service: ScheduleService = SERVICE_PROVIDER.schedule_service()
@@ -381,8 +381,10 @@ def process_tenant_instances(metrics_dir, reports_dir,
     )
 
 
-def get_dojo_tenant_config(customer_name: str,
-        tenant_name:str) -> Tuple[Optional[Application], Optional[Parent]]:
+def get_dojo_tenant_config(
+        customer_name: str,
+        tenant_name: str
+) -> Tuple[Optional[Application], Optional[Parent]]:
     _LOG.debug(f'Describing Dojo parent for tenant {tenant_name}')
     dojo_parent = parent_service.get_linked_parent(
         tenant_name=tenant_name,
@@ -535,7 +537,6 @@ def main():
 
     _LOG.debug(f'Describing License \'{license_key}\'')
     license_: License = license_service.get_license(license_id=license_key)
-
 
     for tenant in scan_tenants:
         try:
