@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Union, Optional, TypeVar, Generic, Dict
 from re import match
+from typing import Union, Optional, TypeVar, Generic, Dict
+
 from commons.log_helper import get_logger
 
 K = TypeVar('K')
@@ -14,7 +15,6 @@ HASH_STD_ATTR = 'hash_std'
 ALG_PATTERN = f'(?P<{KEY_TYPE_ATTR}>.+):(?P<{KEY_STD_ATTR}>.+)_' \
               f'(?P<{SIG_SCHEME_ATTR}>.+)_' \
               f'(?P<{HASH_TYPE_ATTR}>.+):(?P<{HASH_STD_ATTR}>.+)'
-
 
 _LOG = get_logger(__name__)
 
@@ -40,7 +40,20 @@ class AbstractKeyManagementClient(ABC):
         raise NotImplemented
 
     @abstractmethod
+    def verify(self, key_id: str, message: Union[str, bytes], algorithm: str,
+               signature: bytes, encoding='utf-8') -> bool:
+        raise NotImplemented
+
+    @abstractmethod
     def generate(self, key_type: str, key_std: str, **data) -> IKey:
+        raise NotImplemented
+
+    @abstractmethod
+    def save(self, key_id: str, key: IKey, key_format: str, **data):
+        raise NotImplemented
+
+    @abstractmethod
+    def delete(self, key_id: str):
         raise NotImplemented
 
     @abstractmethod
@@ -60,8 +73,8 @@ class AbstractKeyManagementClient(ABC):
     @classmethod
     @abstractmethod
     def is_signature_scheme_accessible(
-        cls, sig_scheme: str, key_type: str, key_std: str, hash_type: str,
-        hash_std: str
+            cls, sig_scheme: str, key_type: str, key_std: str, hash_type: str,
+            hash_std: str
     ):
         raise NotImplemented
 

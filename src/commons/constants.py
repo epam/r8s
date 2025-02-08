@@ -336,6 +336,9 @@ STAGE_ATTR = 'stage'
 KEY_ID_ATTR = 'key_id'
 B64ENCODED_ATTR = 'b64_encoded'
 
+SERVICE_TYPE_ATTR = 'service_type'
+SERVICE_TYPE_RIGHTSIZER = 'RIGHTSIZER'
+
 ALLOWED_ATTR = 'allowed'
 FORBIDDEN_ATTR = 'forbidden'
 REMAINING_BALANCE_ATTR = 'remaining_balance'

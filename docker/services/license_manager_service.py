@@ -118,7 +118,7 @@ class LicenseManagerService:
             _LOG.warning('Client authorization token could be established.')
             return None
 
-        response = self.license_manager_client.patch_job(
+        response = self.license_manager_client.update_job(
             job_id=job_id, created_at=created_at, started_at=started_at,
             stopped_at=stopped_at, status=status, auth=auth
         )
