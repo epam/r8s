@@ -510,12 +510,12 @@ class MetricsService:
         try:
             if not parse_index:
                 return pd.read_csv(metric_file_path,
-                                   **algorithm.read_configuration)
+                                   **algorithm.get_read_configuration)
             return pd.read_csv(
                 metric_file_path, parse_dates=True,
                 date_parser=dateparse,
                 index_col=algorithm.timestamp_attribute,
-                **algorithm.read_configuration)
+                **algorithm.get_read_configuration)
         except Exception as e:
             _LOG.error(f'Error occurred while reading metrics file: {str(e)}')
             raise ExecutorException(
