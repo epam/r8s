@@ -55,3 +55,18 @@ class DojoParentMeta(MapAttribute):
             't': self.test,
             'saj': self.send_after_job
         }
+
+    @classmethod
+    def from_dict(cls, dct: dict):
+        return cls(
+            scan_type=dct['st'],
+            product_type=dct['pt'],
+            product=dct['p'],
+            engagement=dct['e'],
+            test=dct['t'],
+            send_after_job=dct.get('saj') or False,
+        )
+
+    @classmethod
+    def from_parent(cls, parent):
+        return cls.from_dict(parent.meta.as_dict())

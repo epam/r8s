@@ -1,9 +1,9 @@
 import datetime
 
+from commons.enum import ListEnum
 from mongoengine import (StringField, FloatField, EnumField, DateTimeField,
                          ListField)
 
-from commons.enum import ListEnum
 from models.base_model import BaseModel
 
 
