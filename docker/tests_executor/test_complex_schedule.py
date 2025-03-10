@@ -1,13 +1,16 @@
 import os
+from datetime import time
 from unittest.mock import patch
 
 import pandas as pd
 
 from commons.constants import ACTION_SCHEDULE
 from tests_executor.base_executor_test import BaseExecutorTest
-from tests_executor.constants import POINTS_IN_DAY, WORK_DAYS
-from tests_executor.utils import constant_to_series, \
-    generate_timestamp_series, generate_scheduled_metric_series, dateparse
+from tests_executor.constants import (POINTS_IN_DAY, RECOMMENDATION_KEY,
+                                      SCHEDULE_KEY)
+from tests_executor.utils import (generate_scheduled_metric_series,
+                                  constant_to_series,
+                                  generate_timestamp_series, dateparse)
 
 
 class TestComplexSchedule(BaseExecutorTest):
@@ -16,7 +19,7 @@ class TestComplexSchedule(BaseExecutorTest):
 
         self.instance_id = 'schedule_complex'
 
-        length = POINTS_IN_DAY * 14
+        length = POINTS_IN_DAY * 28
         instance_id_series = constant_to_series(
             value=self.instance_id,
             length=length
@@ -109,40 +112,45 @@ class TestComplexSchedule(BaseExecutorTest):
 
     @patch.dict(os.environ, {'KMP_DUPLICATE_LIB_OK': "TRUE"})
     def test_complex_schedule(self):
-        result = self.recommendation_service.process_instance(
+        result, _ = self.recommendation_service.process_instance(
             metric_file_path=self.metrics_file_path,
             algorithm=self.algorithm,
             reports_dir=self.reports_path
         )
+        self.assert_resource_id(
+            result=result,
+            resource_id=self.instance_id
+        )
 
-        self.assertEqual(result.get('instance_id'), self.instance_id)
-
-        schedule = result.get('schedule')
+        recommendation = result.get(RECOMMENDATION_KEY, {})
+        schedule = recommendation.get(SCHEDULE_KEY)
         self.assertEqual(len(schedule), 3)
 
         # first schedule part [Friday - Sunday]
         schedule_item = schedule[0]
-        weekdays = schedule_item.get('weekdays')
-
-        self.assertIn(schedule_item.get('start'), ('09:50', '10:00', '10:10'))
-        self.assertIn(schedule_item.get('stop'), ('14:50', '15:00', '15:10'))
-        self.assertEqual(set(weekdays), {'Friday', 'Saturday', 'Sunday'})
+        self.assert_schedule(
+            schedule_item=schedule_item,
+            expected_start=time(10, 0),
+            expected_stop=time(15, 0),
+            weekdays={'Friday', 'Saturday', 'Sunday'}
+        )
 
         # second schedule part [Thursday]
         schedule_item = schedule[1]
-        weekdays = schedule_item.get('weekdays')
-
-        self.assertEqual(schedule_item.get('start'), '00:00')
-        self.assertEqual(schedule_item.get('stop'), '23:50')
-        self.assertEqual(set(weekdays), {'Thursday'})
+        self.assert_schedule(
+            schedule_item=schedule_item,
+            expected_start=time(0, 0),
+            expected_stop=time(23, 50),
+            weekdays={'Thursday'}
+        )
 
         # third schedule part [Monday - Wednesday]
         schedule_item = schedule[2]
-        weekdays = schedule_item.get('weekdays')
-        self.assertIn(schedule_item.get('start'), ('08:50', '09:00', '09:10'))
-        self.assertIn(schedule_item.get('stop'), ('17:50', '18:00', '18:10'))
-
-        self.assertEqual(set(weekdays), {'Monday', 'Tuesday', 'Wednesday'})
-
+        self.assert_schedule(
+            schedule_item=schedule_item,
+            expected_start=time(9, 0),
+            expected_stop=time(18, 0),
+            weekdays={'Monday', 'Tuesday', 'Wednesday'}
+        )
         self.assert_stats(result=result)
         self.assert_action(result=result, expected_actions=[ACTION_SCHEDULE])

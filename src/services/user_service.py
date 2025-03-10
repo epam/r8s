@@ -1,16 +1,18 @@
 from commons import ApplicationException, \
     build_response, RESPONSE_BAD_REQUEST_CODE, \
     RESPONSE_RESOURCE_NOT_FOUND_CODE
+from commons.constants import CUSTOMER_ATTR
 from commons.log_helper import get_logger
-from services.clients.cognito import CognitoClient, CUSTOM_CUSTOMER_ATTR
+from connections.auth_extension.base_auth_client import BaseAuthClient
+from services.clients.cognito import CUSTOM_CUSTOMER_ATTR
 
 _LOG = get_logger('cognito-client')
 
 
 class CognitoUserService:
 
-    def __init__(self, client: CognitoClient):
-        self.client: CognitoClient = client
+    def __init__(self, client: BaseAuthClient):
+        self.client: BaseAuthClient = client
 
     def save(self, username, password, customer, role):
         _LOG.debug(f'Validating password for user {username}')
@@ -32,12 +34,13 @@ class CognitoUserService:
                                  password=password)
 
     def get_user(self, user_id):
-        if isinstance(self.client, CognitoClient):
-            return self.client.get_user(user_id)
         return self.client.get_user(user_id)
 
     def get_user_role_name(self, user):
         return self.client.get_user_role(user)
+
+    def get_user_id(self, user: str):
+        return self.client.get_user_id(user)
 
     @staticmethod
     def __validate_password(password):
@@ -84,23 +87,17 @@ class CognitoUserService:
         return self.client.get_user_customer(user)
 
     def list_users(self, customer=None, attributes_to_get=None):
-        response = self.client.list_users(
-            attributes_to_get=attributes_to_get)
-        if not response or 'Users' not in response:
+        users = self.client.list_users(attributes_to_get=attributes_to_get)
+        if not users:
             return
-        users = response['Users']
-
         if not customer:
             return users
         filtered_users = []
-
         for user in users:
-            attributes = user.get('Attributes')
-            user_customer = [i['Value'] for i in attributes if i['Name'] ==
-                             CUSTOM_CUSTOMER_ATTR]
-            if not user_customer or len(user_customer) != 1:
-                continue
-            if user_customer[0] == customer:
+            user_customer = user.get(CUSTOM_CUSTOMER_ATTR)
+            if not user_customer:
+                user_customer = user.get(CUSTOMER_ATTR)
+            if user_customer and user_customer == customer:
                 filtered_users.append(user)
         return filtered_users
 
@@ -120,3 +117,6 @@ class CognitoUserService:
 
     def delete_user(self, username):
         self.client.delete_user(username=username)
+
+    def refresh_token(self, token):
+        return self.client.refresh_token(token)

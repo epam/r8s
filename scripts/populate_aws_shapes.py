@@ -4,36 +4,55 @@ import os
 import sys
 from pathlib import Path
 
+ALLOWED_REGIONS = ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2',
+                   'ca-central-1', 'eu-west-1', 'eu-central-1', 'eu-west-2',
+                   'eu-west-3', 'eu-north-1', 'ap-northeast-1',
+                   'ap-northeast-2', 'ap-southeast-1', 'ap-southeast-2',
+                   'ap-south-1', 'sa-east-1']
+ALLOWED_OS = ['Linux', 'Windows']
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Script for r8s Shape/Shape Price '
                     'collections population')
     parser.add_argument('-ak', '--access_key', help='AWS Access Key',
-                        required=True)
+                        required=False)
     parser.add_argument('-sk', '--secret_key', help='AWS Secret Access Key',
-                        required=True)
+                        required=False)
     parser.add_argument('-t', '--session_token', help='AWS Session Token',
-                        required=True)
-    parser.add_argument('-r', '--region', help='AWS Region', required=True)
+                        required=False)
+    parser.add_argument('-r', '--region', help='AWS Region',
+                        required=False, choices=ALLOWED_REGIONS, default='eu-central-1')
     parser.add_argument('-uri', '--r8s_mongodb_connection_uri',
-                        help='MongoDB Connection string', required=True)
-    parser.add_argument('-pr', '--price_region', action='append', required=True,
+                        help='MongoDB Connection string', required=False)
+    parser.add_argument('-pr', '--price_region', action='append',
+                        required=False, choices=ALLOWED_REGIONS,
+                        default=ALLOWED_REGIONS,
                         help='List of AWS regions to populate price for')
     parser.add_argument('-os', '--operating_system', action='append',
-                        required=True,
-                        help='List of AWS operation systems to populate price for')
-    return vars(parser.parse_args())
+                        required=False, choices=ALLOWED_OS, default=ALLOWED_OS,
+                        help='List of AWS operation systems '
+                             'to populate price for')
+    args = vars(parser.parse_args())
+    if not args.get('price_region'):
+        args['price_region'] = ALLOWED_REGIONS
+    if not args.get('operating_system'):
+        args['operating_system'] = ALLOWED_OS
+    return args
 
 
 def export_args(access_key, secret_key, session_token,
                 region, r8s_mongodb_connection_uri, *args, **kwargs):
-    os.environ['AWS_ACCESS_KEY_ID'] = access_key
-    os.environ['AWS_SECRET_ACCESS_KEY'] = secret_key
-    os.environ['AWS_SESSION_TOKEN'] = session_token
+    if access_key and secret_key:
+        os.environ['AWS_ACCESS_KEY_ID'] = access_key
+        os.environ['AWS_SECRET_ACCESS_KEY'] = secret_key
+    if session_token:
+        os.environ['AWS_SESSION_TOKEN'] = session_token
     os.environ['AWS_DEFAULT_REGION'] = region
     os.environ['AWS_REGION'] = region
-    os.environ['r8s_mongodb_connection_uri'] = r8s_mongodb_connection_uri
+    if r8s_mongodb_connection_uri:
+        os.environ['r8s_mongodb_connection_uri'] = r8s_mongodb_connection_uri
 
 
 def export_src_path():
@@ -63,8 +82,14 @@ def populate_shapes(shapes_data):
     for shape_name, shape_data in shape_mapping.items():
         print(f'Processing shape: {shape_name}')
 
+        if shape_name.startswith('db.'):
+            resource_type = 'RDS'
+        else:
+            resource_type = 'VM'
+
         shape_obj_data = {
             'name': shape_name,
+            'resource_type': resource_type,
             'cloud': shape_data.get('cloud'),
             'cpu': shape_data.get('cpu'),
             'memory': shape_data.get('memory'),

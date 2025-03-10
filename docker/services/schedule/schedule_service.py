@@ -18,8 +18,7 @@ from services.schedule.schedule_item import ScheduleItem
 _LOG = get_logger('r8s-schedule-service')
 
 SECONDS_IN_DAY = 86400
-MINIMUM_DAYS_REQUIRED = 14
-MINIMUM_SCHEDULE_DURATION_MINUTES = 60
+MINIMUM_SCHEDULE_DURATION_MINUTES = 120
 MAX_GROUPING_DIFFERENCE_SECONDS = 3600
 
 
@@ -36,17 +35,27 @@ class ScheduleService:
         _LOG.debug(f'Checking if schedule is disabled by user adjustments')
         if self._is_schedule_disabled(recommendations=past_recommendations):
             _LOG.debug(f'Schedule action is disabled for instance.')
-            return self._get_always_run_schedule()
+            return self.get_always_run_schedule()
 
         _LOG.debug(f'Generating schedule for instance \'{instance_id}\'')
 
         covered_days = (df.index.max() - df.index.min()).total_seconds()
         covered_days = round(covered_days / SECONDS_IN_DAY)
 
-        if covered_days < recommendation_settings.min_allowed_days_schedule:
-            _LOG.warning(f'Minimum {MINIMUM_DAYS_REQUIRED} days of '
+        min_days = recommendation_settings.min_allowed_days_schedule
+        if covered_days < min_days:
+            _LOG.warning(f'Minimum {min_days} days of '
                          f'telemetry required for schedule recommendation')
-            return self._get_always_run_schedule()
+            return self.get_always_run_schedule()
+
+        max_days = recommendation_settings.max_allowed_days_schedule
+        if covered_days > max_days:
+            _LOG.debug(f'Discarding metrics that are older than {max_days} '
+                       f'for schedule calculation')
+            threshold = df.index.max().date() - timedelta(days=max_days)
+            shutdown_periods = [df for df in shutdown_periods
+                                if df.index.max().date() >= threshold]
+            df = df[df.index.date >= threshold]
 
         _LOG.debug(f'Extracting active periods')
         active_schedule_periods = self._get_active_schedule_periods(
@@ -61,10 +70,12 @@ class ScheduleService:
             action='shutdown'
         )
 
+        min_duration = recommendation_settings.min_schedule_day_duration_minutes
         _LOG.debug(f'Generating daily schedules')
         day_schedules = self._generate_daily_schedule(
             df=df,
             frequency_map=frequency_map,
+            minimum_duration=min_duration
         )
         _LOG.debug(f'Grouping schedules by day')
         schedule_result = self._group_by_days(day_schedules=day_schedules)
@@ -218,9 +229,25 @@ class ScheduleService:
         return points
 
     @staticmethod
-    def _get_always_run_schedule():
+    def get_always_run_schedule():
         return [{
             'start': '00:00',
             'stop': '00:00',
             'weekdays': WEEK_DAYS
         }]
+
+    def get_runtime_minutes(self, schedule: list):
+        runtime_minutes = 0
+        day_time_points = self._get_day_time_points(record_step_minutes=5)
+        for schedule_part in schedule:
+            start = schedule_part.get('start')
+            stop = schedule_part.get('stop')
+
+            start_index = day_time_points.index(start)
+            stop_index = day_time_points.index(stop)
+
+            covered_points = len(day_time_points[start_index: stop_index])
+            runtime_minutes_day = covered_points * 5
+            runtime_minutes += (runtime_minutes_day *
+                                len(schedule_part.get('weekdays')))
+        return runtime_minutes

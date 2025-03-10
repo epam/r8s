@@ -10,6 +10,10 @@ def generate_256_bit() -> str:
 
 def init_vault():
     ssm = SERVICE_PROVIDER.ssm_service()
+    if ssm.client.enable_secrets_engine():
+        print('Vault engine was enabled')
+    else:
+        print('Vault engine has been already enabled')
     if ssm.get_secret_value('token'):
         print('Token inside Vault already exists. Skipping...')
         return

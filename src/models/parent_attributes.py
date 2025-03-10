@@ -1,5 +1,5 @@
 from pynamodb.attributes import MapAttribute, UnicodeAttribute, \
-    ListAttribute
+    ListAttribute, BooleanAttribute
 
 
 class ShapeRule(MapAttribute):
@@ -11,11 +11,39 @@ class ShapeRule(MapAttribute):
     value = UnicodeAttribute(null=True)
 
 
-class ParentMeta(MapAttribute):
-    shape_rules = ListAttribute(of=ShapeRule, default=list)
-
-
 class LicensesParentMeta(MapAttribute):
-    cloud = UnicodeAttribute(null=True)
-    algorithm = UnicodeAttribute(null=True)
-    license_key = UnicodeAttribute(null=True)
+    shape_rules = ListAttribute(of=ShapeRule, null=True, default=[])
+
+
+class DojoParentMeta(MapAttribute):
+    scan_type = UnicodeAttribute(attr_name='st', null=True)
+    product_type = UnicodeAttribute(attr_name='pt', null=True)
+    product = UnicodeAttribute(attr_name='p', null=True)
+    engagement = UnicodeAttribute(attr_name='e', null=True)
+    test = UnicodeAttribute(attr_name='t', null=True)
+    send_after_job = BooleanAttribute(attr_name='saj', null=True)
+
+    @staticmethod
+    def build():
+        return DojoParentMeta(
+            scan_type='Generic Findings Import',
+            product_type='RightSizer',
+            product='{tenant_name}',
+            engagement='RightSizer Main',
+            test='{job_id}',
+            send_after_job=True
+        )
+
+    def as_dict(self) -> dict:
+        """
+        Dict that is stored to DB
+        :return:
+        """
+        return {
+            'st': self.scan_type,
+            'pt': self.product_type,
+            'p': self.product,
+            'e': self.engagement,
+            't': self.test,
+            'saj': self.send_after_job
+        }

@@ -6,7 +6,17 @@ import sys
 import psutil
 
 from commons import generate_id, build_response
-from commons.constants import BATCH_ENV_SUBMITTED_AT, BATCH_ENV_JOB_ID
+from commons.constants import BATCH_ENV_SUBMITTED_AT, BATCH_ENV_JOB_ID, \
+    ENV_CUSTOMER_NAME, ENV_SCAN_TENANTS, ENV_FORCE_RESCAN, \
+    ENV_LM_TOKEN_LIFETIME_MINUTES, APPLICATION_ID_ATTR, ENV_SERVICE_MODE, \
+    ENV_MONGODB_USER, ENV_MONGODB_PASSWORD, ENV_MONGODB_URL, \
+    ENV_MONGODB_DATABASE, ENV_MINIO_HOST, ENV_MINIO_PORT, ENV_MINIO_ACCESS_KEY, \
+    ENV_MINIO_SECRET_ACCESS_KEY, ENV_VAULT_TOKEN, ENV_VAULT_HOST, \
+    ENV_VAULT_PORT, ENV_AWS_ACCESS_KEY_ID, ENV_AWS_SECRET_ACCESS_KEY, \
+    ENV_AWS_SESSION_TOKEN, ENV_RABBITMQ_APPLICATION_ID, \
+    MONGODB_CONNECTION_URI_PARAMETER, ENV_MODULAR_SERVICE_MODE, \
+    ENV_MODULAR_MONGO_USER, ENV_MODULAR_MONGO_PASSWORD, ENV_MODULAR_MONGO_URL, \
+    ENV_MODULAR_MONGO_DB_NAME, ENV_SERVICE_MODE_S3, ENV_MINIO_ENDPOINT
 from commons.log_helper import get_logger
 from commons.time_helper import utc_iso
 from models.job import Job
@@ -20,6 +30,37 @@ docker_path = root / 'docker'
 executor_path = docker_path / 'executor.py'
 
 EXECUTABLE_VENV_FOLDER_PRIORITY = ['.executor_venv', 'venv']
+ALLOWED_ENV_KEYS = (
+    APPLICATION_ID_ATTR,
+    ENV_SERVICE_MODE,
+    ENV_CUSTOMER_NAME,
+    ENV_SCAN_TENANTS,
+    ENV_FORCE_RESCAN,
+    ENV_LM_TOKEN_LIFETIME_MINUTES,
+    ENV_MONGODB_USER,
+    ENV_MONGODB_PASSWORD,
+    ENV_MONGODB_URL,
+    ENV_MONGODB_DATABASE,
+    ENV_MINIO_ENDPOINT,
+    ENV_MINIO_HOST,
+    ENV_MINIO_PORT,
+    ENV_MINIO_ACCESS_KEY,
+    ENV_MINIO_SECRET_ACCESS_KEY,
+    ENV_VAULT_TOKEN,
+    ENV_VAULT_HOST,
+    ENV_VAULT_PORT,
+    ENV_RABBITMQ_APPLICATION_ID,
+    ENV_AWS_ACCESS_KEY_ID,
+    ENV_AWS_SECRET_ACCESS_KEY,
+    ENV_AWS_SESSION_TOKEN,
+    MONGODB_CONNECTION_URI_PARAMETER,
+    ENV_MODULAR_SERVICE_MODE,
+    ENV_MODULAR_MONGO_USER,
+    ENV_MODULAR_MONGO_PASSWORD,
+    ENV_MODULAR_MONGO_URL,
+    ENV_MODULAR_MONGO_DB_NAME,
+    ENV_SERVICE_MODE_S3
+)
 
 
 class BatchToSubprocessAdapter:
@@ -80,9 +121,14 @@ class BatchToSubprocessAdapter:
         path_to_venv = self.resolve_executor_venv()
         path_to_executor = self.resolve_executor_path()
 
-        # Popen raises TypeError in case there is an env where value is None
+        environ_dict = {}
+        for key in ALLOWED_ENV_KEYS:
+            value = os.environ.get(key)
+            if value:
+                environ_dict[key] = value
+
         env = {k: v for k, v in {
-            **os.environ,
+            **environ_dict,
             **environment_variables,
             BATCH_ENV_JOB_ID: job_id,
             BATCH_ENV_SUBMITTED_AT: utc_iso()  # for scheduled jobs

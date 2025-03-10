@@ -31,6 +31,10 @@ META_KEY_RESOURCE_ID = 'resourceId'
 META_KEY_CREATE_DATE_TIMESTAMP = 'createDateTimestamp'
 MINIMUM_DAYS_TO_CUT_INCOMPLETE_EDGE_DAYS = 14
 
+INSUFFICIENT_DATA_ERROR_TEMPLATE = """Insufficient data. Analysed period 
+must be larger than a full {days} day(s) with 5-min frequency 
+of records."""
+
 
 class MetricsService:
 
@@ -103,10 +107,20 @@ class MetricsService:
         instance_id = df['instance_id'][0]
         instance_type = df['instance_type'][0]
         df = df[~df.index.duplicated(keep='last')]
-        df = df.resample(diff).ffill()
+
+        complete_index = pd.date_range(df.index.min(), df.index.max(),
+                                       freq=TIMESTAMP_FREQUENCY)
+        missing_timestamps = complete_index.difference(df.index)
+        missing_df = pd.DataFrame(index=missing_timestamps, columns=df.columns)
+        missing_df['cpu_load'].fillna(0, inplace=True)
+        missing_df['memory_load'].fillna(0, inplace=True)
+        missing_df['net_output_load'].fillna(0, inplace=True)
+        missing_df['avg_disk_iops'].fillna(-1, inplace=True)
+        missing_df['avg_disk_iops'].fillna(-1, inplace=True)
+        df = pd.concat([df, missing_df]).sort_index()
         df = df.assign(instance_id=instance_id)
         df = df.assign(instance_type=instance_type)
-        df.fillna(0, inplace=True)
+        df = df.resample(diff).ffill()
         return df
 
     def validate_metric_file(self, algorithm: Algorithm, metric_file_path):
@@ -157,7 +171,7 @@ class MetricsService:
 
     def load_df(self, path, algorithm: Algorithm,
                 applied_recommendations: List[RecommendationHistory] = None,
-                instance_meta: dict = None):
+                instance_meta: dict = None, max_days: int = None):
         all_attrs = set(list(algorithm.required_data_attributes))
         metric_attrs = set(list(algorithm.metric_attributes))
         non_metric = all_attrs - metric_attrs
@@ -184,22 +198,29 @@ class MetricsService:
                 instance_meta=instance_meta
             )
             df_duration_days = (df.index.max() - df.index.min()).days
+            min_allowed_days = (algorithm.recommendation_settings.
+                                min_allowed_days)
             if np.isnan(df_duration_days) or \
-                    df_duration_days < \
-                    algorithm.recommendation_settings.min_allowed_days:
-                _LOG.error(
-                    f'Insufficient data. Analysed period must be larger '
-                    f'than a full day with 5-min frequency of records.')
+                    df_duration_days < min_allowed_days:
+                message = INSUFFICIENT_DATA_ERROR_TEMPLATE.format(
+                    days=min_allowed_days
+                )
+                _LOG.error(message)
                 raise ExecutorException(
                     step_name=JOB_STEP_INITIALIZE_ALGORITHM,
-                    reason=f'Insufficient data. Analysed period must be larger '
-                           f'than a full day with 5-min frequency of records.'
+                    reason=message
                 )
+            max_days = max_days or recommendation_settings.max_days
             df = self.get_last_period(df,
-                                      days=recommendation_settings.max_days)
+                                      days=max_days)
             df = self.group_by_time(
                 df=df,
-                step_minutes=recommendation_settings.record_step_minutes)
+                step_minutes=recommendation_settings.record_step_minutes,
+                optimized_threshold_days=
+                recommendation_settings.optimized_aggregation_threshold_days,
+                optimized_step_minutes=
+                recommendation_settings.optimized_aggregation_step_minutes
+            )
             return df
         except ExecutorException as e:
             raise e
@@ -222,7 +243,7 @@ class MetricsService:
                 creation_dt = datetime.datetime.utcfromtimestamp(
                     creation_date_timestamp // 1000)
                 creation_dt = creation_dt.astimezone(
-                    pytz.timezone(df.index.max().tz.zone))
+                    pytz.timezone(str(df.index.max().tz)))
                 return df[(df.index >= creation_dt)]
             except Exception as e:
                 _LOG.debug(f'Failed to discard metrics before timestamp. '
@@ -277,16 +298,20 @@ class MetricsService:
 
     @profiler(execution_step=f'instance_clustering')
     def divide_on_periods(self, df, algorithm: Algorithm):
+        r_settings = algorithm.recommendation_settings
         df = self.divide_by_days(
             df, skip_incomplete_corner_days=True,
-            step_minutes=algorithm.recommendation_settings.record_step_minutes)
+            step_minutes=r_settings.record_step_minutes,
+            optimized_aggregation_threshold_days=
+            r_settings.optimized_aggregation_threshold_days,
+            optimized_step_minutes=
+            r_settings.optimized_aggregation_step_minutes)
         shutdown_periods = []
         low_util_periods = []
         good_util_periods = []
         over_util_periods = []
         centroids = []
         for index, df_day in enumerate(df):
-            # print(f'Processing day: {index}/{len(cpu_df)}')
             shutdown, low, medium, high, day_centroids = self.process_day(
                 df=df_day, algorithm=algorithm)
             shutdown_periods.extend(shutdown)
@@ -296,29 +321,53 @@ class MetricsService:
             centroids.extend(day_centroids)
 
         return shutdown_periods, low_util_periods, \
-               good_util_periods, over_util_periods, centroids
+            good_util_periods, over_util_periods, centroids
 
     @staticmethod
-    def group_by_time(df, step_minutes: int = None, freq='10Min'):
-        if step_minutes:
-            freq = f'{step_minutes}Min'
-        return df.groupby(pd.Grouper(freq=freq)).mean()
+    def group_by_time(df, step_minutes: int,
+                      optimized_threshold_days: int = None,
+                      optimized_step_minutes: int = None):
+        if not optimized_threshold_days and not optimized_step_minutes:
+            return df.groupby(pd.Grouper(freq=f'{step_minutes}Min')).mean()
+
+        threshold_date = df.index.max().date() - datetime.timedelta(
+            days=optimized_threshold_days)
+        threshold_date_str = threshold_date.isoformat()
+
+        latest_df = df[df.index >= threshold_date_str]
+        old_df = df[df.index < threshold_date_str]
+
+        latest_df = latest_df.groupby(pd.Grouper(
+            freq=f'{step_minutes}Min')).mean()
+        old_df = old_df.groupby(pd.Grouper(
+            freq=f'{optimized_step_minutes}Min')).mean()
+
+        return pd.concat([old_df, latest_df])
 
     @staticmethod
     def divide_by_days(df, skip_incomplete_corner_days: bool,
-                       step_minutes: int):
+                       step_minutes: int,
+                       optimized_aggregation_threshold_days: int = None,
+                       optimized_step_minutes: int = None):
         df_list = [group[1] for group in df.groupby(df.index.date)]
         if not df_list:
             return df_list
+        if len(df_list) < MINIMUM_DAYS_TO_CUT_INCOMPLETE_EDGE_DAYS \
+                and not skip_incomplete_corner_days:
+            return df_list
+        last_day_df = df_list[-1]
+        if len(last_day_df) < 24 * 60 // step_minutes:
+            df_list = df_list[:-1]
+        first_day_df = df_list[0]
 
-        if len(df_list) > MINIMUM_DAYS_TO_CUT_INCOMPLETE_EDGE_DAYS \
-                and skip_incomplete_corner_days:
-            last_day_df = df_list[-1]
-            if len(last_day_df) < 24 * 60 // step_minutes:
-                df_list = df_list[:-1]
-            first_day_df = df_list[0]
-            if len(first_day_df) < 24 * 60 // step_minutes:
-                df_list = df_list[1:]
+        if optimized_aggregation_threshold_days and optimized_step_minutes:
+            diff_days = abs(first_day_df.index.max().date() -
+                            last_day_df.index.max().date()).days
+            # to verify that optimized aggregation is used for the first day
+            if diff_days > optimized_aggregation_threshold_days:
+                step_minutes = optimized_step_minutes
+        if len(first_day_df) < 24 * 60 // step_minutes:
+            df_list = df_list[1:]
         return df_list
 
     def process_day(self, df: pandas.DataFrame, algorithm: Algorithm):
@@ -330,9 +379,11 @@ class MetricsService:
         df_, centroids = self.clustering_service.cluster(
             df=df,
             algorithm=algorithm)
-        _LOG.debug(f'Clusters centroids: {centroids}')
 
-        thresholds = algorithm.recommendation_settings.thresholds
+        _LOG.debug(f'Clusters centroids: {centroids}')
+        r_settings = algorithm.recommendation_settings
+        thresholds = r_settings.thresholds
+
         for index, centroid in enumerate(centroids):
             if not centroid:
                 continue
@@ -354,10 +405,21 @@ class MetricsService:
         good_util = pd.concat(good_util) if good_util else None
         over_util = pd.concat(over_util) if over_util else None
 
-        freq = f'{algorithm.recommendation_settings.record_step_minutes}Min'
+        step_minutes_options = [r_settings.record_step_minutes]
+        if (r_settings.optimized_aggregation_threshold_days
+                and r_settings.optimized_aggregation_step_minutes):
+            step_minutes_options.append(
+                r_settings.optimized_aggregation_step_minutes)
 
-        result = [self.get_time_ranges(cluster, freq=freq) for cluster in
-                  (shutdown, low_util, good_util, over_util)]
+        # compare algorithm-allowed step minutes with actual in df,
+        # leave real one if matches
+        record_step_minutes = self.get_diff_minutes(df.index[1], df.index[0])
+        if record_step_minutes in step_minutes_options:
+            step_minutes_options = [record_step_minutes]
+
+        result = [self.get_time_ranges(
+            cluster, step_minutes_options=step_minutes_options) for cluster in
+            (shutdown, low_util, good_util, over_util)]
         result.append(centroids)
         return result
 
@@ -377,44 +439,47 @@ class MetricsService:
             if period[0] <= row_time <= period[1]:
                 return row
 
-    def get_time_ranges(self, df, freq='10Min'):
+    def get_time_ranges(self, df, step_minutes_options: List[int]):
         if not isinstance(df, pd.DataFrame) or len(df) == 0:
             return []
-        df = df.asfreq(freq)
-        periods = []
-        period_start = None
-        period_end = None
+
+        period_start_row_index = None
+        period_end_row_index = None
+        dfs_ = []
+        last_row = None
+
+        if not df.index.is_monotonic_increasing:
+            df.sort_index(inplace=True)
         for row in df.itertuples():
-            cpu_load = getattr(row, COLUMN_CPU_LOAD)
-            if period_start and period_end and np.isnan(cpu_load):
-                periods.append((period_start, period_end))
-                period_start = None
-                period_end = None
-            elif not period_start and not np.isnan(cpu_load):
-                period_start = row.Index.time()
-            elif period_start and not np.isnan(cpu_load):
-                period_end = row.Index.time()
-        if period_start and period_end:
-            periods.append((period_start, period_end))
+            if not period_start_row_index:
+                period_start_row_index = row.Index
+            else:
+                diff_minutes = self.get_diff_minutes(
+                    row.Index, last_row.Index
+                )
+                if diff_minutes in step_minutes_options:
+                    period_end_row_index = row.Index
+                elif period_end_row_index:
+                    dfs_.append(df[(df.index >= period_start_row_index) &
+                                   (df.index <= period_end_row_index)])
+                    period_start_row_index = row.Index
+                    period_end_row_index = None
+            last_row = row
+        if period_start_row_index and period_end_row_index:
+            dfs_.append(df[(df.index >= period_start_row_index) & (
+                    df.index <= period_end_row_index)])
 
-        return self.build_df_from_periods(
-            df=df,
-            periods=periods
-        )
+        for index, df_ in enumerate(dfs_):
+            step_minutes = (df_.index[1] - df_.index[0]).seconds // 60
+            if step_minutes != min(step_minutes_options):
+                dfs_[index] = df_.asfreq(
+                    freq=f'{min(step_minutes_options)}Min',
+                    method='ffill')
+        return dfs_
 
-    def build_df_from_periods(self, df, periods: list):
-        dfs = []
-
-        for period in periods:
-            df_ = df.copy().apply(self.filter_by_ranges, axis=1,
-                                  periods=[period],
-                                  result_type='broadcast')
-            if not isinstance(df_, pd.DataFrame):
-                df_ = df_.to_frame()
-            df_ = df_.dropna(thresh=1)
-            if not df.empty:
-                dfs.append(df_)
-        return dfs
+    @staticmethod
+    def get_diff_minutes(t1: pd.Timestamp, t2: pd.Timestamp):
+        return int((t1 - t2).total_seconds() // 60)
 
     @staticmethod
     def filter_short_periods(periods, min_length_sec=1800):

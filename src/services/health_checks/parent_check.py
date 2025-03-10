@@ -2,7 +2,7 @@ from typing import Optional, Union, List
 
 from modular_sdk.models.parent import Parent
 from modular_sdk.services.tenant_service import TenantService
-from modular_sdk.commons.constants import RIGHTSIZER_PARENT_TYPE
+from modular_sdk.commons.constants import ParentType, ApplicationType
 
 from commons.constants import ALLOWED_RULE_ACTIONS, \
     ALLOWED_RULE_CONDITIONS, ALLOWED_SHAPE_FIELDS, CHECK_TYPE_PARENT
@@ -98,12 +98,11 @@ class ParentCheckHandler:
     def check(self):
         _LOG.debug(f'Listing parents')
         applications = self.application_service.list(
-            _type=RIGHTSIZER_PARENT_TYPE)
+            _type=ApplicationType.RIGHTSIZER)
         parents = []
         for application in applications:
             application_parents = self.parent_service.list_application_parents(
                 application_id=application.application_id,
-                type_=RIGHTSIZER_PARENT_TYPE,
                 only_active=True
             )
             parents.extend(application_parents)

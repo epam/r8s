@@ -1,6 +1,6 @@
 from typing import Optional, Union, List
 
-from modular_sdk.commons.constants import RIGHTSIZER_PARENT_TYPE
+from modular_sdk.commons.constants import ParentType
 from modular_sdk.models.application import Application
 from modular_sdk.models.parent import Parent
 from modular_sdk.services.tenant_service import TenantService
@@ -22,6 +22,7 @@ _LOG = get_logger(__name__)
 CHECK_ID_OPERATION_MODE_CONFIGURATION = 'OPERATION_MODE_CONFIGURATION'
 CHECK_ID_OPERATION_MODE_COMPATIBILITY = 'OPERATION_MODE_COMPATIBILITY'
 
+CLOUD_ALL = 'ALL'
 
 class OperationModeConfigurationCheck(AbstractHealthCheck):
 
@@ -49,10 +50,11 @@ class OperationModeConfigurationCheck(AbstractHealthCheck):
         input_storage = app_meta_dict.get(INPUT_STORAGE_ATTR)
         output_storage = app_meta_dict.get(OUTPUT_STORAGE_ATTR)
 
+        cloud = parent.cloud if parent.cloud else CLOUD_ALL
         result = {
             INPUT_STORAGE_ATTR: input_storage,
             OUTPUT_STORAGE_ATTR: output_storage,
-            CLOUD_ATTR: parent.cloud,
+            CLOUD_ATTR: cloud,
             SCOPE_ATTR: parent.scope
         }
         if any([value is None for value in result.values()]):
@@ -119,6 +121,8 @@ class OperationModeConfigurationCompatibilityCheck(AbstractHealthCheck):
 
         # Get cloud of first (any) parent
         cloud = pairs[0][1].cloud
+        if not cloud:
+            cloud = CLOUD_ALL
 
         details = {
             'tenant_parent_mapping': tenant_parent_mapping,
@@ -171,15 +175,22 @@ class OperationModeCheckHandler:
         _LOG.debug(f'Listing applications')
         applications = list(self.application_service.list(
             _type=MAESTRO_RIGHTSIZER_APPLICATION_TYPE, deleted=False))
-
+        _LOG.debug(f'Found applications: '
+                   f'{[app.application_id for app in applications]}')
         parents = []
         for application in applications:
+            _LOG.debug(f'Listing application {application.application_id} '
+                       f'parents')
             application_parents = self.parent_service.list_application_parents(
                 application_id=application.application_id,
-                type_=RIGHTSIZER_PARENT_TYPE,
                 only_active=True
             )
+            _LOG.debug(f'Found application {application.application_id} '
+                       f'parents: '
+                       f'{[parent.parent_id for parent in application_parents]}')
             parents.extend(application_parents)
+            _LOG.debug(f'App Parents: '
+                       f'{[parent.get_json() for parent in application_parents]}')
         if not applications or not parents:
             _LOG.warning(f'No active parents/applications found')
             result = CheckCollectionResult(
@@ -190,11 +201,12 @@ class OperationModeCheckHandler:
         pairs = {
             CLOUD_AWS: [],
             CLOUD_AZURE: [],
-            CLOUD_GOOGLE: []
+            CLOUD_GOOGLE: [],
+            CLOUD_ALL: []
         }
 
         for parent in parents:
-            if not parent.cloud or parent.cloud not in pairs:
+            if parent.cloud and  parent.cloud not in pairs:
                 continue
             related_application = [app for app in applications
                                    if parent.application_id ==
@@ -203,13 +215,21 @@ class OperationModeCheckHandler:
                 related_application = related_application[0]
             else:
                 related_application = None
-
-            pairs[parent.cloud].append((related_application, parent))
-
+            _LOG.debug(f'Found link: '
+                       f'Application: {related_application.application_id}, '
+                       f'Parent: {parent.parent_id}')
+            if parent.cloud:
+                pairs[parent.cloud].append((related_application, parent))
+            else:
+                pairs[CLOUD_ALL].append((related_application, parent))
         result = []
 
         for cloud, cloud_pairs in pairs.items():
+            _LOG.debug(f'Processing cloud {cloud} pairs')
             for application, parent in cloud_pairs:
+                _LOG.debug(f'Processing pair - '
+                           f'Application: {application.application_id}, '
+                           f'Parent: {parent.parent_id}')
                 checks = []
                 for check_instance in self.checks:
                     check_result = check_instance.check(application=application,
@@ -222,10 +242,11 @@ class OperationModeCheckHandler:
                     type=CHECK_TYPE_OPERATION_MODE,
                     details=checks
                 )
-
+                _LOG.debug(f'Pair result: {operation_mode_result.as_dict()}')
                 result.append(operation_mode_result.as_dict())
 
         common_check_results = []
+        _LOG.debug(f'Processing common check')
         for cloud, cloud_pairs in pairs.items():
             if not cloud_pairs:
                 continue
@@ -238,5 +259,6 @@ class OperationModeCheckHandler:
             type=CHECK_TYPE_OPERATION_MODE,
             details=common_check_results
         )
+        _LOG.debug(f'Common check result: {common_check_result.as_dict()}')
         result.append(common_check_result.as_dict())
         return result

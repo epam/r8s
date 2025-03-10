@@ -63,22 +63,35 @@ ENDPOINT_PERMISSION_MAPPING = {
         PATCH_METHOD: 'r8s:application:update_application',
         DELETE_METHOD: 'r8s:application:remove_application',
     },
+    '/applications/policies/': {
+        GET_METHOD: 'r8s:application:describe_group_policy',
+        POST_METHOD: 'r8s:application:create_group_policy',
+        PATCH_METHOD: 'r8s:application:update_group_policy',
+        DELETE_METHOD: 'r8s:application:remove_group_policy',
+    },
+    '/applications/licenses/': {
+        GET_METHOD: 'r8s:application:describe_application',
+        POST_METHOD: 'r8s:application:create_application',
+        PATCH_METHOD: 'r8s:application:update_application',
+        DELETE_METHOD: 'r8s:application:remove_application',
+    },
+    '/applications/dojo/': {
+        GET_METHOD: 'r8s:application:describe_dojo_application',
+        POST_METHOD: 'r8s:application:create_dojo_application',
+        PATCH_METHOD: 'r8s:application:update_dojo_application',
+        DELETE_METHOD: 'r8s:application:remove_dojo_application',
+    },
     '/parents/': {
         GET_METHOD: 'r8s:parent:describe_parent',
         POST_METHOD: 'r8s:parent:create_parent',
         PATCH_METHOD: 'r8s:parent:update_parent',
         DELETE_METHOD: 'r8s:parent:remove_parent',
     },
-    '/parents/licenses/': {
-        GET_METHOD: 'r8s:parent:describe_parent',
-        POST_METHOD: 'r8s:parent:create_parent',
-        PATCH_METHOD: 'r8s:parent:update_parent',
-        DELETE_METHOD: 'r8s:parent:remove_parent',
-    },
-    '/parents/tenant-link/': {
-        GET_METHOD: 'r8s:parent:describe_tenant_link',
-        POST_METHOD: 'r8s:parent:link_tenant',
-        DELETE_METHOD: 'r8s:parent:unlink_tenant',
+    '/parents/dojo/': {
+        GET_METHOD: 'r8s:parent:describe_dojo_parent',
+        POST_METHOD: 'r8s:parent:create_dojo_parent',
+        PATCH_METHOD: 'r8s:parent:update_dojo_parent',
+        DELETE_METHOD: 'r8s:parent:remove_dojo_parent',
     },
     '/parents/shape-rules/': {
         GET_METHOD: 'r8s:parent:describe_shape_rule',
@@ -111,6 +124,9 @@ ENDPOINT_PERMISSION_MAPPING = {
     '/licenses/': {
         GET_METHOD: 'r8s:license:describe_license',
         DELETE_METHOD: 'r8s:license:delete_license',
+    },
+    '/licenses/sync/': {
+        POST_METHOD: 'r8s:license:sync_license'
     },
     '/settings/license-manager/config': {
         GET_METHOD: 'r8s:setting:describe_lm_config',

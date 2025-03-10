@@ -66,13 +66,16 @@ class TestInsufficientData(BaseExecutorTest):
 
     @patch.dict(os.environ, {'KMP_DUPLICATE_LIB_OK': "TRUE"})
     def test_insufficient_data(self):
-        result = self.recommendation_service.process_instance(
+        result, _ = self.recommendation_service.process_instance(
             metric_file_path=self.metrics_file_path,
             algorithm=self.algorithm,
             reports_dir=self.reports_path
         )
 
-        self.assertEqual(result.get('instance_id'), self.instance_id)
+        self.assert_resource_id(
+            result=result,
+            resource_id=self.instance_id
+        )
 
         self.assert_stats(result=result, status=STATUS_ERROR,
                           message_contains='Insufficient data')

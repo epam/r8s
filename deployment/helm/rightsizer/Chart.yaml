@@ -1,0 +1,31 @@
+apiVersion: v2
+appVersion: "3.11.0"
+dependencies:
+- condition: vault.enabled
+  name: vault
+  repository: s3://charts-repository/syndicate/
+  version: ^1.0.0
+- condition: minio.enabled
+  name: minio
+  repository: s3://charts-repository/syndicate/
+  version: ^1.0.0
+- condition: mongo.enabled
+  name: mongo
+  repository: s3://charts-repository/syndicate/
+  version: ^1.0.0
+- condition: modular-service.enabled
+  name: modular-service
+  repository: s3://charts-repository/syndicate/
+  version: ^3.2.0
+- condition: modular-api.enabled
+  name: modular-api
+  repository: s3://charts-repository/syndicate/
+  version: 4.1.4
+- condition: metric-collector.enabled
+  name: metric-collector
+  repository: s3://charts-repository/syndicate/
+  version: 3.11.0
+description: A Helm chart for the rightsizer
+name: rightsizer
+type: application
+version: "3.11.0"

@@ -5,9 +5,11 @@ import pandas as pd
 
 from commons.constants import ACTION_SCALE_UP
 from tests_executor.base_executor_test import BaseExecutorTest
-from tests_executor.constants import POINTS_IN_DAY, WEEK_DAYS
-from tests_executor.utils import constant_to_series, \
-    generate_timestamp_series, generate_constant_metric_series, dateparse
+from tests_executor.constants import (POINTS_IN_DAY, RECOMMENDATION_KEY,
+                                      SCHEDULE_KEY, RECOMMENDED_SHAPES_KEY)
+from tests_executor.utils import (generate_constant_metric_series,
+                                  constant_to_series,
+                                  generate_timestamp_series, dateparse)
 
 
 class TestComplexCustomerPreferences(BaseExecutorTest):
@@ -25,7 +27,7 @@ class TestComplexCustomerPreferences(BaseExecutorTest):
             value='t2.medium',
             length=length
         )
-        
+
         timestamp_series = generate_timestamp_series(length=length)
         cpu_load_series = generate_constant_metric_series(
             distribution='normal',
@@ -68,55 +70,48 @@ class TestComplexCustomerPreferences(BaseExecutorTest):
 
     @patch.dict(os.environ, {'KMP_DUPLICATE_LIB_OK': "TRUE"})
     def test_constant_custom_preferences(self):
-        from models.parent_attributes import ParentMeta
+        from models.parent_attributes import LicensesParentMeta
         allowed_series = ['c5', 'c6a']
         allowed_shapes = ['c5a.xlarge']
-        meta = {
-            "algorithm": self.algorithm.name,
-            "cloud": "AWS",
-            "scope": "ALL_TENANTS",
-            "shape_rules": [
-                {
-                    "rule_id": "any_c6a",
-                    "action": "allow",
-                    "condition": "match",
-                    "field": "name",
-                    "value": "c6a.+"
-                },
-                {
-                    "rule_id": "any_c5",
-                    "action": "allow",
-                    "condition": "match",
-                    "field": "name",
-                    "value": "c5\..+"
-                },
-                {
-                    "rule_id": "c5a.xlarge",
-                    "action": "allow",
-                    "condition": "equal",
-                    "field": "name",
-                    "value": "c5a.xlarge"
-                },
-                {
-                    "rule_id": "non_graviton",
-                    "action": "deny",
-                    "condition": "contains",
-                    "field": "physical_processor",
-                    "value": "Graviton"
-                },
-                {
-                    "rule_id": "c6a.2xlarge",
-                    "action": "prioritize",
-                    "condition": "equal",
-                    "field": "name",
-                    "value": "c6a.2xlarge"
-                }
-            ]
-
-
-        }
-        parent_meta = ParentMeta(**meta)
-        result = self.recommendation_service.process_instance(
+        shape_rules = [
+            {
+                "rule_id": "any_c6a",
+                "action": "allow",
+                "condition": "match",
+                "field": "name",
+                "value": "c6a.+"
+            },
+            {
+                "rule_id": "any_c5",
+                "action": "allow",
+                "condition": "match",
+                "field": "name",
+                "value": r"c5\..+"
+            },
+            {
+                "rule_id": "c5a.xlarge",
+                "action": "allow",
+                "condition": "equal",
+                "field": "name",
+                "value": "c5a.xlarge"
+            },
+            {
+                "rule_id": "non_graviton",
+                "action": "deny",
+                "condition": "contains",
+                "field": "physical_processor",
+                "value": "Graviton"
+            },
+            {
+                "rule_id": "c6a.2xlarge",
+                "action": "prioritize",
+                "condition": "equal",
+                "field": "name",
+                "value": "c6a.2xlarge"
+            }
+        ]
+        parent_meta = LicensesParentMeta(shape_rules=shape_rules)
+        result, _ = self.recommendation_service.process_instance(
             metric_file_path=self.metrics_file_path,
             algorithm=self.algorithm,
             reports_dir=self.reports_path,
@@ -124,23 +119,17 @@ class TestComplexCustomerPreferences(BaseExecutorTest):
             parent_meta=parent_meta
         )
 
-        self.assertEqual(result.get('instance_id'), self.instance_id)
+        self.assert_resource_id(
+            result=result,
+            resource_id=self.instance_id
+        )
 
-        schedule = result.get('schedule')
+        recommendation = result.get(RECOMMENDATION_KEY, {})
 
-        self.assertEqual(len(schedule), 1)
-        schedule_item = schedule[0]
+        schedule = recommendation.get(SCHEDULE_KEY)
+        self.assert_always_run_schedule(schedule=schedule)
 
-        start = schedule_item.get('start')
-        stop = schedule_item.get('stop')
-
-        self.assertEqual(start, '00:00')
-        self.assertEqual(stop, '23:50')
-
-        weekdays = schedule_item.get('weekdays')
-        self.assertEqual(set(weekdays), set(WEEK_DAYS))
-
-        recommended_shapes = result.get('recommended_shapes')
+        recommended_shapes = recommendation.get(RECOMMENDED_SHAPES_KEY)
         instance_types = [i['name'] for i in recommended_shapes]
 
         self.assertTrue('c5a.xlarge' in instance_types)

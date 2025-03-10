@@ -3,11 +3,13 @@ from unittest.mock import patch
 
 import pandas as pd
 
-from commons.constants import ACTION_SPLIT, WEEK_DAYS
+from commons.constants import ACTION_SPLIT
 from tests_executor.base_executor_test import BaseExecutorTest
-from tests_executor.constants import POINTS_IN_DAY, WORK_DAYS
-from tests_executor.utils import constant_to_series, \
-    generate_timestamp_series, generate_scheduled_metric_series, dateparse
+from tests_executor.constants import (POINTS_IN_DAY, RECOMMENDATION_KEY,
+                                      SCHEDULE_KEY, RECOMMENDED_SHAPES_KEY)
+from tests_executor.utils import (constant_to_series,
+                                  generate_timestamp_series,
+                                  generate_scheduled_metric_series, dateparse)
 
 
 class TestNonStraightLoad(BaseExecutorTest):
@@ -72,30 +74,23 @@ class TestNonStraightLoad(BaseExecutorTest):
 
     @patch.dict(os.environ, {'KMP_DUPLICATE_LIB_OK': "TRUE"})
     def test_non_straight_load(self):
-        result = self.recommendation_service.process_instance(
+        result, _ = self.recommendation_service.process_instance(
             metric_file_path=self.metrics_file_path,
             algorithm=self.algorithm,
-
             reports_dir=self.reports_path
         )
 
-        self.assertEqual(result.get('instance_id'), self.instance_id)
+        self.assert_resource_id(
+            result=result,
+            resource_id=self.instance_id
+        )
 
-        schedule = result.get('schedule')
-        self.assertEqual(len(schedule), 1)
+        recommendation = result.get(RECOMMENDATION_KEY, {})
 
-        schedule_item = schedule[0]
+        schedule = recommendation.get(SCHEDULE_KEY)
+        self.assert_always_run_schedule(schedule=schedule)
 
-        start = schedule_item.get('start')
-        stop = schedule_item.get('stop')
-        weekdays = schedule_item.get('weekdays')
-
-        self.assertEqual(start, '00:00')
-        self.assertEqual(stop, '23:50')
-
-        self.assertEqual(set(weekdays), set(WEEK_DAYS))
-
-        recommended_shapes = result.get('recommended_shapes')
+        recommended_shapes = recommendation.get(RECOMMENDED_SHAPES_KEY)
         self.assertEqual(len(recommended_shapes), 2)
 
         probabilities = [shape.get('probability') for shape in

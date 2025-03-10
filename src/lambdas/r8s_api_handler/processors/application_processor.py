@@ -1,4 +1,5 @@
 from modular_sdk.commons import ModularException
+from modular_sdk.commons.constants import ParentType, ParentScope
 from modular_sdk.services.customer_service import CustomerService
 
 from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
@@ -10,17 +11,21 @@ from commons.constants import POST_METHOD, GET_METHOD, PATCH_METHOD, \
     DELETE_METHOD, CUSTOMER_ATTR, \
     DESCRIPTION_ATTR, OUTPUT_STORAGE_ATTR, INPUT_STORAGE_ATTR, \
     CONNECTION_ATTR, PORT_ATTR, PROTOCOL_ATTR, HOST_ATTR, USERNAME_ATTR, \
-    PASSWORD_ATTR, APPLICATION_ID_ATTR
+    PASSWORD_ATTR, APPLICATION_ID_ATTR, MAESTRO_RIGHTSIZER_APPLICATION_TYPE, \
+    FORCE_ATTR
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
 from models.application_attributes import ConnectionAttribute
 from models.storage import Storage, StorageTypeEnum
-from services.abstract_api_handler_lambda import PARAM_USER_CUSTOMER
+from services.abstract_api_handler_lambda import PARAM_USER_CUSTOMER, \
+    PARAM_USER_ID
 from services.algorithm_service import AlgorithmService
 from services.clients.api_gateway_client import ApiGatewayClient
+from services.rbac.access_control_service import PARAM_USER_SUB
 from services.rightsizer_application_service import \
     RightSizerApplicationService
+from services.rightsizer_parent_service import RightSizerParentService
 from services.storage_service import StorageService
 
 _LOG = get_logger('r8s-application-processor')
@@ -36,12 +41,14 @@ class ApplicationProcessor(AbstractCommandProcessor):
                  storage_service: StorageService,
                  customer_service: CustomerService,
                  application_service: RightSizerApplicationService,
+                 parent_service: RightSizerParentService,
                  api_gateway_client: ApiGatewayClient):
         self.algorithm_service = algorithm_service
         self.storage_service = storage_service
         self.customer_service = customer_service
         self.application_service = application_service
         self.api_gateway_client = api_gateway_client
+        self.parent_service = parent_service
         self.method_to_handler = {
             GET_METHOD: self.get,
             POST_METHOD: self.post,
@@ -63,15 +70,16 @@ class ApplicationProcessor(AbstractCommandProcessor):
     def get(self, event):
         _LOG.debug(f'Describe application event: {event}')
 
-        _LOG.debug(f'Resolving applications')
+        _LOG.debug('Resolving applications')
         applications = self.application_service.resolve_application(
-            event=event)
+            event=event, type_=MAESTRO_RIGHTSIZER_APPLICATION_TYPE
+        )
 
         if not applications:
-            _LOG.warning(f'No application found matching given query.')
+            _LOG.warning('No application found matching given query.')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No application found matching given query.'
+                content='No application found matching given query.'
             )
 
         application_dtos = [self.application_service.get_dto(application)
@@ -114,18 +122,19 @@ class ApplicationProcessor(AbstractCommandProcessor):
                        f'resolved automatically')
             r8s_host = self.api_gateway_client.get_r8s_api_host()
             if not r8s_host:
-                _LOG.error(f'No RightSizer API found. Please contact '
-                           f'the support team.')
+                _LOG.error('No RightSizer API found. Please contact '
+                           'the support team.')
                 return build_response(
                     code=RESPONSE_SERVICE_UNAVAILABLE_CODE,
-                    content=f'No RightSizer API found. Please contact '
-                            f'the support team.'
+                    content='No RightSizer API found. Please contact '
+                            'the support team.'
                 )
             _LOG.debug(f'Setting host \'{r8s_host}\' into connection')
             connection[HOST_ATTR] = r8s_host
 
         customer = event.get(CUSTOMER_ATTR)
         user_customer = event.get(PARAM_USER_CUSTOMER)
+        user_id = event.get(PARAM_USER_ID)
 
         _LOG.debug(f'Validating user access to customer \'{customer}\'')
         if not self._is_allowed_customer(user_customer=user_customer,
@@ -170,9 +179,8 @@ class ApplicationProcessor(AbstractCommandProcessor):
 
         password = connection.pop(PASSWORD_ATTR, None)
         connection_obj = ConnectionAttribute(**connection)
-
         try:
-            _LOG.debug(f'Creating application')
+            _LOG.debug('Creating application')
             application = self.application_service. \
                 create_rightsizer_application(
                 customer_id=customer,
@@ -180,7 +188,8 @@ class ApplicationProcessor(AbstractCommandProcessor):
                 input_storage=input_storage_obj,
                 output_storage=output_storage_obj,
                 connection=connection_obj,
-                password=password
+                password=password,
+                created_by=event.get(PARAM_USER_SUB)
             )
         except ModularException as e:
             _LOG.error(f'Exception occurred while creating application: '
@@ -190,12 +199,28 @@ class ApplicationProcessor(AbstractCommandProcessor):
                 content=e.content
             )
 
+        _LOG.debug('Creating RIGHTSIZER parent with ALL scope')
+        parent = self.parent_service.build(
+            application_id=application.application_id,
+            customer_id=application.customer_id,
+            parent_type=ParentType.RIGHTSIZER_PARENT,
+            description='Automatically created RIGHTSIZER parent',
+            meta={},
+            scope=ParentScope.ALL,
+            created_by=user_id
+        )
+
         _LOG.debug(f'Saving application '
                    f'\'{application.application_id}\'')
         self.application_service.save(application=application)
 
+        _LOG.debug(f'Saving parent: {parent.parent_id}')
+        self.parent_service.save(parent=parent)
+
+        _LOG.debug('Extracting created application dto')
         application_dto = self.application_service.get_dto(
             application=application)
+
         _LOG.debug(f'Response: {application_dto}')
         return build_response(
             code=RESPONSE_OK_CODE,
@@ -208,7 +233,8 @@ class ApplicationProcessor(AbstractCommandProcessor):
         validate_params(event, (APPLICATION_ID_ATTR,))
 
         applications = self.application_service.resolve_application(
-            event=event
+            event=event,
+            type_=MAESTRO_RIGHTSIZER_APPLICATION_TYPE
         )
         application_id = event.get(APPLICATION_ID_ATTR)
         if not applications:
@@ -292,10 +318,9 @@ class ApplicationProcessor(AbstractCommandProcessor):
             input_storage=input_storage_obj,
             output_storage=output_storage_obj,
             connection=connection_obj,
-            password=password
+            password=password,
+            updated_by=event.get(PARAM_USER_SUB)
         )
-        _LOG.debug(f'Saving application')
-        self.application_service.save(application=application)
 
         application_dto = self.application_service.get_dto(
             application=application)
@@ -311,9 +336,11 @@ class ApplicationProcessor(AbstractCommandProcessor):
         validate_params(event, (APPLICATION_ID_ATTR,))
 
         applications = self.application_service.resolve_application(
-            event=event
+            event=event,
+            type_=MAESTRO_RIGHTSIZER_APPLICATION_TYPE
         )
         application_id = event.get(APPLICATION_ID_ATTR)
+
         if not applications:
             _LOG.warning(f'Application with id '
                          f'\'{application_id}\' does not exist.')
@@ -324,14 +351,25 @@ class ApplicationProcessor(AbstractCommandProcessor):
             )
 
         application = applications[0]
+
+        _LOG.debug(f'Searching for application {application.application_id} '
+                   f'parents')
+        parents = self.parent_service.list_application_parents(
+            application_id=application.application_id,
+            only_active=True
+        )
+        if parents:
+            _LOG.debug('Active linked parents found, deleting')
+            for parent in parents:
+                _LOG.debug(f'Deleting parent {parent.parent_id}')
+                self.parent_service.mark_deleted(parent=parent)
+
+        force = event.get(FORCE_ATTR)
         try:
-            self.application_service.mark_deleted(application=application)
-            _LOG.debug(
-                f'Application \'{application.application_id}\' has been '
-                f'deleted.')
-            self.application_service.save(application=application)
-            _LOG.debug(f'Application \'{application.application_id}\' '
-                       f'saved')
+            if force:
+                self.application_service.force_delete(application=application)
+            else:
+                self.application_service.mark_deleted(application=application)
         except ModularException as e:
             return build_response(
                 code=e.code,

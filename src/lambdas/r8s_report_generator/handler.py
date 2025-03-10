@@ -14,7 +14,8 @@ from modular_sdk.services.tenant_service import TenantService
 from commons import build_response, RESPONSE_BAD_REQUEST_CODE, \
     RESPONSE_INTERNAL_SERVER_ERROR, RESPONSE_OK_CODE
 from commons.constants import CUSTOMER_ATTR, TENANT_ATTR, \
-    RECOMMENDATION_SETTINGS_ATTR, TARGET_TIMEZONE_NAME_ATTR, TENANTS_ATTR
+    RECOMMENDATION_SETTINGS_ATTR, TARGET_TIMEZONE_NAME_ATTR, TENANTS_ATTR, \
+    RECOMMENDATION_TYPE_ATTR
 from commons.log_helper import get_logger
 from models.recommendation_history import RecommendationHistory, \
     RecommendationTypeEnum
@@ -25,7 +26,8 @@ from services.environment_service import EnvironmentService
 from services.job_service import JobService
 from services.recommendation_history_service import \
     RecommendationHistoryService
-from services.rightsizer_parent_service import RightSizerParentService
+from services.rightsizer_application_service import \
+    RightSizerApplicationService
 
 _LOG = get_logger('r8s-report-generator')
 
@@ -45,7 +47,7 @@ class ReportGenerator(AbstractLambda):
                  customer_service: CustomerService,
                  recommendation_service: RecommendationHistoryService,
                  maestro_rabbitmq_service: MaestroRabbitMQTransport,
-                 parent_service: RightSizerParentService,
+                 application_service: RightSizerApplicationService,
                  algorithm_service: AlgorithmService,
                  environment_service: EnvironmentService):
         self.job_service = job_service
@@ -53,7 +55,7 @@ class ReportGenerator(AbstractLambda):
         self.customer_service = customer_service
         self.recommendation_service = recommendation_service
         self.maestro_rabbitmq_service = maestro_rabbitmq_service
-        self.parent_service = parent_service
+        self.application_service = application_service
         self.algorithm_service = algorithm_service
         self.environment_service = environment_service
 
@@ -104,11 +106,11 @@ class ReportGenerator(AbstractLambda):
                     priority_saving_threshold= \
                         priority_saving_threshold)
 
-                _LOG.debug(f'Preparing request for sending to maestro')
+                _LOG.debug('Preparing request for sending to maestro')
                 formatted_report = self.prepare_request(report=report)
 
-                _LOG.debug(f'Formatted report: {formatted_report}')
-                _LOG.debug(f'Sending request to Maestro')
+                _LOG.debug('Formatted report: {formatted_report}')
+                _LOG.debug('Sending request to Maestro')
 
                 response_code, response_message = \
                     self._send_notification_to_m3(json_model=formatted_report)
@@ -143,35 +145,40 @@ class ReportGenerator(AbstractLambda):
                 content=f'No recommendations found '
                         f'for tenant \'{tenant.name}\''
             )
-        _LOG.debug(f'Filtering recommendation to include only one '
-                   f'recommendations from the last job with the resource')
+
+        _LOG.debug(f'Filtering only recommendations with available savings.')
+        recommendations = [i for i in recommendations if i.savings]
+
+        _LOG.debug('Filtering recommendation to include only one '
+                   'recommendations from the last job with the resource')
         recommendations = self.filter_latest_job_resource(
             recommendations=recommendations
         )
 
-        _LOG.debug(f'Formatting recommendations')
+        _LOG.debug('Formatting recommendations')
         formatted = []
         for recommendation in recommendations:
             formatted_recommendation = self.format_recommendation(
                 recommendation=recommendation)
-            formatted.append(formatted_recommendation)
+            if formatted_recommendation:
+                formatted.append(formatted_recommendation)
 
         priority_resources = self.get_priority(
             formatted_recommendations=formatted,
             saving_threshold=priority_saving_threshold)
 
-        _LOG.debug(f'Calculating total summary')
+        _LOG.debug('Calculating total summary')
         total_summary = self._resources_summary(resources=formatted)
-        _LOG.debug(f'Total summary: {total_summary}')
+        _LOG.debug('Total summary: {total_summary}')
         if len(priority_resources) > MAX_PRIORITY_RESOURCES:
             priority_resources = priority_resources[0:MAX_PRIORITY_RESOURCES]
 
-        _LOG.debug(f'Dividing resources by recommendation type')
+        _LOG.debug('Dividing resources by recommendation type')
         by_type = self.divide_by_recommendation_type(
             formatted,
             max_per_type=MAX_RESOURCES_PER_TYPE)
 
-        _LOG.debug(f'Calculating displayed items summary')
+        _LOG.debug('Calculating displayed items summary')
         displayed_resources = list(itertools.chain.from_iterable(
             by_type.values()))
         report_summary = self._resources_summary(
@@ -256,8 +263,9 @@ class ReportGenerator(AbstractLambda):
         result = []
         resource_job_id_mapping = {}
         for recommendation in recommendations:
-            instance_id = recommendation.instance_id
-            recommendation_type = recommendation.recommendation_type.value
+            instance_id = recommendation.resource_id
+            recommendation_type = recommendation.get_json().get(
+                RECOMMENDATION_TYPE_ATTR)
 
             if not recommendation.current_month_price_usd \
                     or not recommendation.savings \
@@ -408,24 +416,34 @@ class ReportGenerator(AbstractLambda):
         return result
 
     def format_recommendation(self, recommendation: RecommendationHistory):
-        recommendation_type = recommendation.recommendation_type
+        recommendation_type = recommendation.get_json().get(
+            RECOMMENDATION_TYPE_ATTR)
 
-        if recommendation_type == RecommendationTypeEnum.ACTION_SHUTDOWN:
+        resize_actions = [i.value for i in RecommendationTypeEnum.resize()]
+        if recommendation_type == RecommendationTypeEnum.ACTION_SHUTDOWN.value:
             return self._format_shutdown_recommendation(
                 recommendation=recommendation)
-        elif recommendation_type == RecommendationTypeEnum.ACTION_SCHEDULE:
+        elif recommendation_type == RecommendationTypeEnum.ACTION_SCHEDULE.value:
             return self._format_schedule_recommendation(
                 recommendation=recommendation)
-        elif recommendation_type in RecommendationTypeEnum.resize():
+        elif recommendation_type in resize_actions:
             return self._format_resize_recommendation(
                 recommendation=recommendation)
 
     @staticmethod
     def _format_resize_recommendation(recommendation):
-        recommended_instance_types = [item.get('name') for
-                                      item in recommendation.recommendation]
+        recommended_instances = [dict(item) for
+                                 item in recommendation.recommendation]
 
-        estimated_savings = sorted(recommendation.savings)
+        savings = reversed(recommendation.savings)
+
+        estimated_savings = []
+        for saving in savings:
+            if isinstance(saving, dict):
+                estimated_savings.append(saving['saving_month_usd'])
+            else:
+                estimated_savings.append(saving)
+
         if len(estimated_savings) > 2:
             estimated_savings = [estimated_savings[0], estimated_savings[-1]]
         saving_percents = [
@@ -433,8 +451,8 @@ class ReportGenerator(AbstractLambda):
                   2) * 100
             for saving_item in estimated_savings]
         result = {
-            "resource_id": recommendation.instance_id,
-            "recommendation": recommended_instance_types,
+            "resource_id": recommendation.resource_id,
+            "recommendation": recommended_instances,
             "recommendation_type": recommendation.recommendation_type.value,
             "description": "",
             "current_price": recommendation.current_month_price_usd,
@@ -453,33 +471,45 @@ class ReportGenerator(AbstractLambda):
 
     @staticmethod
     def _format_schedule_recommendation(recommendation):
+        savings_usd = []
+        for saving in recommendation.savings:
+            if isinstance(saving, dict):
+                savings_usd.append(saving['saving_month_usd'])
+            else:
+                savings_usd.append(saving)
         saving_percents = [
             round(saving_item / recommendation.current_month_price_usd,
                   2) * 100
-            for saving_item in recommendation.savings]
+            for saving_item in savings_usd]
         return {
-            "resource_id": recommendation.instance_id,
+            "resource_id": recommendation.resource_id,
             "recommendation": list(recommendation.recommendation),
             "recommendation_type": recommendation.recommendation_type.value,
             "description": "",
             "current_price": recommendation.current_month_price_usd,
             "current_instance_type": recommendation.current_instance_type,
             "region": recommendation.region,
-            "estimated_saving": sorted(recommendation.savings),
+            "estimated_saving": sorted(savings_usd),
             "saving_percent": sorted(saving_percents)
         }
 
     @staticmethod
     def _format_shutdown_recommendation(recommendation):
+        savings_usd = []
+        for saving in recommendation.savings:
+            if isinstance(saving, dict):
+                savings_usd.append(saving['saving_month_usd'])
+            else:
+                savings_usd.append(saving)
         return {
-            "resource_id": recommendation.instance_id,
+            "resource_id": recommendation.resource_id,
             "recommendation": [],
             "recommendation_type": recommendation.recommendation_type.value,
             "description": "",
             "current_price": recommendation.current_month_price_usd,
             "current_instance_type": recommendation.current_instance_type,
             "region": recommendation.region,
-            "estimated_saving": sorted(recommendation.savings),
+            "estimated_saving": sorted(savings_usd),
             "saving_percent": [100]
         }
 
@@ -523,21 +553,26 @@ class ReportGenerator(AbstractLambda):
         if not job:
             _LOG.error(f'No job with id \'{job_id}\' found')
             return UTC_TIMEZONE_NAME
-        parent_id = job.parent_id
-        if not parent_id:
-            _LOG.error(f'Job \'{job_id}\' does not have parent_id specified.')
+        application_id = job.application_id
+        if not application_id:
+            _LOG.error(f'Job \'{job_id}\' does not have application_id specified.')
             return UTC_TIMEZONE_NAME
-        parent = self.parent_service.get_parent_by_id(parent_id=parent_id)
-        if not parent:
-            _LOG.error(f'Parent with id \'{parent_id}\' does not exist.')
+        application = self.application_service.get_application_by_id(
+            application_id=application_id)
+        if not application:
+            _LOG.error(f'Application with id \'{application_id}\' '
+                       f'does not exist.')
             return UTC_TIMEZONE_NAME
-        parent_meta = self.parent_service.get_parent_meta(parent=parent)
-        if not parent_meta:
-            _LOG.error(f'Parent \'{parent_id}\' meta is empty.')
+        app_meta = self.application_service.get_application_meta(
+            application=application)
+        if not app_meta:
+            _LOG.error(f'Application \'{application_id}\' meta is empty.')
             return UTC_TIMEZONE_NAME
-        algorithm_name = parent_meta.algorithm
+
+        algorithm_name = app_meta.as_dict().get('algorithm_map', {}).get('VM')
         if not algorithm_name:
-            _LOG.error(f'Algorithm not specified in parent \'{parent_id}\'.')
+            _LOG.error(f'No VM algorithm specified in application '
+                       f'\'{application_id}\'.')
             return UTC_TIMEZONE_NAME
         algorithm = self.algorithm_service.get_by_name(name=algorithm_name)
         if not algorithm:
@@ -557,7 +592,7 @@ HANDLER = ReportGenerator(
     tenant_service=SERVICE_PROVIDER.tenant_service(),
     recommendation_service=SERVICE_PROVIDER.recommendation_history_service(),
     maestro_rabbitmq_service=SERVICE_PROVIDER.maestro_rabbitmq_service(),
-    parent_service=SERVICE_PROVIDER.rightsizer_parent_service(),
+    application_service=SERVICE_PROVIDER.rightsizer_application_service(),
     algorithm_service=SERVICE_PROVIDER.algorithm_service(),
     environment_service=SERVICE_PROVIDER.environment_service())
 

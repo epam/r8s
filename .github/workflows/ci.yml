@@ -1,0 +1,178 @@
+name: ci-for-build-and-tests
+
+on:
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  check_modified_files:
+    name: Check modified files in directories
+    runs-on: ubuntu-latest
+    outputs:
+      docker_files_changes_found: ${{ steps.check_docker_files.outputs.changes_found }}
+      r8s_files_changes_found: ${{ steps.check_r8s_files.outputs.changes_found }}
+      src_files_changes_found: ${{ steps.check_src_files.outputs.changes_found }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+
+    - name: Check modified files in r8s directory
+      id: check_r8s_files
+      shell: bash
+      run: |
+        git fetch origin ${{ github.event.pull_request.base.sha }}
+        changed_files=$(git diff --name-only ${{ github.event.pull_request.base.sha }})
+        echo "Changed files: ${changed_files}"
+        checked_directory="r8s/"
+        for file in ${changed_files}
+        do
+          if [[ ${file} == ${checked_directory}* ]]
+          then
+            echo "Target directory was modified."
+            echo "changes_found=true" >>$GITHUB_OUTPUT
+            exit 0
+          fi
+        done
+        echo "Target directory was not modified."
+        echo "changes_found=false" >>$GITHUB_OUTPUT
+        echo "dist=/tmp/bavp/dist" >>$GITHUB_OUTPUT
+
+    - name: Check modified files in docker directory
+      id: check_docker_files
+      shell: bash
+      run: |
+        git fetch origin ${{ github.event.pull_request.base.sha }}
+        changed_files=$(git diff --name-only ${{ github.event.pull_request.base.sha }})
+        echo "Changed files: ${changed_files}"
+        checked_directory="docker/"
+        for file in ${changed_files}
+        do
+          if [[ ${file} == ${checked_directory}* ]]
+          then
+            echo "Target directory was modified."
+            echo "changes_found=true" >>$GITHUB_OUTPUT
+            exit 0
+          fi
+        done
+        echo "Target directory was not modified."
+        echo "changes_found=false" >>$GITHUB_OUTPUT
+        echo "dist=/tmp/bavp/dist" >>$GITHUB_OUTPUT
+
+    - name: Check modified files in src directory
+      id: check_src_files
+      shell: bash
+      run: |
+        git fetch origin ${{ github.event.pull_request.base.sha }}
+        changed_files=$(git diff --name-only ${{ github.event.pull_request.base.sha }})
+        echo "Changed files: ${changed_files}"
+        checked_directory="src/"
+        for file in ${changed_files}
+        do
+          if [[ ${file} == ${checked_directory}* ]]
+          then
+            echo "Target directory was modified."
+            echo "changes_found=true" >>$GITHUB_OUTPUT
+            exit 0
+          fi
+        done
+        echo "Target directory was not modified."
+        echo "changes_found=false" >>$GITHUB_OUTPUT
+        echo "dist=/tmp/bavp/dist" >>$GITHUB_OUTPUT
+
+  build_package:
+    name: Build CLI package
+    needs: check_modified_files
+    if: ${{ needs.check_modified_files.outputs.r8s_files_changes_found == 'true' }}
+    uses: ./.github/workflows/build-and-check-python-package.yml
+    with:
+      path: ./r8s
+
+  test_python:
+    name: Run Python tests
+    needs: check_modified_files
+    if: ${{ needs.check_modified_files.outputs.src_files_changes_found == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Setup test env
+      run: |
+        python -VV
+        pip install virtualenv
+        virtualenv .venv
+        source .venv/bin/activate
+        pip --cache-dir=.cache/pip --quiet install tox
+        
+    - name: Run tests
+      run: 
+        source .venv/bin/activate
+        tox -e py310-lambdas
+
+    - name: Upload coverage report
+      if: steps.check_files.outputs.changes_found == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: lambdas-coverage-report
+        path: coverage.xml
+        retention-days: 1
+
+    - name: Upload test report
+      if: steps.check_files.outputs.changes_found == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: lambdas-test-report
+        path: report.xml
+        retention-days: 1
+
+  test_docker:
+    name: Run Docker tests
+    needs: check_modified_files
+    if: ${{ needs.check_modified_files.outputs.docker_files_changes_found == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Setup test env
+      run: |
+        python -VV
+        pip install virtualenv
+        virtualenv .venv
+        source .venv/bin/activate
+        pip --cache-dir=.cache/pip --quiet install tox
+        
+    - name: Run docker tests
+      if: steps.check_files.outputs.changes_found == 'true'
+      run: |
+        source .venv/bin/activate
+        tox -e py310-docker
+
+    - name: Upload coverage report
+      if: steps.check_files.outputs.changes_found == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: docker-coverage-report
+        path: coverage.xml
+        retention-days: 1
+
+    - name: Upload test report
+      if: steps.check_files.outputs.changes_found == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: docker-test-report
+        path: report.xml
+        retention-days: 1

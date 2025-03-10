@@ -6,10 +6,10 @@ from bson.errors import InvalidId
 from mongoengine import DoesNotExist, ValidationError, EmbeddedDocument
 
 from commons.constants import CLUSTERING_SETTINGS_ATTR, METRIC_FORMAT_ATTR, \
-    RECOMMENDATION_SETTINGS_ATTR, ID_ATTR, ALGORITHM_ATTR, NAME_ATTR, \
+    RECOMMENDATION_SETTINGS_ATTR, ID_ATTR, ALGORITHMS_ATTR, NAME_ATTR, \
     CUSTOMER_ATTR, LICENSED_ATTR, CLOUD_ATTR, REQUIRED_DATA_ATTRS_ATTR, \
     METRIC_ATTRS_ATTR, TIMESTAMP_ATTR, DEFAULT_METRIC_ATTRIBUTES, \
-    DEFAULT_DATA_ATTRIBUTES
+    DEFAULT_DATA_ATTRIBUTES, RESOURCE_TYPE_ATTR
 from commons.log_helper import get_logger
 from models.algorithm import Algorithm, RecommendationSettings, \
     ClusteringSettings, MetricFormatSettings
@@ -63,44 +63,15 @@ class AlgorithmService:
         algorithm.delete()
 
     def sync_licensed_algorithm(self, license_data: dict, customer: str):
-        algorithm_sync_data = license_data.get(ALGORITHM_ATTR)
+        algorithms_data = license_data.get(ALGORITHMS_ATTR)
+        response = []
 
-        name = algorithm_sync_data.get(ID_ATTR)
-
-        algorithm_obj: Algorithm = self.get_by_name(
-            name=name)
-
-        if not algorithm_obj:
-            _LOG.debug(f'Creating new licensed algorithm')
-            parameters = {
-                NAME_ATTR: name,
-                LICENSED_ATTR: True,
-                CUSTOMER_ATTR: customer,
-                CLOUD_ATTR: algorithm_sync_data.get(CLOUD_ATTR),
-                REQUIRED_DATA_ATTRS_ATTR: DEFAULT_DATA_ATTRIBUTES,
-                METRIC_ATTRS_ATTR: DEFAULT_METRIC_ATTRIBUTES,
-                TIMESTAMP_ATTR: 'timestamp',
-                CLUSTERING_SETTINGS_ATTR: algorithm_sync_data.get(
-                    CLUSTERING_SETTINGS_ATTR),
-                RECOMMENDATION_SETTINGS_ATTR: algorithm_sync_data.get(
-                    RECOMMENDATION_SETTINGS_ATTR)
-            }
-            algorithm_obj = self.create(parameters)
-            self.save(algorithm=algorithm_obj)
-            return algorithm_obj
-        _LOG.debug(f'Updating existing licensed algorithm')
-        self.update_recommendation_settings(
-            algorithm=algorithm_obj,
-            recommendation_settings=algorithm_sync_data.get(
-                RECOMMENDATION_SETTINGS_ATTR)
-        )
-        self.update_clustering_settings(
-            algorithm=algorithm_obj,
-            clustering_settings=algorithm_sync_data.get(
-                CLUSTERING_SETTINGS_ATTR)
-        )
-        self.save(algorithm=algorithm_obj)
-        return algorithm_obj
+        for algorithm_data in algorithms_data:
+            algorithm_obj = self._sync_licensed_algorithm(
+                algorithm_data=algorithm_data,
+                customer=customer)
+            response.append(algorithm_obj)
+        return response
 
     def update_clustering_settings(self, algorithm: Algorithm,
                                    clustering_settings: dict):
@@ -147,3 +118,45 @@ class AlgorithmService:
         document = document_class(**document_dict)
         algorithm.__setattr__(attr_name, document)
         return algorithm
+
+    def _sync_licensed_algorithm(self, algorithm_data: dict, customer: str):
+        name = algorithm_data.get(ID_ATTR)
+
+        algorithm_obj: Algorithm = self.get_by_name(
+            name=name)
+
+        if not algorithm_obj:
+            _LOG.debug(f'Creating new licensed algorithm {name}')
+            parameters = {
+                NAME_ATTR: name,
+                LICENSED_ATTR: True,
+                CUSTOMER_ATTR: customer,
+                CLOUD_ATTR: algorithm_data.get(CLOUD_ATTR),
+                RESOURCE_TYPE_ATTR: algorithm_data.get(
+                    RESOURCE_TYPE_ATTR),
+                REQUIRED_DATA_ATTRS_ATTR: DEFAULT_DATA_ATTRIBUTES,
+                METRIC_ATTRS_ATTR: DEFAULT_METRIC_ATTRIBUTES,
+                TIMESTAMP_ATTR: 'timestamp',
+                CLUSTERING_SETTINGS_ATTR: algorithm_data.get(
+                    CLUSTERING_SETTINGS_ATTR),
+                RECOMMENDATION_SETTINGS_ATTR: algorithm_data.get(
+                    RECOMMENDATION_SETTINGS_ATTR)
+            }
+            algorithm_obj = self.create(parameters)
+            self.save(algorithm=algorithm_obj)
+            return algorithm_obj
+
+        _LOG.debug(f'Updating existing licensed algorithm '
+                   f'{algorithm_obj.name}')
+        self.update_recommendation_settings(
+            algorithm=algorithm_obj,
+            recommendation_settings=algorithm_data.get(
+                RECOMMENDATION_SETTINGS_ATTR)
+        )
+        self.update_clustering_settings(
+            algorithm=algorithm_obj,
+            clustering_settings=algorithm_data.get(
+                CLUSTERING_SETTINGS_ATTR)
+        )
+        self.save(algorithm=algorithm_obj)
+        return algorithm_obj

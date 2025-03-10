@@ -4,9 +4,10 @@ import os
 import boto3
 from botocore.config import Config
 
-from commons.constants import ENV_SERVICE_MODE, DOCKER_SERVICE_MODE, \
+from commons.constants import ENV_SERVICE_MODE_S3, DOCKER_SERVICE_MODE, \
     ENV_MINIO_HOST, ENV_MINIO_PORT, ENV_MINIO_ACCESS_KEY, \
-    ENV_MINIO_SECRET_ACCESS_KEY
+    ENV_MINIO_SECRET_ACCESS_KEY, ENV_MINIO_ROOT_USER, \
+    ENV_MINIO_ROOT_PASSWORD, ENV_MINIO_ENDPOINT, ENV_SERVICE_MODE
 from commons.log_helper import get_logger
 
 UTF_8_ENCODING = 'utf-8'
@@ -15,7 +16,9 @@ _LOG = get_logger('s3client')
 
 
 class S3Client:
-    IS_DOCKER = os.getenv(ENV_SERVICE_MODE) == DOCKER_SERVICE_MODE
+    IS_DOCKER = os.getenv(
+        ENV_SERVICE_MODE_S3, os.getenv(ENV_SERVICE_MODE)
+    ) == DOCKER_SERVICE_MODE
 
     def __init__(self, region):
         self.region = region
@@ -38,14 +41,23 @@ class S3Client:
         config = self.build_config()
         if self.IS_DOCKER:
             host, port = os.getenv(ENV_MINIO_HOST), os.getenv(ENV_MINIO_PORT)
-            access_key = os.getenv(ENV_MINIO_ACCESS_KEY)
-            secret_access_key = os.getenv(ENV_MINIO_SECRET_ACCESS_KEY)
-            assert (host and port and access_key and secret_access_key), \
-                f"\'{ENV_MINIO_HOST}\', \'{ENV_MINIO_PORT}\', " \
+            endpoint = os.getenv(ENV_MINIO_ENDPOINT)
+            url = None
+            if endpoint:
+                url = endpoint
+            elif host and port:
+                url = f'http://{host}:{port}'
+            access_key = os.getenv(ENV_MINIO_ACCESS_KEY,
+                                   os.getenv(ENV_MINIO_ROOT_USER))
+            secret_access_key = os.getenv(ENV_MINIO_SECRET_ACCESS_KEY,
+                                          os.getenv(ENV_MINIO_ROOT_PASSWORD))
+            assert url, (f"\'{ENV_MINIO_ENDPOINT}\' or \'{ENV_MINIO_HOST}\' "
+                         f"and \'{ENV_MINIO_PORT}\' envs must be specified "
+                         f"for on-prem")
+            assert (access_key and secret_access_key), \
                 f"\'{ENV_MINIO_ACCESS_KEY}\', " \
                 f"\'{ENV_MINIO_SECRET_ACCESS_KEY}\' envs must be specified " \
                 f"for on-prem"
-            url = f'http://{host}:{port}'
             session = boto3.Session(
                 aws_access_key_id=access_key,
                 aws_secret_access_key=secret_access_key

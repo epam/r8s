@@ -5,6 +5,7 @@ from modular_sdk.services.tenant_service import TenantService
 
 from commons import build_response, RESPONSE_SERVICE_UNAVAILABLE_CODE, \
     ApplicationException
+from commons.constants import ENV_SERVICE_MODE
 from connections.batch_extension.base_job_client import BaseBatchClient
 from commons.log_helper import get_logger
 from services.algorithm_service import AlgorithmService
@@ -28,7 +29,7 @@ from services.ssm_service import SSMService
 from services.storage_service import StorageService
 from services.user_service import CognitoUserService
 
-SERVICE_MODE = os.getenv('service_mode')
+SERVICE_MODE = os.getenv(ENV_SERVICE_MODE)
 is_docker = SERVICE_MODE == 'docker'
 
 _LOG = get_logger('service-provider')
@@ -216,8 +217,7 @@ class ServiceProvider:
 
         def tenant_service(self):
             if not self.__tenant_service:
-                self.__tenant_service = TenantService(
-                    customer_service=self.customer_service())
+                self.__tenant_service = TenantService()
             return self.__tenant_service
 
         def shape_service(self):
@@ -265,6 +265,9 @@ class ServiceProvider:
             return self.__recommendation_history_service
 
         def maestro_rabbitmq_service(self):
+            if is_docker:
+                _LOG.error(f'RabbitMQ service is not available in docker mode')
+                return
             if not self.__maestro_rabbitmq_service:
                 from modular_sdk.modular import Modular
                 from modular_sdk.services.impl.maestro_rabbit_transport_service import \
@@ -345,7 +348,9 @@ class ServiceProvider:
                     LicenseManagerService
                 self.__license_manager_service = LicenseManagerService(
                     license_manager_client=self.license_manager_client(),
-                    token_service=self.token_service()
+                    token_service=self.token_service(),
+                    ssm_service=self.ssm_service(),
+                    environment_service=self.environment_service()
                 )
             return self.__license_manager_service
 

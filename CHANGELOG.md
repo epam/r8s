@@ -4,6 +4,178 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.11.0] - 2024-09-17
+* Update onprem version of the service
+* Add readable recommendation text to DefectDojo findings
+
+## [3.10.3] - 2024-09-19
+* Update DefectDojo "Product Name" naming from $Tenant_name to "RightSizer $TenantName"
+
+## [3.10.2] - 2024-09-16
+* Unify DEFECT_DOJO Application secret format with SRE
+
+## [3.10.1] - 2024-08-30
+* Add SSM secret deletion on Application force delete
+* Support multiple DEFECT_DOJO application per customer
+
+## [3.10.0] - 2024-08-16
+* Implement DefectDojo integration
+  * Implement API/CLI for Dojo-related Application/Parent management
+  * Implement uploading RightSizer recommendation to DefectDojo
+
+## [3.9.1] - 2024-07-24
+* fix non-overwriting recommendation type while updating recent instance recommendation
+* fix compatibility with latest modular_sdk 
+
+## [3.9.0] - 2024-02-15
+* extend tenant mail report content with full instance specs
+* fix update algorithm timezone extraction from RIGHTSIZER_LICENSES application
+
+## [3.8.1] - 2024-02-12
+* fix invalid RecommendationHistory.resource_id references
+* discard non-related resources meta from AUTOSCALING_GROUP recommendation
+
+## [3.8.0] - 2024-02-08
+* Support new Algorithm parameters:
+  * max_allowed_days_schedule - Maximum allowed number of days taken for schedule processing
+  * min_schedule_day_duration_minutes - Minimum allowed schedule period duration per day
+
+## [3.7.2] - 2024-02-06
+* improve handling failed group resources
+
+## [3.7.1] - 2024-02-06
+* fix `r8s license sync` response if invalid license key specified
+
+## [3.7.0] - 2024-02-05
+* implement recommendation generation for RDS instances
+
+## [3.6.0] - 2024-02-05
+* implement storing resource group recommendations in db
+* implement resource group cooldown: past resource group recommendation will be reused for the period of cooldown
+
+## [3.5.7] - 2024-02-01
+* skip group resources without latest metrics available from AUTO_SCALING recommendation processing
+* improve group policy threshold validation
+
+## [3.5.6] - 2024-02-01
+* r8s application policies update_autoscaling - if scale_step set to 0, AUTO_DETECT policy will be applied
+
+## [3.5.5] - 2024-01-31
+* omit SCALE_DOWN recommendation for resource group if there are less resources than proposed scale_step
+
+## [3.5.4] - 2024-01-31
+* set the "logs_expiration" parameter for lambdas
+
+## [3.5.3] - 2024-01-26
+* r8s application policies add/update_autoscaling - fix error message in case of 
+  not all threshold-related parameters passed
+
+## [3.5.2] - 2024-01-25
+* Bump modular_sdk requirement to >=5.0.0,<6.0.0
+
+## [3.5.1] - 2024-01-24
+* Optimize application parents querying with Parent application_id index.
+
+## [3.5.0] - 2024-01-24
+* Implement AUTO_SCALING group policy recommendation generation
+* Implement `r8s application policies` command group:
+  * `describe` - Describes available group policies from application
+  * `delete` - Deletes group policy from application
+  * `add_autoscaling` - Configures AUTO_SCALING group policy
+  * `update_autoscaling` - Updates AUTO_SCALING group policy
+
+## [3.4.3] - 2024-01-23
+* Optimize application parents querying with parent scope index.
+
+## [3.4.2] - 2024-01-22
+* fix syncing instance recommendation with RecommendationHistory item
+
+## [3.4.1] - 2024-01-19
+* fix pass allowed actions to recommendation_service.get_general_action
+
+## [3.4.0] - 2024-01-16
+* extend algorithm with `resource_type` and `allowed_actions` attributes
+* Switch to LM linkage of license to algorithm by resource type
+* Implement skipping recommendations of types that are not specified in algorithm `allowed_actions`
+
+## [3.3.2] - 2024-01-10
+* update modular-sdk dependency version to >=4.0.0,<5.0.0
+
+## [3.3.1] - 2024-01-09
+* update obsolete data model in mocked data generator
+
+## [3.3.0] - 2024-01-09
+* add ability to skip contradictory recommendations inside set of resources, using `r8s_group_id` tag:
+  - Skip SHUTDOWN recommendations if it's not applicable for all resources in a group;
+  - Skip SCALE_DOWN/SHUTDOWN recommendations if there are SCALE_UP recommendations available for some resources in group;
+  - Skip custom SCHEDULE recommendations if there are resources in group with "always-run" schedule recommendations;
+  - If all resources in a group have custom SCHEDULE recommendation, leave only the most common (if possible) or most complete
+
+## [3.2.0] - 2024-01-02
+* add recommended shapes probability: expected percentage of optimal load time on a new shape
+
+## [3.1.0] - 2023-12-08
+* add ability to force delete Application/Parent:
+  * r8s application delete --force
+  * r8s parent delete --force
+
+## [3.0.1] - 2023-12-08
+* adapt shape rules API to new Application/Parent model
+
+## [3.0.0] - 2023-11-29
+* migrate to new Application/Parent model:
+  - RIGHTSIZER Application: host application
+  - RIGHTSIZER Parent: links host application to tenants (ALL-scoped, auto-generated)
+  - RIGHTSIZER_LICENSES Application: license application
+  - RIGHTSIZER_LICENSES Parent: indicates that license is activated for tenant(s)
+
+## [2.19.10] - 2023-11-22
+* add `limit` parameter to `r8s job describe` command
+
+## [2.19.9] - 2023-11-21
+* fix non JSON serializable response in 'r8s recommendation describe' command
+* hide LM tokens from logs 
+
+## [2.19.8] - 2023-11-16
+* fix tenant cloud validation on job submit
+* add missing permissions for /parent/licenses endpoint
+* fix duplicated recommendations for insufficient/unchanged instances
+* remove raising exception if no valid metric files will be found
+
+## [2.19.7] - 2023-11-14
+* Exclude directly linked tenants (SPECIFIC/DISABLED) from ALL-scoped parent jobs
+* License sync: fix set latest_sync date
+* Remove obsolete permissions from admin_policy.json
+
+## [2.19.6] - 2023-11-13
+* Optimisation improvements:
+  - instances with unchanged metrics (since last scan) won't be downloaded
+  - recommendations will still be kept for instances with insufficient/unchanged metrics
+
+## [2.19.5] - 2023-11-08
+* Skip metrics download from s3 for instances with less daily-metric files than 
+  `algorithm.recommendation_settings.min_allowed_days`
+
+## [2.19.4] - 2023-11-06
+* Fix timezone conversion while discarding metrics before instance creation
+* Fix past instance recommendation querying (previously, only recommendation from current week were extracted)
+
+## [2.19.3] - 2023-10-31
+* Implement License Manager auth token storage
+
+## [2.19.2] - 2023-10-27
+* fix non-monotonic index after clustering
+
+## [2.19.1] - 2023-10-26
+* fix adapt r8s-report-generator lambda to new RecommendationHistory.savings 
+  attribute format
+
+## [2.19.0] - 2023-10-23
+* Add reusage of past recommendations if no new metrics provided for instance
+* Add adaptive aggregations: metrics that are older that latest point by 
+  `Algorithm.optimized_aggregation_threshold_days` will be aggregated by 
+  `Algorithm.optimized_aggregation_step_minutes`
+
 ## [2.18.1] - 2023-10-23
 * r8s job submit: fix input_scan_tenants validation
 
@@ -217,7 +389,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Azure scan support improvements
 
 ## [2.7.0] - 2023-06-05
-* Implement r8s-report-generator lambda to send Tenant reports to Maestro.
+* Implement r8s-report-generator lambda to send Tenant reports via 3rd party application.
 
 ## [2.6.17] - 2023-06-01
 * Update postpone mechanism to read from separate meta key instead of instance tags
@@ -238,7 +410,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Increase max schedule difference for grouping to 1 hour
 
 ## [2.6.12] - 2023-05-10
-* Sync with new mcdm sdk version with restricted access to Maestro Dynamodb tables
+* Sync with new mcdm sdk version with restricted access to modular Dynamodb tables
 * Update AWS Batch compenv configuration
 
 ## [2.6.11] - 2023-05-05
@@ -295,11 +467,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Remove obsolete ml model usage
   - Extend Algorithm model with parameters that can influence scan workflow
   - Implement Algorithm API/cli commands
-* Remove Job Definition Entity (replaced with Maestro Application/Parent meta)
-* Maestro Application:
+* Remove Job Definition Entity (replaced with modular Application/Parent meta)
+* Modular Application:
   - Implement API/cli commands for management
   - Extend meta with `connection`, `input_storage` and `output_storage` attributes
-* Maestro Parent:
+* Modular Parent:
   - Implement API/cli commands for management
   - Extend meta with:
     1) cloud - define allowed cloud to scan
@@ -385,5 +557,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fix compatibility of r8s cli with m3modular
 
 ## [1.0.0] - 2022-08-30
-* Initial release of Maestro RightSizer Service.
+* Initial release of RightSizer Service.
 

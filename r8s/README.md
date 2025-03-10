@@ -57,6 +57,11 @@ Available command groups:
     - describe
     - delete
     - update
+- application policies:
+    - describe
+    - delete
+    - add_autoscaling
+    - update_autoscaling
 - parent:
     - add
     - describe
@@ -118,6 +123,8 @@ Available command groups:
 [`user`](#user) - Manages User Entity
 
 [`application`](#application) - Manages Application Entity
+
+[`application policies`](#application-policies) - Manages Application Group Policy Entity
 
 [`parent`](#parent) - Manages RIGHTSIZER Parent Entity
 
@@ -326,6 +333,22 @@ _Manages Maestro RIGHTSIZER Application Entity_
 [`describe`](#application-describe) Describes Application entities.
 
 [`update`](#application-update) Updates Application entity.
+
+### `application policies`
+
+**Usage:** `r8s application policies COMMAND [ARGS]...`
+
+_Manages Maestro RIGHTSIZER Application Group Policy Entity_
+
+#### Commands
+
+[`describe`](#application-policies-add) Describes Application Group Policy Entity.
+
+[`delete`](#application-policies-delete) Deletes Application Group Policy Entity.
+
+[`add_autoscaling`](#application-policies-add-autoscaling) Adds Application AUTO_SCALING Group Policy Entity.
+
+[`update_autoscaling`](#application-policies-update-autoscaling) Updates Application AUTO_SCALING Group Policy Entity.
 
 ### `parent`
 

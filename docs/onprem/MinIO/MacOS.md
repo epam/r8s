@@ -50,5 +50,5 @@ brew install minio/stable/mc
 - Assign the policy consoleAdmin to the created user to make him be able to perform various commands:
 
   ```bash
-  $ mc admin policy set myminio consoleAdmin user=$MINIO_ACCESS_KEY
+  $ mc admin policy attach myminio consoleAdmin --user $MINIO_ACCESS_KEY
   ```

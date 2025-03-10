@@ -70,7 +70,7 @@ class MetricFilesCheck(AbstractHealthCheck):
             prefix=prefix,
             only_keys=True)
 
-        sets = [set() for _ in range(6)]
+        sets = [set() for _ in range(7)]
         error_files = []
 
         for index, file_ in enumerate(files):
@@ -81,7 +81,7 @@ class MetricFilesCheck(AbstractHealthCheck):
             if prefix:
                 file_ = file_[len(prefix) + 1:]
             path_parts = file_.split('/')
-            if len(path_parts) != 6:
+            if len(path_parts) != 7:
                 error_files.append(file_)
                 continue
             for part_index, item in enumerate(path_parts):
@@ -89,10 +89,12 @@ class MetricFilesCheck(AbstractHealthCheck):
 
         sets = [self._limit(list(s)) for s in sets]
         error_files = self._limit(error_files)
-        storage_result = {'customers': sets[0], 'clouds': sets[1],
-                          'tenants': sets[2], 'regions': sets[3],
-                          'timestamps': sets[4], 'instances': sets[5],
-                          'folder_structure_errors': error_files}
+        storage_result = {
+            'resource_types': sets[0],
+            'customers': sets[1], 'clouds': sets[2],
+            'tenants': sets[3], 'regions': sets[4],
+            'dates': sets[5], 'instances': sets[6],
+            'folder_structure_errors': error_files}
         return storage_result
 
     @staticmethod

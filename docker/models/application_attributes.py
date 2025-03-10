@@ -1,5 +1,5 @@
 from pynamodb.attributes import MapAttribute, UnicodeAttribute, \
-    NumberAttribute
+    NumberAttribute, ListAttribute
 
 
 class ConnectionAttribute(MapAttribute):
@@ -9,7 +9,15 @@ class ConnectionAttribute(MapAttribute):
     username = UnicodeAttribute(null=True)
 
 
-class ApplicationMeta(MapAttribute):
+class RightsizerApplicationMeta(MapAttribute):
     input_storage = UnicodeAttribute(null=True)
     output_storage = UnicodeAttribute(null=True)
     connection = ConnectionAttribute(null=True)
+    group_policies = ListAttribute(of=MapAttribute, null=True)
+
+
+class RightsizerLicensesApplicationMeta(MapAttribute):
+    cloud = UnicodeAttribute(null=True)
+    algorithm_map = MapAttribute(null=True)
+    license_key = UnicodeAttribute(null=True)
+    tenants = ListAttribute(of=UnicodeAttribute, default=[])

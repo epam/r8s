@@ -8,6 +8,8 @@ from services.clients.api_gateway_client import ApiGatewayClient
 from services.health_checks.abstract_health_check import AbstractHealthCheck
 from services.health_checks.check_result import CheckResult, \
     CheckCollectionResult
+
+from services.environment_service import EnvironmentService
 from services.rightsizer_application_service import \
     RightSizerApplicationService
 from services.ssm_service import SSMService
@@ -27,13 +29,17 @@ class ApplicationConnectionCheck(AbstractHealthCheck):
     def __init__(self, application_service: RightSizerApplicationService,
                  api_gateway_client: ApiGatewayClient,
                  user_service: CognitoUserService,
-                 ssm_service: SSMService):
+                 ssm_service: SSMService,
+                 environment_service: EnvironmentService):
         self.application_service = application_service
         self.api_gateway_client = api_gateway_client
         self.user_service = user_service
         self.ssm_service = ssm_service
+        self.environment_service = environment_service
 
-        self.r8s_api_host = self.api_gateway_client.get_r8s_api_host()
+        self.r8s_api_host = None
+        if not self.environment_service.is_docker():
+            self.api_gateway_client.get_r8s_api_host()
 
     def identifier(self) -> str:
         return CHECK_ID_CONNECTION_CHECK
@@ -65,8 +71,13 @@ class ApplicationConnectionCheck(AbstractHealthCheck):
                                   f'{", ".join(missing_keys)}'}
             )
 
+        if self.environment_service.is_docker():
+            _LOG.debug(f'Host and user credentials checks '
+                       f'are skipped in onprem mode')
+            return self.ok_result()
+
         host = connection.get('host')
-        if host != self.r8s_api_host:
+        if self.r8s_api_host and host != self.r8s_api_host:
             _LOG.error(f'Host {host} does not equals to current host '
                        f'{self.r8s_api_host}')
             return self.not_ok_result(
@@ -135,18 +146,21 @@ class ApplicationCheckHandler:
                  api_gateway_client: ApiGatewayClient,
                  user_service: CognitoUserService,
                  ssm_service: SSMService,
-                 storage_service: StorageService):
+                 storage_service: StorageService,
+                 environment_service: EnvironmentService):
         self.application_service = application_service
         self.api_gateway_client = api_gateway_client
         self.user_service = user_service
         self.ssm_service = ssm_service
         self.storage_service = storage_service
+        self.environment_service = environment_service
 
         self.checks = [
             ApplicationConnectionCheck(application_service=application_service,
                                        api_gateway_client=api_gateway_client,
                                        user_service=user_service,
-                                       ssm_service=ssm_service),
+                                       ssm_service=ssm_service,
+                                       environment_service=environment_service),
             ApplicationStorageCheck(application_service=application_service,
                                     storage_service=storage_service)
         ]

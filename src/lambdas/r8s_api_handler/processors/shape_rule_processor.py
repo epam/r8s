@@ -1,6 +1,8 @@
 from typing import Union, List
 
-from modular_sdk.commons.constants import RIGHTSIZER_PARENT_TYPE
+from modular_sdk.commons.constants import (RIGHTSIZER_LICENSES_TYPE,
+                                           ParentType, ApplicationType)
+from modular_sdk.models.application import Application
 from modular_sdk.models.parent import Parent
 from modular_sdk.services.tenant_service import TenantService
 
@@ -12,11 +14,12 @@ from commons.constants import POST_METHOD, GET_METHOD, PATCH_METHOD, \
     DELETE_METHOD, ID_ATTR, RULE_ACTION_ATTR, CONDITION_ATTR, \
     FIELD_ATTR, VALUE_ATTR, ALLOWED_RULE_ACTIONS, \
     ALLOWED_RULE_CONDITIONS, ALLOWED_SHAPE_FIELDS, PARENT_ID_ATTR, \
-    CLOUD_ATTR, CLOUDS
+    CLOUDS, ERROR_NO_APPLICATION_FOUND
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
 from models.parent_attributes import ShapeRule
+from services.rbac.access_control_service import PARAM_USER_SUB
 from services.rightsizer_application_service import \
     RightSizerApplicationService
 from services.rightsizer_parent_service import RightSizerParentService
@@ -39,7 +42,7 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
             DELETE_METHOD: self.delete,
         }
 
-    def process(self, event) -> dict:
+    def process(self, event: dict) -> dict:
         method = event.get(PARAM_HTTP_METHOD)
         command_handler = self.method_to_handler.get(method)
         if not command_handler:
@@ -50,19 +53,12 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
             raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
         return command_handler(event=event)
 
-    def get(self, event):
+    def get(self, event: dict):
         _LOG.debug(f'Describe shape rule event: {event}')
 
-        _LOG.debug(f'Resolving applications')
-        applications = self.application_service.resolve_application(
-            event=event)
+        _LOG.debug('Resolving applications')
+        applications = self._revolve_application(event=event)
 
-        if not applications:
-            _LOG.warning(f'No application found matching given query.')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No application found matching given query.'
-            )
         parent_id = event.get(PARENT_ID_ATTR)
         app_ids = [app.application_id for app in applications]
 
@@ -80,10 +76,10 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
             parents = self.get_parents(application_ids=app_ids)
 
         if not parents:
-            _LOG.error(f'No parents found matching given query')
+            _LOG.error('No parents found matching given query')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No parents found matching given query'
+                content='No parents found matching given query'
             )
 
         shape_rules: List[ShapeRule] = []
@@ -103,10 +99,10 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
                            if shape_rule.rule_id == rule_id]
 
         if not shape_rules:
-            _LOG.warning(f'No shape rules found matching given query.')
+            _LOG.warning('No shape rules found matching given query.')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content=f'No shape rules found matching given query.'
+                content='No shape rules found matching given query.'
             )
         shape_rule_dto = []
         for shape_rule in shape_rules:
@@ -120,7 +116,7 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
             content=shape_rule_dto
         )
 
-    def post(self, event):
+    def post(self, event: dict):
         _LOG.debug(f'Create shape rule event: {event}')
         validate_params(event, (PARENT_ID_ATTR, RULE_ACTION_ATTR,
                                 CONDITION_ATTR,
@@ -130,51 +126,18 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
         parent = self.parent_service.get_parent_by_id(
             parent_id=parent_id
         )
-        _LOG.debug(f'Validating parent.')
+        _LOG.debug(f'Validating parent {parent_id}.')
         self._validate_parent(parent=parent)
-        applications = self.application_service.resolve_application(
-            event=event)
-        if not applications:
-            _LOG.warning(f'No application found matching given query.')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No application found matching given query.'
-            )
-        app_ids = [app.application_id for app in applications]
-        if not parent or parent.application_id not in app_ids:
-            _LOG.warning(f'No parent found matching given query.')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No parent found matching given query.'
-            )
 
-        cloud = None
-        if parent.cloud:
-            cloud = parent.cloud
-        elif parent.tenant_name:
-            tenant = self.tenant_service.get(tenant_name=parent.tenant_name)
-            if not tenant:
-                _LOG.debug(f'Tenant {parent.tenant_name} linked to '
-                           f'parent {parent.parent_id} does not exist.')
-                return build_response(
-                    code=RESPONSE_BAD_REQUEST_CODE,
-                    content=f'Tenant {parent.tenant_name} linked to '
-                            f'parent {parent.parent_id} does not exist.'
-                )
-            cloud = tenant.cloud
-
-        if not cloud:
-            _LOG.error(f'Parent {parent.parent_id} must have either '
-                       f'SPECIFIC of ALL#CLOUD scope')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Parent {parent.parent_id} must have either '
-                        f'SPECIFIC of ALL#CLOUD scope'
-            )
+        _LOG.debug('Resolving application')
+        target_application = self._revolve_application(
+            event=event,
+            linked_parent=parent
+        )
 
         shape_rule = self.parent_service.create_shape_rule(
             action=event.get(RULE_ACTION_ATTR, '').lower(),
-            cloud=parent.cloud.upper(),
+            cloud=target_application.meta.cloud.upper(),
             condition=event.get(CONDITION_ATTR, '').lower(),
             field=event.get(FIELD_ATTR, '').lower(),
             value=event.get(VALUE_ATTR, '').lower()
@@ -204,8 +167,13 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
             meta=parent_meta
         )
 
-        self.parent_service.save(parent=parent)
-        _LOG.debug(f'Parent \'{parent.parent_id}\' saved')
+        _LOG.debug(f'Updating parent {parent.parent_id} meta')
+        self.parent_service.update(
+            parent=parent,
+            attributes=[Parent.meta],
+            updated_by=event.get(PARAM_USER_SUB)
+        )
+        _LOG.debug(f'Parent \'{parent.parent_id}\' updated')
 
         shape_rule_dto = self.parent_service.get_shape_rule_dto(
             shape_rule=shape_rule)
@@ -217,38 +185,25 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
             content=shape_rule_dto
         )
 
-    def patch(self, event):
+    def patch(self, event: dict):
         _LOG.debug(f'Update shape rule event: {event}')
 
         validate_params(event, (PARENT_ID_ATTR, ID_ATTR,))
 
         parent_id = event.get(PARENT_ID_ATTR)
+        rule_id = event.get(ID_ATTR)
+
         parent = self.parent_service.get_parent_by_id(
             parent_id=parent_id
         )
         self._validate_parent(parent=parent)
 
-        rule_id = event.get(ID_ATTR)
-        applications = self.application_service. \
-            resolve_application(event=event)
-
-        if not applications:
-            _LOG.warning(f'No application for cloud found.')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No application for cloud found.'
-            )
-        app_ids = [app.application_id for app in applications]
-        if not parent or parent.application_id not in app_ids:
-            _LOG.warning(f'No parent found matching given query.')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No parent found matching given query.'
-            )
+        self._revolve_application(event=event, linked_parent=parent)
 
         parent_meta = self.parent_service.get_parent_meta(
             parent=parent
         )
+        _LOG.debug(f'Describing shape rule {rule_id} in parent')
         shape_rule = self.parent_service.get_shape_rule(
             parent_meta=parent_meta,
             rule_id=rule_id
@@ -261,6 +216,7 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
                 content=f'Shape rule \'{rule_id}\' does not exist in '
                         f'parent \'{parent_id}\''
             )
+        _LOG.debug(f'Updating rule {rule_id}')
         self.parent_service.update_shape_rule(
             shape_rule=shape_rule,
             action=event.get(RULE_ACTION_ATTR),
@@ -268,7 +224,7 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
             condition=event.get(CONDITION_ATTR),
             value=event.get(VALUE_ATTR)
         )
-        _LOG.debug(f'Shape rule updated')
+        _LOG.debug('Shape rule updated')
 
         errors = self._validate(shape_rule=shape_rule)
         if errors:
@@ -282,11 +238,13 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
             parent_meta=parent_meta,
             shape_rule=shape_rule
         )
-        _LOG.debug(f'Shape rule updated in parent '
-                   f'\'{parent.parent_id}\' meta')
-
-        self.parent_service.save(parent=parent)
-        _LOG.debug(f'Parent \'{parent.parent_id}\' saved')
+        _LOG.debug(f'Updating parent {parent.parent_id} meta')
+        self.parent_service.update(
+            parent=parent,
+            attributes=[Parent.meta],
+            updated_by=event.get(PARAM_USER_SUB)
+        )
+        _LOG.debug(f'Parent \'{parent.parent_id}\' updated')
 
         shape_rule_dto = self.parent_service.get_shape_rule_dto(
             shape_rule=shape_rule)
@@ -298,30 +256,23 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
             content=shape_rule_dto
         )
 
-    def delete(self, event):
+    def delete(self, event: dict):
         _LOG.debug(f'Remove shape rule event: {event}')
 
         validate_params(event, (ID_ATTR,))
 
         rule_id = event.get(ID_ATTR)
 
-        applications = self.application_service.resolve_application(
-            event=event)
+        applications = self._revolve_application(event=event)
 
-        if not applications:
-            _LOG.warning(f'No application found matching given query.')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No application found matching given query.'
-            )
         app_ids = [application.application_id for application in applications]
         parents = self.get_parents(application_ids=app_ids)
 
         if not parents:
-            _LOG.warning(f'No parents found matching given query.')
+            _LOG.warning('No parents found matching given query.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No parents found matching given query.'
+                content='No parents found matching given query.'
             )
 
         target_parent = self.get_parent_with_rule(
@@ -340,7 +291,7 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
                    f'parent \'{target_parent.parent_id}\'')
         parent_meta = self.parent_service.get_parent_meta(
             parent=target_parent)
-        self.parent_service.remove_shape_rule_from_application(
+        self.parent_service.remove_shape_rule_from_meta(
             parent_meta=parent_meta,
             rule_id=rule_id
         )
@@ -350,13 +301,18 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
             parent=target_parent,
             meta=parent_meta
         )
-        _LOG.debug(f'Parent meta updated.')
-        self.parent_service.save(parent=target_parent)
-        _LOG.debug(f'Updated parent saved.')
+        _LOG.debug(f'Updating parent {target_parent.parent_id} meta')
+        self.parent_service.update(
+            parent=target_parent,
+            attributes=[Parent.meta],
+            updated_by=event.get(PARAM_USER_SUB)
+        )
+        _LOG.debug(f'Parent \'{target_parent.parent_id}\' updated')
+
         return build_response(
             code=RESPONSE_OK_CODE,
             content=f'Shape rule \'{rule_id}\' was deleted from parent '
-                    f'\'{target_parent.application_id}\''
+                    f'\'{target_parent.parent_id}\''
         )
 
     @staticmethod
@@ -420,8 +376,7 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
         for application_id in application_ids:
             app_parents = self.parent_service.list_application_parents(
                 application_id=application_id,
-                only_active=True,
-                type_=RIGHTSIZER_PARENT_TYPE
+                only_active=True
             )
             parents.extend(app_parents)
         return parents
@@ -429,27 +384,43 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
     @staticmethod
     def _validate_parent(parent: Parent = None):
         if not parent:
-            _LOG.error(f'No parent found matching given query.')
+            _LOG.error('No parent found matching given query.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No parent found matching given query.'
+                content='No parent found matching given query.'
             )
-        if not parent.type == RIGHTSIZER_PARENT_TYPE:
-            _LOG.error(
-                f'Parent of \'{RIGHTSIZER_PARENT_TYPE}\' type required.')
+        if parent.type != RIGHTSIZER_LICENSES_TYPE:
+            _LOG.error(f'Parent of \'{RIGHTSIZER_LICENSES_TYPE}\' '
+                       f'type required.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Parent of \'{RIGHTSIZER_PARENT_TYPE}\' '
+                content=f'Parent of \'{RIGHTSIZER_LICENSES_TYPE}\' '
                         f'type required.'
             )
 
-    @staticmethod
-    def _validate_cloud(cloud: str):
-        if cloud not in CLOUDS:
-            _LOG.error(f'Unsupported cloud specified. Available clouds: '
-                       f'{", ".join(CLOUDS)}')
+    def _revolve_application(
+            self, event, linked_parent: Parent = None
+    ) -> Union[List[Application], Application]:
+        applications = self.application_service.resolve_application(
+            event=event, type_=ApplicationType.RIGHTSIZER_LICENSES)
+
+        if not applications:
+            _LOG.warning(ERROR_NO_APPLICATION_FOUND)
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Unsupported cloud specified. Available clouds: '
-                        f'{", ".join(CLOUDS)}'
+                content=ERROR_NO_APPLICATION_FOUND
             )
+
+        if linked_parent:
+            target_application = None
+            for application in applications:
+                if application.application_id == linked_parent.application_id:
+                    target_application = application
+            if not target_application:
+                _LOG.warning(ERROR_NO_APPLICATION_FOUND)
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content=ERROR_NO_APPLICATION_FOUND
+                )
+            return target_application
+        return applications

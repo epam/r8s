@@ -8,6 +8,7 @@
   "memory": 1024,
   "timeout": 30,
   "lambda_path": "lambdas/r8s_api_handler",
+  "logs_expiration": "${logs_expiration}",
   "dependencies": [],
   "event_sources": [],
   "env_variables": {
@@ -16,6 +17,8 @@
     "cognito_user_pool_name": "${cognito_user_pool_name}",
     "r8s_job_queue": "${r8s_job_queue}",
     "r8s_job_definition": "${r8s_job_definition}",
+    "force_rescan": "${force_rescan}",
+    "lm_token_lifetime_minutes": "${lm_token_lifetime_minutes}",
     "DEBUG": "${DEBUG}"
   },
   "publish_version": true,

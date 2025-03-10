@@ -7,8 +7,16 @@ from commons.constants import GET_METHOD
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.algorithm_processor import \
     AlgorithmProcessor
+from lambdas.r8s_api_handler.processors.application_licenses_processor import \
+    ApplicationLicensesProcessor
 from lambdas.r8s_api_handler.processors.application_processor import \
     ApplicationProcessor
+from lambdas.r8s_api_handler.processors.dojo_application_processor import \
+    DojoApplicationProcessor
+from lambdas.r8s_api_handler.processors.dojo_parent_processor import \
+    DojoParentProcessor
+from lambdas.r8s_api_handler.processors.group_policy_processor import \
+    GroupPolicyProcessor
 from lambdas.r8s_api_handler.processors.health_check_processor import \
     HealthCheckProcessor
 from lambdas.r8s_api_handler.processors.job_processor import JobProcessor
@@ -22,8 +30,6 @@ from lambdas.r8s_api_handler.processors.license_sync_processor import \
     LicenseSyncProcessor
 from lambdas.r8s_api_handler.processors.mail_report_processor import \
     MailReportProcessor
-from lambdas.r8s_api_handler.processors.parent_licenses_processor import \
-    ParentLicensesProcessor
 from lambdas.r8s_api_handler.processors.parent_processor import ParentProcessor
 from lambdas.r8s_api_handler.processors.parent_resize_insights_processor import \
     ParentResizeInsightsProcessor
@@ -31,6 +37,8 @@ from lambdas.r8s_api_handler.processors.policies_processor import \
     PolicyProcessor
 from lambdas.r8s_api_handler.processors.recommendation_history_processor import \
     RecommendationHistoryProcessor
+from lambdas.r8s_api_handler.processors.refresh_processor import \
+    RefreshProcessor
 from lambdas.r8s_api_handler.processors.report_processor import ReportProcessor
 from lambdas.r8s_api_handler.processors.role_processor import RoleProcessor
 from lambdas.r8s_api_handler.processors.shape_price_processor import \
@@ -81,11 +89,14 @@ _LOG = get_logger('R8sApiHandler-handler')
 
 SIGNIN_ACTION = 'signin'
 SIGNUP_ACTION = 'signup'
+REFRESH_ACTION = 'refresh'
 POLICY_ACTION = 'policy'
 ROLE_ACTION = 'role'
 ALGORITHM_ACTION = 'algorithm'
 STORAGE_ACTION = 'storage'
 APPLICATION_ACTION = 'application'
+APPLICATION_LICENSES_ACTION = 'application_licenses'
+APPLICATION_DOJO_ACTION = 'application_dojo'
 JOB_ACTION = 'job'
 REPORT_ACTION = 'report'
 MAIL_REPORT_ACTION = 'mail_report'
@@ -93,7 +104,7 @@ STORAGE_DATA_ACTION = 'storage_data'
 SHAPE_RULE_ACTION = 'shape_rule'
 SHAPE_RULE_DRY_RUN_ACTION = 'shape_rule_dry_run'
 PARENT_ACTION = 'parent'
-PARENT_LICENSES_ACTION = 'parent_licenses'
+PARENT_DOJO_ACTION = 'parent_dojo'
 PARENT_INSIGHTS_RESIZE_ACTION = 'parent_insights_resize'
 SHAPE_ACTION = 'shape'
 SHAPE_PRICE_ACTION = 'shape_price'
@@ -104,6 +115,7 @@ LM_SETTING_CONFIG_ACTION = 'settings-config'
 LM_SETTING_CLIENT_ACTION = 'settings-client'
 LICENSE_ACTION = 'license'
 LICENSE_SYNC_ACTION = 'license-sync'
+GROUP_POLICY_ACTION = 'group-policy'
 
 
 class R8sApiHandler(AbstractApiHandlerLambda):
@@ -162,12 +174,17 @@ class R8sApiHandler(AbstractApiHandlerLambda):
 
         self.processor_registry = {
             SIGNIN_ACTION: self._instantiate_signin_processor,
+            REFRESH_ACTION: self._instantiate_refresh_processor,
             SIGNUP_ACTION: self._instantiate_signup_processor,
             POLICY_ACTION: self._instantiate_policy_processor,
             ROLE_ACTION: self._instantiate_role_processor,
             ALGORITHM_ACTION: self._instantiate_algorithm_processor,
             STORAGE_ACTION: self._instantiate_storage_processor,
             APPLICATION_ACTION: self._instantiate_application_processor,
+            APPLICATION_LICENSES_ACTION:
+                self._instantiate_application_licenses_processor,
+            APPLICATION_DOJO_ACTION:
+                self._instantiate_application_dojo_processor,
             JOB_ACTION: self._instantiate_job_processor,
             REPORT_ACTION: self._instantiate_report_processor,
             MAIL_REPORT_ACTION: self._instantiate_mail_report_processor,
@@ -176,7 +193,7 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             SHAPE_RULE_DRY_RUN_ACTION:
                 self._instantiate_shape_rule_dry_run_processor,
             PARENT_ACTION: self._instantiate_parent_processor,
-            PARENT_LICENSES_ACTION: self._instantiate_parent_licenses_processor,
+            PARENT_DOJO_ACTION: self._instantiate_dojo_parent_processor,
             USER_ACTION: self._instantiate_user_processor,
             SHAPE_ACTION: self._instantiate_shape_processor,
             SHAPE_PRICE_ACTION: self._instantiate_shape_price_processor,
@@ -187,7 +204,8 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             LM_SETTING_CONFIG_ACTION: self._instantiate_lm_config_processor,
             LM_SETTING_CLIENT_ACTION: self._instantiate_lm_client_processor,
             LICENSE_ACTION: self._instantiate_license_processor,
-            LICENSE_SYNC_ACTION: self._instantiate_license_sync_processor
+            LICENSE_SYNC_ACTION: self._instantiate_license_sync_processor,
+            GROUP_POLICY_ACTION: self._instantiate_group_policy_processor
         }
 
     def validate_request(self, event) -> dict:
@@ -225,6 +243,11 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             user_service=self.user_service,
         )
 
+    def _instantiate_refresh_processor(self):
+        return RefreshProcessor(
+            user_service=self.user_service,
+        )
+
     def _instantiate_policy_processor(self):
         return PolicyProcessor(
             user_service=self.user_service,
@@ -254,10 +277,28 @@ class R8sApiHandler(AbstractApiHandlerLambda):
     def _instantiate_application_processor(self):
         return ApplicationProcessor(
             application_service=self.application_service,
+            parent_service=self.parent_service,
             algorithm_service=self.algorithm_service,
             storage_service=self.storage_service,
             customer_service=self.customer_service,
             api_gateway_client=self.api_gateway_client
+        )
+
+    def _instantiate_application_licenses_processor(self):
+        return ApplicationLicensesProcessor(
+            algorithm_service=self.algorithm_service,
+            customer_service=self.customer_service,
+            application_service=self.application_service,
+            parent_service=self.parent_service,
+            license_service=self.license_service,
+            license_manager_service=self.license_manager_service
+        )
+
+    def _instantiate_application_dojo_processor(self):
+        return DojoApplicationProcessor(
+            customer_service=self.customer_service,
+            application_service=self.application_service,
+            parent_service=self.parent_service
         )
 
     def _instantiate_job_processor(self):
@@ -278,7 +319,8 @@ class R8sApiHandler(AbstractApiHandlerLambda):
     def _instantiate_report_processor(self):
         return ReportProcessor(
             job_service=self.job_service,
-            report_service=self.report_service
+            report_service=self.report_service,
+            tenant_service=self.tenant_service
         )
 
     def _instantiate_storage_data_processor(self):
@@ -305,15 +347,6 @@ class R8sApiHandler(AbstractApiHandlerLambda):
 
     def _instantiate_parent_processor(self):
         return ParentProcessor(
-            customer_service=self.customer_service,
-            application_service=self.application_service,
-            parent_service=self.parent_service,
-            tenant_service=self.tenant_service,
-            environment_service=self.environment_service
-        )
-
-    def _instantiate_parent_licenses_processor(self):
-        return ParentLicensesProcessor(
             algorithm_service=self.algorithm_service,
             customer_service=self.customer_service,
             application_service=self.application_service,
@@ -321,6 +354,14 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             tenant_service=self.tenant_service,
             license_service=self.license_service,
             license_manager_service=self.license_manager_service
+        )
+
+    def _instantiate_dojo_parent_processor(self):
+        return DojoParentProcessor(
+            customer_service=self.customer_service,
+            application_service=self.application_service,
+            parent_service=self.parent_service,
+            tenant_service=self.tenant_service
         )
 
     def _instantiate_shape_processor(self):
@@ -356,7 +397,8 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             user_service=self.user_service,
             algorithm_service=self.algorithm_service,
             s3_client=self.s3_client,
-            settings_service=self.settings_service
+            settings_service=self.settings_service,
+            environment_service=self.environment_service
         )
 
     def _instantiate_recommendation_processor(self):
@@ -401,6 +443,11 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             license_service=self.license_service,
             license_manager_service=self.license_manager_service,
             algorithm_service=self.algorithm_service
+        )
+
+    def _instantiate_group_policy_processor(self):
+        return GroupPolicyProcessor(
+            application_service=self.application_service
         )
 
 

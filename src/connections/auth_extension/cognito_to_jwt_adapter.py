@@ -1,6 +1,8 @@
 import json
 import time
 from typing import Optional, Any, TypedDict
+from uuid import uuid4
+import secrets
 
 import bcrypt
 import jwt
@@ -72,9 +74,96 @@ class MongoAndSSMAuthClient(BaseAuthClient):
                 content=UNAUTHORIZED_MESSAGE
             )
 
-    def admin_initiate_auth(self, username: str, password: str) -> dict:
-        # todo implement refresh token
+    def refresh_token(self, refresh_token: str):
+        _LOG.info('Starting on-prem refresh token flow')
+        tpl = self.decode_refresh_token(refresh_token)
+        if not tpl:
+            _LOG.info('Invalid refresh token provided. Cannot refresh')
+            return
+        username, rt_version = tpl
 
+        rt_version = self._gen_refresh_token_version()
+        self.update_latest_login(
+            username=username,
+            latest_rt_version=rt_version
+        )
+
+        user = self._get_user(username)
+        return {
+            'id_token': self._generate_access_token(user),
+            'refresh_token': self._generate_refresh_token(username, rt_version),
+            'expires_in': EXPIRATION_IN_MINUTES * 60
+        }
+
+    def _generate_access_token(self, user: User):
+        jwt_secret = self._get_jwt_secret()
+        return jwt.encode(
+            payload={
+                COGNITO_USERNAME: user.user_id,
+                CUSTOM_CUSTOMER_ATTR: user.customer,
+                CUSTOM_ROLE_ATTR: user.role,
+                CUSTOM_LATEST_LOGIN_ATTR: user.latest_login,
+                EXP_ATTR: round(time.time()) + EXPIRATION_IN_MINUTES * 60
+            },
+            key=jwt_secret['phrase'],
+            algorithm='HS256'
+        )
+
+    def _generate_refresh_token(self,  username, version):
+        jwt_secret = self._get_jwt_secret()
+        return jwt.encode(
+            payload={
+                COGNITO_USERNAME: username,
+                'version': version
+            },
+            key=jwt_secret['phrase'],
+            algorithm='HS256'
+        )
+
+    def decode_refresh_token(self, token):
+        jwt_secret = self._get_jwt_secret()
+        try:
+            decoded_token = jwt.decode(
+                jwt=token,
+                key=jwt_secret['phrase'],
+                algorithms=['HS256']
+            )
+        except jwt.exceptions.ExpiredSignatureError:
+            raise ApplicationException(
+                code=RESPONSE_UNAUTHORIZED,
+                content=TOKEN_EXPIRED_MESSAGE,
+            )
+        except jwt.exceptions.PyJWTError:
+            raise ApplicationException(
+                code=RESPONSE_UNAUTHORIZED,
+                content=UNAUTHORIZED_MESSAGE
+            )
+        user_id = decoded_token.get(COGNITO_USERNAME)
+        if not user_id:
+            _LOG.warning(f'Invalid token content. Cannot refresh')
+            return
+        user = self._get_user(user_id)
+        if not user:
+            _LOG.warning(f'Valid token was received, '
+                         f'but the requested user "{user_id}" not '
+                         f'found in db. Cannot refresh')
+            return
+        if not user.latest_rt_version:
+            _LOG.warning('Latest version of refresh token not found in DB '
+                         'but valid token was received. Cannot refresh')
+            return
+        if user.latest_rt_version != decoded_token.get('version'):
+            _LOG.warning('Refresh token versions do not match. Cannot refresh')
+            _LOG.debug(f'Provided version: {decoded_token.get("version")}, '
+                       f'version stored in db: {user.latest_rt_version}')
+            return
+        return user.user_id, user.latest_rt_version
+
+    @staticmethod
+    def _gen_refresh_token_version() -> str:
+        return secrets.token_hex()
+
+    def admin_initiate_auth(self, username: str, password: str) -> dict:
         user_item = User.objects.get(user_id=username)
         if not user_item or bcrypt.hashpw(password.encode(),
                                           user_item.password.encode()) != user_item.password.encode():
@@ -83,22 +172,13 @@ class MongoAndSSMAuthClient(BaseAuthClient):
                 code=RESPONSE_UNAUTHORIZED,
                 content=WRONG_USER_CREDENTIALS_MESSAGE)
 
-        jwt_secret = self._get_jwt_secret()
-        self.update_latest_login(username)
-        encoded_jwt = jwt.encode(
-            payload={
-                COGNITO_USERNAME: username,
-                CUSTOM_CUSTOMER_ATTR: user_item.customer,
-                CUSTOM_ROLE_ATTR: user_item.role,
-                CUSTOM_LATEST_LOGIN_ATTR: user_item.latest_login,
-                EXP_ATTR: round(time.time()) + EXPIRATION_IN_MINUTES * 60
-            },
-            key=jwt_secret['phrase'],
-            algorithm='HS256'
-        )
+        rt_version = self._gen_refresh_token_version()
+        refresh_token = self._generate_refresh_token(username, rt_version)
+        self.update_latest_login(username=username, latest_rt_version=rt_version)
+        encoded_jwt = self._generate_access_token(user_item)
         return {
             'AuthenticationResult': {
-                'IdToken': encoded_jwt, 'RefreshToken': []
+                'IdToken': encoded_jwt, 'RefreshToken': refresh_token
             }
         }
 
@@ -113,12 +193,13 @@ class MongoAndSSMAuthClient(BaseAuthClient):
     def respond_to_auth_challenge(self, challenge_name: str):
         pass
 
-    def sign_up(self, username, password, customer, role):
+    def sign_up(self, username, password, customer, role, tenants=None):
         user = User()
         user.user_id = username
         self._set_password(user, password)
         user.customer = customer
         user.role = role
+        user.sub = str(uuid4())
         User.save(user)
 
     @staticmethod
@@ -133,6 +214,16 @@ class MongoAndSSMAuthClient(BaseAuthClient):
 
     def is_user_exists(self, username: str) -> bool:
         return bool(self._get_user(username))
+
+    def get_user_id(self, username: str):
+        return self._get_user_attr(username, 'sub')
+
+    def list_users(self, attributes_to_get=None):
+        try:
+            users = list(User.objects.all())
+        except:
+            return
+        return [user.get_dto() for user in users]
 
     def get_user_role(self, username: str):
         return self._get_user_attr(username, 'role')
@@ -159,12 +250,16 @@ class MongoAndSSMAuthClient(BaseAuthClient):
         user.customer = customer
         user.save()
 
-    def update_latest_login(self, username: str):
+    def update_latest_login(self, username: str, latest_rt_version: str=None):
+        _LOG.debug(f'Updating latest login for user {username}. '
+                   f'RT version: {latest_rt_version}')
         user = self._get_user(username)
         if not user:
             _LOG.warning(USER_NOT_FOUND_MESSAGE.format(username=username))
             return
         user.latest_login = utc_iso()
+        if latest_rt_version:
+            user.latest_rt_version = latest_rt_version
         user.save()
 
     def delete_role(self, username: str):
@@ -217,4 +312,4 @@ class MongoAndSSMAuthClient(BaseAuthClient):
             raise ApplicationException(
                 code=RESPONSE_BAD_REQUEST_CODE,
                 content=f'No user with username {username} was found')
-        return user
+        return user.get_dto()

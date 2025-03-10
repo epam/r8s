@@ -47,6 +47,7 @@ MINIO_HOST: 127.0.0.1 # Your MinIO server host
 MINIO_PORT: 41149 # Your MinIO server port
 EXECUTOR_PATH: $PATH/r8s/docker/executor.py # Absolute path to executor.py
 VENV_PATH: /$PATH/r8s/venv/bin/python3.8 # Absolute path to virtualenv python executable
+logs_expiration: 30 # The expiration period of Lambda's CloudWatch logs in days
 ```   
 
 *Keep in mind:* likely you won't be ready to put some secret keys or tokens 

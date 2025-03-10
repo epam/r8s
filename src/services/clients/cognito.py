@@ -12,6 +12,7 @@ _LOG = get_logger('cognitoclient')
 CUSTOM_ROLE_ATTR = 'custom:r8s_role'
 CUSTOM_CUSTOMER_ATTR = 'custom:customer'
 CUSTOM_LATEST_LOGIN_ATTR = 'custom:latest_login'
+SUB_ATTR = 'sub'
 
 PARAM_USER_POOLS = 'UserPools'
 
@@ -39,7 +40,8 @@ class CognitoClient(BaseAuthClient):
         params = dict(UserPoolId=self.__get_user_pool_id())
         if attributes_to_get:
             params['AttributesToGet'] = attributes_to_get
-        return self.client.list_users(**params)
+        users = self.client.list_users(**params)
+        return self._format_users(users)
 
     def admin_initiate_auth(self, username, password):
         """
@@ -72,7 +74,7 @@ class CognitoClient(BaseAuthClient):
         self.client.respond_to_auth_challenge(ClientId=client_id,
                                               ChallengeName=challenge_name)
 
-    def sign_up(self, username, password, customer, role):
+    def sign_up(self, username, password, customer, role, tenants=None):
         client_id = self.__get_client_id()
         custom_attr = [{
             'Name': 'name',
@@ -122,9 +124,9 @@ class CognitoClient(BaseAuthClient):
                 return pool['Id']
 
     def get_user(self, username):
-        user = self.is_user_exists(username=username)
-        if user:
-            return user[0]
+        users = self.is_user_exists(username=username)
+        if users:
+            return users[0]
         _LOG.error(f'No user with username {username} was found')
         raise ApplicationException(
             code=RESPONSE_BAD_REQUEST_CODE,
@@ -135,7 +137,8 @@ class CognitoClient(BaseAuthClient):
         users = self.client.list_users(
             UserPoolId=user_pool_id,
             Filter=f'username = "{username}"')
-        return users['Users']
+        users = self._format_users(users)
+        return users
 
     def _get_user_attr(self, user, attr_name, query_user=True):
         """user attribute can be either a 'username' or a user dict object
@@ -148,6 +151,9 @@ class CognitoClient(BaseAuthClient):
 
     def get_user_role(self, username):
         return self._get_user_attr(username, CUSTOM_ROLE_ATTR)
+
+    def get_user_id(self, username):
+        return self._get_user_attr(username, SUB_ATTR)
 
     def update_role(self, username, role):
         user_pool_id = self.__get_user_pool_id()
@@ -235,3 +241,13 @@ class CognitoClient(BaseAuthClient):
             UserPoolId=self.__get_user_pool_id(),
             Username=username
         )
+
+    @staticmethod
+    def _format_users(users):
+        formatted_users = []
+        for user in users:
+            user_item = {'username': user.get('Username')}
+            for attribute in user.get('Attributes', []):
+                user_item[attribute['Name']] = attribute['Value']
+            formatted_users.append(user_item)
+        return formatted_users

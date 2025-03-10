@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.10.0] - 2024-08-14
+* implement dojo-related command groups
+  * `r8s application dojo`
+  * `r8s parent dojo`
+
+## [3.5.6] - 2024-02-01
+* r8s application policies update_autoscaling - if scale_step set to 0, AUTO_DETECT policy will be applied
+
+## [3.5.3] - 2024-01-26
+* r8s application policies add/update_autoscaling - fix error message in case of 
+  not all threshold-related parameters passed
+
+## [3.5.0] - 2024-01-24
+* Implement `r8s application policies` command group:
+  * `describe` - Describes available group policies from application
+  * `delete` - Deletes group policy from application
+  * `add_autoscaling` - Configures AUTO_SCALING group policy
+  * `update_autoscaling` - Updates AUTO_SCALING group policy
+* Remove unused `--parent_id` parameter from r8s parent shaperule delete
+* Fix invalid parent id in response of `r8s parent shaperule delete`
+
+## [3.1.1] - 2024-01-18
+* fix issue with compatibility with `modular-api` for command `parent shape_rule`
+
+## [3.1.0] - 2023-12-08
+* add ability to force delete Application/Parent:
+  * r8s application delete --force
+  * r8s parent delete --force
+
+## [2.19.10] - 2023-11-22
+* add `limit` parameter to `r8s job describe` command
+
 ## [2.15.0] - 2023-09-29
 * Upgrade r8s CLI dependency versions to support python 3.10
 

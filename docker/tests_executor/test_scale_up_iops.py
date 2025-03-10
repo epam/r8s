@@ -5,9 +5,11 @@ import pandas as pd
 
 from commons.constants import ACTION_CHANGE_SHAPE
 from tests_executor.base_executor_test import BaseExecutorTest
-from tests_executor.constants import POINTS_IN_DAY
-from tests_executor.utils import constant_to_series, \
-    generate_timestamp_series, generate_constant_metric_series, dateparse
+from tests_executor.constants import (POINTS_IN_DAY, RECOMMENDATION_KEY,
+                                      RECOMMENDED_SHAPES_KEY)
+from tests_executor.utils import (generate_constant_metric_series,
+                                  constant_to_series,
+                                  generate_timestamp_series, dateparse)
 
 
 class TestScaleUpIOPS(BaseExecutorTest):
@@ -72,19 +74,23 @@ class TestScaleUpIOPS(BaseExecutorTest):
 
     @patch.dict(os.environ, {'KMP_DUPLICATE_LIB_OK': "TRUE"})
     def test_scale_up_iops(self):
-        result = self.recommendation_service.process_instance(
+        result, _ = self.recommendation_service.process_instance(
             metric_file_path=self.metrics_file_path,
             algorithm=self.algorithm,
             reports_dir=self.reports_path
         )
 
-        self.assertEqual(result.get('instance_id'), self.instance_id)
+        self.assert_resource_id(
+            result=result,
+            resource_id=self.instance_id
+        )
 
         self.assert_stats(result=result)
         self.assert_action(result=result,
                            expected_actions=[ACTION_CHANGE_SHAPE])
 
-        recommended_shapes = result.get('recommended_shapes', [])
+        recommendation = result.get(RECOMMENDATION_KEY, {})
+        recommended_shapes = recommendation.get(RECOMMENDED_SHAPES_KEY, [])
         for shape in recommended_shapes:
             shape_iops = shape.get('iops')
             self.assertTrue(shape_iops > self.current_iops)

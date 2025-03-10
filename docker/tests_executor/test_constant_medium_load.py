@@ -5,9 +5,11 @@ import pandas as pd
 
 from commons.constants import ACTION_EMPTY
 from tests_executor.base_executor_test import BaseExecutorTest
-from tests_executor.constants import POINTS_IN_DAY, WEEK_DAYS
-from tests_executor.utils import constant_to_series, \
-    generate_timestamp_series, generate_constant_metric_series, dateparse
+from tests_executor.constants import (POINTS_IN_DAY, RECOMMENDATION_KEY,
+                                      SCHEDULE_KEY)
+from tests_executor.utils import (generate_constant_metric_series,
+                                  constant_to_series,
+                                  generate_timestamp_series, dateparse)
 
 
 class TestConstantMediumLoad(BaseExecutorTest):
@@ -66,27 +68,21 @@ class TestConstantMediumLoad(BaseExecutorTest):
 
     @patch.dict(os.environ, {'KMP_DUPLICATE_LIB_OK': "TRUE"})
     def test_constant_medium_load(self):
-        result = self.recommendation_service.process_instance(
+        result, _ = self.recommendation_service.process_instance(
             metric_file_path=self.metrics_file_path,
             algorithm=self.algorithm,
             reports_dir=self.reports_path
         )
 
-        self.assertEqual(result.get('instance_id'), self.instance_id)
+        self.assert_resource_id(
+            result=result,
+            resource_id=self.instance_id
+        )
 
-        schedule = result.get('schedule')
+        recommendation = result.get(RECOMMENDATION_KEY, {})
 
-        self.assertEqual(len(schedule), 1)
-        schedule_item = schedule[0]
-
-        start = schedule_item.get('start')
-        stop = schedule_item.get('stop')
-
-        self.assertEqual(start, '00:00')
-        self.assertEqual(stop, '23:50')
-
-        weekdays = schedule_item.get('weekdays')
-        self.assertEqual(set(weekdays), set(WEEK_DAYS))
+        schedule = recommendation.get(SCHEDULE_KEY)
+        self.assert_always_run_schedule(schedule=schedule)
 
         self.assert_stats(result=result)
         self.assert_action(result=result, expected_actions=[ACTION_EMPTY])

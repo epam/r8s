@@ -2,9 +2,11 @@ from datetime import datetime
 from typing import List
 import os
 from modular_sdk.commons.constants import (RIGHTSIZER_LICENSES_PARENT_TYPE,
-                                           ParentScope)
-from modular_sdk.models.parent import Parent
+                                           ParentScope, ApplicationType,
+                                           ParentType)
+from modular_sdk.models.application import Application
 from modular_sdk.models.tenant import Tenant
+from modular_sdk.models.parent import Parent
 from modular_sdk.services.customer_service import CustomerService
 from modular_sdk.services.tenant_service import TenantService
 
@@ -14,7 +16,9 @@ from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
 from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import CLOUD_AWS, TENANTS_ATTR, \
     ENV_TENANT_CUSTOMER_INDEX, FORBIDDEN_ATTR, ALLOWED_ATTR, \
-    REMAINING_BALANCE_ATTR
+    REMAINING_BALANCE_ATTR, ENV_LM_TOKEN_LIFETIME_MINUTES, LIMIT_ATTR, \
+    APPLICATION_ID_ATTR, MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE, \
+    APPLICATION_TENANTS_ALL, MAESTRO_RIGHTSIZER_APPLICATION_TYPE
 from commons.constants import POST_METHOD, GET_METHOD, DELETE_METHOD, ID_ATTR, \
     NAME_ATTR, USER_ID_ATTR, PARENT_ID_ATTR, SCAN_FROM_DATE_ATTR, \
     SCAN_TO_DATE_ATTR, TENANT_LICENSE_KEY_ATTR, PARENT_SCOPE_SPECIFIC_TENANT
@@ -90,12 +94,24 @@ class JobProcessor(AbstractCommandProcessor):
         applications = self.application_service.resolve_application(
             event=event
         )
+        limit = event.get(LIMIT_ATTR)
         if not applications:
             _LOG.error(f'No suitable application found to describe jobs.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
                 content=f'No suitable application found to describe jobs.'
             )
+
+        if limit:
+            try:
+                limit = int(limit)
+            except (ValueError, TypeError):
+                _LOG.error(f'{LIMIT_ATTR} attribute must be a valid int')
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content=f'{LIMIT_ATTR} attribute must be a valid int'
+                )
+
         if job_id:
             _LOG.debug(f'Describing job by id: \'{job_id}\'')
             jobs = [self.job_service.get_by_id(object_id=job_id)]
@@ -104,7 +120,7 @@ class JobProcessor(AbstractCommandProcessor):
             jobs = [self.job_service.get_by_name(name=job_name)]
         else:
             _LOG.debug(f'Describing all jobs')
-            jobs = self.job_service.list()
+            jobs = self.job_service.list(limit=limit)
 
         if not jobs or jobs and all([job is None for job in jobs]):
             _LOG.debug(f'No jobs found matching given query')
@@ -124,56 +140,92 @@ class JobProcessor(AbstractCommandProcessor):
 
     def post(self, event):
         _LOG.debug(f'Submit job event: {event}')
-        validate_params(event, (USER_ID_ATTR, PARENT_ID_ATTR))
+        validate_params(event, (USER_ID_ATTR,))
 
-        parent_id = event.get(PARENT_ID_ATTR)
-        parent = self.parent_service.get_parent_by_id(parent_id=parent_id)
-
-        if not parent:
-            _LOG.error(f'Parent with id \'{parent_id}\' does not exist')
+        resolved_applications = self.application_service.resolve_application(
+            event=event
+        )
+        if not resolved_applications:
+            _LOG.error('Application matching given query '
+                       'does not exist')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Parent with id \'{parent_id}\' does not exist'
+                content='Application matching given query '
+                        'does not exist'
             )
-        if parent.type != RIGHTSIZER_LICENSES_PARENT_TYPE:
-            _LOG.error(f'Parent of {RIGHTSIZER_LICENSES_PARENT_TYPE} '
+        if len(resolved_applications) > 1:
+            _LOG.error('More than one matching application found. Please '
+                       'try to specify application_id explicitly')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content='More than one matching application found. Please '
+                        'try to specify application_id explicitly'
+            )
+        licensed_application = resolved_applications[0]
+
+        if (licensed_application.type !=
+                MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE):
+            _LOG.error(f'Application of '
+                       f'{MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE} '
                        f'type required.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Parent of {RIGHTSIZER_LICENSES_PARENT_TYPE} '
+                content=f'Application of '
+                        f'{MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE} '
                         f'type required.'
             )
 
-        application_id = parent.application_id
-        application = self.application_service.get_application_by_id(
-            application_id=application_id
+        parent_id = event.get(PARENT_ID_ATTR)
+        _LOG.debug(f'Extracting application {licensed_application.application_id} parents. '
+                   f'Parent id {parent_id}')
+        parents = self._get_parents(
+            application_id=licensed_application.application_id,
+            parent_id=parent_id
         )
-        if not application:
-            _LOG.error(f'No application found matching given query.')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No application found matching given query.'
-            )
 
         user_id = event.get(USER_ID_ATTR)
         user_customer = event.get(PARAM_USER_CUSTOMER)
 
-        if user_customer != 'admin' and parent.customer_id \
+        if user_customer != 'admin' and licensed_application.customer_id \
                 != user_customer:
             _LOG.warning(f'User \'{user_id}\' is not authorize to affect '
-                         f'customer \'{parent.customer_id}\' entities.')
+                         f'customer \'{licensed_application.customer_id}\' '
+                         f'entities.')
             return build_response(
                 code=RESPONSE_FORBIDDEN_CODE,
                 content=f'User \'{user_id}\' is not authorize to affect '
-                        f'customer \'{parent.customer_id}\' entities.'
+                        f'customer \'{licensed_application.customer_id}\' '
+                        f'entities.'
+            )
+
+        applications = self.application_service.list(
+            customer=licensed_application.customer_id,
+            deleted=False,
+            _type=ApplicationType.RIGHTSIZER,
+            limit=1
+        )
+        application = next(applications, None)
+        if not application:
+            _LOG.debug('No RIGHTSIZER application '
+                       'found matching given query')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content='No RIGHTSIZER application '
+                        'found matching given query'
             )
 
         envs = {
             "AWS_REGION": self.environment_service.aws_region(),
             "log_level": os.environ.get('log_level', 'ERROR'),
-            "parent_id": parent.parent_id,
-            "DEBUG": str(self.environment_service.is_debug())
+            "licensed_application_id": licensed_application.application_id,
+            "application_id": application.application_id,
+            "FORCE_RESCAN": os.environ.get('force_rescan', "False"),
+            "DEBUG": str(self.environment_service.is_debug()),
+            ENV_LM_TOKEN_LIFETIME_MINUTES: str(
+                self.environment_service.lm_token_lifetime_minutes())
         }
+        if parent_id:
+            envs['parent_id'] = parents[0].parent_id
         meta_postponed_key = self.environment_service.meta_postponed_key()
         if meta_postponed_key:
             envs['META_POSTPONED_KEY'] = meta_postponed_key
@@ -183,61 +235,34 @@ class JobProcessor(AbstractCommandProcessor):
                    f'{rate_limit}')
         envs[ENV_TENANT_CUSTOMER_INDEX] = str(rate_limit)
 
-        input_scan_tenants = event.get(TENANTS_ATTR)
-        if input_scan_tenants:
+        scan_tenants = event.get(TENANTS_ATTR, [])
+        if scan_tenants:
             _LOG.debug(f'Validating user-provided scan tenants: '
-                       f'{input_scan_tenants}')
+                       f'{scan_tenants}')
             self._validate_input_tenants(
-                parent=parent,
-                input_scan_tenants=input_scan_tenants
+                application=licensed_application,
+                parents=parents,
+                input_scan_tenants=scan_tenants
             )
-            scan_tenants = input_scan_tenants
-            _LOG.debug(f'Setting scan_tenants env to '
-                       f'\'{scan_tenants}\'')
-            envs['SCAN_TENANTS'] = ','.join(scan_tenants)
-        elif parent.scope == ParentScope.SPECIFIC.value:
-            _LOG.debug(f'Extracting tenant activated for parent '
-                       f'{parent.parent_id}')
-            tenant = self.tenant_service.get(
-                tenant_name=parent.tenant_name,
-                attributes_to_get=[Tenant.name]
-            )
-            if not tenant:
-                _LOG.error(f'Tenant {parent.tenant_name} linked to parent '
-                           f'{parent_id} does not exist.')
-                return build_response(
-                    code=RESPONSE_BAD_REQUEST_CODE,
-                    content=f'Tenant {parent.tenant_name} linked to parent '
-                            f'{parent_id} does not exist.'
-                )
-            scan_tenants = [tenant.name]
-            envs['SCAN_TENANTS'] = tenant.name
         else:
-            # todo temporary
-            # to validate job submit permission on any single tenant
-            scan_tenants = list(self.tenant_service.i_get_tenant_by_customer(
-                customer_id=parent.customer_id,
-                active=True,
-                attributes_to_get=[Tenant.name],
-                cloud=parent.cloud,
-                rate_limit=rate_limit
-            ))
-            scan_tenants = [t.name for t in scan_tenants]
-
-        if not scan_tenants:
-            _LOG.error(f'No tenants to scan found.')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No tenants to scan found.'
+            _LOG.debug(f'Resolving tenant names from parents: '
+                       f'{", ".join([p.parent_id for p in parents])}')
+            scan_tenants = self.parent_service.resolve_tenant_names(
+                parents=parents,
+                cloud=licensed_application.meta.cloud
             )
+        _LOG.debug(f'Setting scan_tenants env to '
+                   f'\'{scan_tenants}\'')
+        envs['SCAN_TENANTS'] = ','.join(scan_tenants)
 
-        parent_meta = self.parent_service.get_parent_meta(parent=parent)
+        application_meta = self.application_service.get_application_meta(
+            application=licensed_application)
         _LOG.debug(f'Checking permission to submit job on license '
-                   f'\'{parent_meta.license_key}\' '
+                   f'\'{application_meta.license_key}\' '
                    f'for tenants: {scan_tenants}')
         tenant_status_map = self._validate_licensed_job(
-            parent=parent,
-            license_key=parent_meta.license_key,
+            application=licensed_application,
+            license_key=application_meta.license_key,
             scan_tenants=scan_tenants
         )
 
@@ -254,10 +279,11 @@ class JobProcessor(AbstractCommandProcessor):
             envs[SCAN_TO_DATE_ATTR.upper()] = scan_to_date
 
         _LOG.debug(f'Going to submit job from application '
-                   f'\'{parent.application_id}\' for cloud')
+                   f'\'{licensed_application.application_id}\'')
         response = self.job_service.submit_job(
             job_owner=user_id,
-            parent_id=parent.parent_id,
+            application_id=licensed_application.application_id,
+            parent_id=parent_id,
             envs=envs,
             tenant_status_map=tenant_status_map
         )
@@ -331,6 +357,46 @@ class JobProcessor(AbstractCommandProcessor):
             code=RESPONSE_OK_CODE,
             content=f'The job with id \'{job_id}\' will be terminated')
 
+    def _get_parents(self, application_id: str, parent_id: str = None):
+        if parent_id:
+            _LOG.debug(f'Extracting parent {parent_id}')
+            parent = self.parent_service.get_parent_by_id(
+                parent_id=parent_id)
+            error_message = None
+            if not parent:
+                error_message = f'Parent {parent_id} does not exist'
+            elif not parent.type == RIGHTSIZER_LICENSES_PARENT_TYPE:
+                error_message = (f'Parent {parent_id} must have '
+                                 f'{RIGHTSIZER_LICENSES_PARENT_TYPE} type')
+
+            elif not parent.application_id == application_id:
+                error_message = (f'Parent {parent_id} is not linked '
+                                 f'to application {application_id}')
+            if error_message:
+                _LOG.error(error_message)
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content=error_message
+                )
+            parents = [parent]
+        else:
+            application = self.application_service.get_application_by_id(
+                application_id=application_id)
+            _LOG.debug(f'Searching for application {application_id} parents')
+            parents = self.parent_service.list_application_parents(
+                application_id=application.application_id,
+                only_active=True
+            )
+        parents = [parent for parent in parents
+                   if parent.scope != ParentScope.DISABLED]
+        if not parents:
+            _LOG.error(f'No matching parents found.')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'No matching parents found.'
+            )
+        return parents
+
     def _validate_shape_presence(self, customer, scan_clouds):
         clouds_with_missing_shapes = []
         clouds_with_missing_prices = []
@@ -361,7 +427,8 @@ class JobProcessor(AbstractCommandProcessor):
                 content=', '.join(errors)
             )
 
-    def _validate_licensed_job(self, parent: Parent, license_key: str,
+    def _validate_licensed_job(self, application: Application,
+                               license_key: str,
                                scan_tenants: List[str]):
         _LOG.debug(f'Resolving Tenant list')
         if not scan_tenants:
@@ -379,10 +446,10 @@ class JobProcessor(AbstractCommandProcessor):
                 content='Affected license has expired'
             )
         tenant_license_key = _license.customers.get(
-            parent.customer_id, {}).get(TENANT_LICENSE_KEY_ATTR)
+            application.customer_id, {}).get(TENANT_LICENSE_KEY_ATTR)
         _LOG.debug(f'Validating permission to submit licensed job.')
         return self._ensure_job_is_allowed(
-            customer=parent.customer_id,
+            customer=application.customer_id,
             tenant_names=scan_tenants,
             tlk=tenant_license_key
         )
@@ -444,9 +511,18 @@ class JobProcessor(AbstractCommandProcessor):
                         f'be in {DATE_FORMAT} format.'
             )
 
-    def _validate_input_tenants(self, parent: Parent,
+    def _validate_input_tenants(self, application: Application,
+                                parents: List[Parent],
                                 input_scan_tenants: list = None) -> list:
-        parent_meta = self.parent_service.get_parent_meta(parent=parent)
+        allowed_tenants = []
+        for parent in parents:
+            if parent.scope == ParentScope.ALL:
+                allowed_tenants.append(APPLICATION_TENANTS_ALL)
+            elif parent.scope == ParentScope.SPECIFIC:
+                allowed_tenants.append(parent.tenant_name)
+
+        app_meta = self.application_service.get_application_meta(
+            application=application)
         if not isinstance(input_scan_tenants, list):
             _LOG.error(f'{TENANTS_ATTR} attribute must be a list.')
             return build_response(
@@ -461,29 +537,30 @@ class JobProcessor(AbstractCommandProcessor):
             if not tenant_obj:
                 invalid_tenants.append(tenant_name)
                 continue
-            if tenant_obj.customer_name != parent.customer_id:
+            if tenant_obj.customer_name != application.customer_id:
                 _LOG.warning(f'Tenant customer '
                              f'\'{tenant_obj.customer_name}\' '
                              f'does not match with parent '
-                             f'customer \'{parent.customer_id}\'')
+                             f'customer \'{application.customer_id}\'')
                 invalid_tenants.append(tenant_name)
                 continue
-            if tenant_obj.cloud != parent.cloud:
+            if tenant_obj.cloud != app_meta.cloud:
                 _LOG.warning(f'Tenant cloud \'{tenant_obj.cloud}\' '
                              f'does not match with parent '
-                             f'cloud {parent_meta.cloud}.')
+                             f'cloud {app_meta.cloud}.')
                 invalid_tenants.append(tenant_name)
                 continue
-
-            if (parent.scope == ParentScope.SPECIFIC.value and
-                    parent.tenant_name != tenant_name):
-                _LOG.warning(f'Using parent \'{parent.parent_id}\' '
-                             f'is forbidden for tenant \'{tenant_name}\'')
+            if APPLICATION_TENANTS_ALL in allowed_tenants:
+                continue
+            if tenant_name not in allowed_tenants:
+                _LOG.warning(f'Scanning tenant \'{tenant_name}\' '
+                             f'is forbidden for application '
+                             f'\'{application.application_id}\'')
                 invalid_tenants.append(tenant_name)
 
         if invalid_tenants:
             message = f'Some of the specified tenants are invalid for ' \
-                      f'parent \'{parent.parent_id}\': ' \
+                      f'application \'{application.application_id}\': ' \
                       f'{", ".join(invalid_tenants)}'
             _LOG.error(message)
             return build_response(

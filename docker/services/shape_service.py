@@ -7,9 +7,14 @@ from functools import lru_cache
 class ShapeService:
 
     @staticmethod
-    def list(cloud=None):
+    def list(cloud=None, resource_type=None):
+        query = {}
         if cloud:
-            return Shape.objects(cloud=cloud)
+            query['cloud'] = cloud
+        if resource_type:
+            query['resource_type'] = resource_type
+        if query:
+            return Shape.objects(**query)
         return Shape.objects.all()
 
     @staticmethod

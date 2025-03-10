@@ -18,6 +18,8 @@ PARAM_EXPIRATION = 'expiration'
 PARAM_REQUEST_PATH = 'request_path'
 PARAM_TARGET_USER = 'target_user'
 PARAM_USER_CUSTOMER = 'user_customer'
+PARAM_USER_SUB = 'user_sub'
+
 
 class AccessControlService:
 
@@ -32,20 +34,19 @@ class AccessControlService:
                              target_permission: str) -> bool:
 
         user_id = event.get(USER_ID_ATTR)
-        user = self.user_service.get_user(user_id=user_id)
-        if not user:
-            _LOG.debug(f'User with id: {user_id} does not exist')
+        _LOG.debug(f'Searching for user with id: {user_id}')
+        if not self.user_service.is_user_exists(username=user_id):
+            _LOG.warning(f'User with id: {user_id} does not exist')
             return False
-        if isinstance(user, dict):
-            user = user.get('Username')
-        if isinstance(user, User):
-            user = user.user_id
-        _LOG.debug(f'Checking user permissions '
+
+        _LOG.debug(f'Checking permissions of user {user_id} '
                    f'on \'{target_permission}\' action')
-        role_name = self.user_service.get_user_role_name(user=user)
+        role_name = self.user_service.get_user_role_name(user=user_id)
         role = self.iam_service.role_get(role_name=role_name)
-        user_customer = self.user_service.get_user_customer(user=user)
+        user_customer = self.user_service.get_user_customer(user=user_id)
+        user_sub = self.user_service.get_user_id(user=user_id)
         event[PARAM_USER_CUSTOMER] = user_customer
+        event[PARAM_USER_SUB] = user_sub
 
         event_customer = event.get(CUSTOMER_ATTR)
         if user_customer != 'admin' and event_customer \

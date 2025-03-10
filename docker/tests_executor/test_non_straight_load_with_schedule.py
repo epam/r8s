@@ -1,13 +1,16 @@
 import os
+from datetime import time
 from unittest.mock import patch
 
 import pandas as pd
 
 from commons.constants import ACTION_SCHEDULE, ACTION_SPLIT
 from tests_executor.base_executor_test import BaseExecutorTest
-from tests_executor.constants import POINTS_IN_DAY
-from tests_executor.utils import constant_to_series, \
-    generate_timestamp_series, generate_scheduled_metric_series, dateparse
+from tests_executor.constants import (POINTS_IN_DAY, RECOMMENDATION_KEY,
+                                      SCHEDULE_KEY, RECOMMENDED_SHAPES_KEY)
+from tests_executor.utils import (generate_scheduled_metric_series,
+                                  constant_to_series,
+                                  generate_timestamp_series, dateparse)
 
 
 class TestNonStraightLoadWIthSchedule(BaseExecutorTest):
@@ -84,35 +87,38 @@ class TestNonStraightLoadWIthSchedule(BaseExecutorTest):
 
     @patch.dict(os.environ, {'KMP_DUPLICATE_LIB_OK': "TRUE"})
     def test_non_straight_load_schedule(self):
-        result = self.recommendation_service.process_instance(
+        result, _ = self.recommendation_service.process_instance(
             metric_file_path=self.metrics_file_path,
             algorithm=self.algorithm,
             reports_dir=self.reports_path
         )
 
-        self.assertEqual(result.get('instance_id'), self.instance_id)
+        self.assert_resource_id(
+            result=result,
+            resource_id=self.instance_id
+        )
 
-        schedule = result.get('schedule')
+        recommendation = result.get(RECOMMENDATION_KEY, {})
+        schedule = recommendation.get(SCHEDULE_KEY)
         self.assertEqual(len(schedule), 2)
 
         # first schedule part [Thursday - Sunday]
-        schedule_item = schedule[0]
-        weekdays = schedule_item.get('weekdays')
-
-        self.assertIn(schedule_item.get('start'), ('11:50', '12:00', '12:10'))
-        self.assertEqual(schedule_item.get('stop'), '23:50')
-        self.assertEqual(set(weekdays), {'Friday', 'Saturday', 'Sunday'})
+        self.assert_schedule(
+            schedule_item=schedule[0],
+            expected_start=time(12, 0),
+            expected_stop=time(23, 59),
+            weekdays={'Friday', 'Saturday', 'Sunday'}
+        )
 
         # second schedule part [Thursday]
-        schedule_item = schedule[1]
-        weekdays = schedule_item.get('weekdays')
+        self.assert_schedule(
+            schedule_item=schedule[1],
+            expected_start=time(00, 0),
+            expected_stop=time(12, 00),
+            weekdays={'Monday', 'Tuesday', 'Wednesday', 'Thursday'}
+        )
 
-        self.assertEqual(schedule_item.get('start'), '00:00')
-        self.assertIn(schedule_item.get('stop'), ('11:50', '12:00', '12:10'))
-        self.assertEqual(set(weekdays), {'Monday', 'Tuesday', 'Wednesday',
-                                         'Thursday'})
-
-        recommended_shapes = result.get('recommended_shapes')
+        recommended_shapes = recommendation.get(RECOMMENDED_SHAPES_KEY)
         self.assertEqual(len(recommended_shapes), 2)
 
         probabilities = [shape.get('probability') for shape in
