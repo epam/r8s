@@ -48,3 +48,10 @@ metric-collector:
   enabled: true
   fullnameOverride: metric-collector
 
+modularSdk:
+  serviceMode: docker
+  awsRegion:
+  assumeRoleArn:
+
+syndicate-rightsizer:
+  service_mode_s3: docker
