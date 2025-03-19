@@ -52,7 +52,7 @@ spec:
                   name: mongo-secret
                   key: password
             - name: modular_mongo_url
-              value: "{{ .Values.mongoService }}:{{ .Values.mongoPort }}"
+              value: "{{ .Values.mongoService }}:{{ .Values.mongoPort | quote }}"
             - name: modular_mongo_db_name
               valueFrom:
                 configMapKeyRef:
@@ -62,9 +62,9 @@ spec:
               value: {{ default "docker" .Values.modularSdk.serviceMode }}
             {{- if ne (default "docker" .Values.modularSdk.serviceMode) "docker" }}
             - name: modular_assume_role_arn
-              value: {{ .Values.modularSdk.assumeRoleArn }}
+              value: {{ .Values.modularSdk.assumeRoleArn | quote }}
             - name: MODULAR_AWS_REGION
-              value: {{ .Values.modularSdk.awsRegion }}
+              value: {{ .Values.modularSdk.awsRegion | quote }}
             {{- end }}
             - name: SERVICE_MODE
               value: docker
@@ -80,7 +80,7 @@ spec:
             - name: VAULT_URL
               value: {{ .Values.vaultService }}
             - name: VAULT_SERVICE_SERVICE_PORT
-              value: {{ .Values.vaultPort }}
+              value: {{ .Values.vaultPort | quote }}
             - name: VAULT_ENDPOINT
               value: "http://$(VAULT_URL):$(VAULT_SERVICE_SERVICE_PORT)"
             - name: VAULT_TOKEN
@@ -88,13 +88,8 @@ spec:
                 secretKeyRef:
                   name: vault-secret
                   key: token
-            - name: VAULT_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: vault-secret
-                  key: token
             - name: MINIO_ENDPOINT
-              value: "http://{{ .Values.minioService }}:{{ .Values.minioPort }}"
+              value: "http://{{ .Values.minioService }}:{{ .Values.minioPort | quote }}"
             - name: MINIO_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
@@ -105,11 +100,6 @@ spec:
                 secretKeyRef:
                   name: minio-secret
                   key: password
-            - name: CAAS_INNER_CACHE_TTL_SECONDS
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ include "rightsizer.fullname" . }}
-                  key: inner-cache-ttl-seconds
             - name: R8S_SYSTEM_USER_PASSWORD
               valueFrom:
                 secretKeyRef:
