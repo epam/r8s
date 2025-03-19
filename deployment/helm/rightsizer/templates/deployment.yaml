@@ -35,7 +35,7 @@ spec:
       containers:
         - name: rightsizer
           image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
-          imagePullPolicy: "{{ .Values.image.pullPolicy }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - containerPort: 8000
               name: http
@@ -52,7 +52,7 @@ spec:
                   name: mongo-secret
                   key: password
             - name: modular_mongo_url
-              value: "{{ .Values.mongoService }}:{{ .Values.mongoPort | quote }}"
+              value: "{{ .Values.mongoService }}:{{ .Values.mongoPort }}"
             - name: modular_mongo_db_name
               valueFrom:
                 configMapKeyRef:
@@ -80,7 +80,7 @@ spec:
             - name: VAULT_URL
               value: {{ .Values.vaultService }}
             - name: VAULT_SERVICE_SERVICE_PORT
-              value: {{ .Values.vaultPort | quote }}
+              value: "{{ .Values.vaultPort }}"
             - name: VAULT_ENDPOINT
               value: "http://$(VAULT_URL):$(VAULT_SERVICE_SERVICE_PORT)"
             - name: VAULT_TOKEN
@@ -89,7 +89,7 @@ spec:
                   name: vault-secret
                   key: token
             - name: MINIO_ENDPOINT
-              value: "http://{{ .Values.minioService }}:{{ .Values.minioPort | quote }}"
+              value: "http://{{ .Values.minioService }}:{{ .Values.minioPort }}"
             - name: MINIO_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
