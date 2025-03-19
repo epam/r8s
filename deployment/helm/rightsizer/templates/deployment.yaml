@@ -75,12 +75,12 @@ spec:
             - name: CAAS_MONGO_DATABASE
               valueFrom:
                 configMapKeyRef:
-                  name: "{{ include \"rightsizer.fullname\" . }}"
+                  name: {{ include "rightsizer.fullname" . }}
                   key: db-name
             - name: VAULT_URL
-              value: "{{ .Values.vaultService }}"
+              value: {{ .Values.vaultService }}
             - name: VAULT_SERVICE_SERVICE_PORT
-              value: "{{ .Values.vaultPort }}"
+              value: {{ .Values.vaultPort }}
             - name: VAULT_ENDPOINT
               value: "http://$(VAULT_URL):$(VAULT_SERVICE_SERVICE_PORT)"
             - name: VAULT_TOKEN
@@ -108,7 +108,7 @@ spec:
             - name: CAAS_INNER_CACHE_TTL_SECONDS
               valueFrom:
                 configMapKeyRef:
-                  name: "{{ include \"rightsizer.fullname\" . }}"
+                  name: {{ include "rightsizer.fullname" . }}
                   key: inner-cache-ttl-seconds
             - name: R8S_SYSTEM_USER_PASSWORD
               valueFrom:
