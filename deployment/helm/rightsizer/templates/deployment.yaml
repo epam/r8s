@@ -69,7 +69,7 @@ spec:
             - name: SERVICE_MODE
               value: docker
             - name: SERVICE_MODE_S3
-              value: {{ default "docker" .Values.syndicate-rightsizer.service_mode_s3 }}
+              value: {{ default "docker" .Values.rightsizer.service_mode_s3 }}
             - name: MONGO_URI
               value: "mongodb://$(modular_mongo_user):$(modular_mongo_password)@$(modular_mongo_url)/"
             - name: CAAS_MONGO_DATABASE

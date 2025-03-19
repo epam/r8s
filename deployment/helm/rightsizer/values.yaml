@@ -53,5 +53,5 @@ modularSdk:
   awsRegion:
   assumeRoleArn:
 
-syndicate-rightsizer:
+rightsizer:
   service_mode_s3: docker
