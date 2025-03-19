@@ -59,17 +59,17 @@ spec:
                   name: {{ include "rightsizer.fullname" . }}
                   key: modular-db-name
             - name: modular_service_mode
-              value: "{{ default \"docker\" .Values.modularSdk.serviceMode }}"
+              value: {{ default "docker" .Values.modularSdk.serviceMode }}
             {{- if ne (default "docker" .Values.modularSdk.serviceMode) "docker" }}
             - name: modular_assume_role_arn
-              value: "{{ .Values.modularSdk.assumeRoleArn }}"
+              value: {{ .Values.modularSdk.assumeRoleArn }}
             - name: MODULAR_AWS_REGION
-              value: "{{ .Values.modularSdk.awsRegion }}"
+              value: {{ .Values.modularSdk.awsRegion }}
             {{- end }}
             - name: SERVICE_MODE
               value: docker
             - name: SERVICE_MODE_S3
-              value: "{{ default \"docker\" .Values.syndicate-rightsizer.service_mode_s3 }}"
+              value: {{ default "docker" .Values.syndicate-rightsizer.service_mode_s3 }}
             - name: MONGO_URI
               value: "mongodb://$(modular_mongo_user):$(modular_mongo_password)@$(modular_mongo_url)/"
             - name: CAAS_MONGO_DATABASE
