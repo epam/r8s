@@ -250,6 +250,7 @@ ENV_MODULAR_MONGO_USER = 'modular_mongo_user'
 ENV_MODULAR_MONGO_PASSWORD = 'modular_mongo_password'
 ENV_MODULAR_MONGO_URL = 'modular_mongo_url'
 ENV_MODULAR_MONGO_DB_NAME = 'modular_mongo_db_name'
+ENV_MODULAR_ASSUME_ROLE_ARN = 'modular_assume_role_arn'
 
 FEEDBACK_STATUS_ATTR = 'feedback_status'
 
