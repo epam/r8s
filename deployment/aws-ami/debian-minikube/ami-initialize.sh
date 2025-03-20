@@ -204,7 +204,7 @@ build_helm_values() {
   fi
   local modular_region
   modular_region="${MODULAR_SDK_REGION:-$(region)}"
-  echo -n "--set=modular-service.modularSdk.serviceMode=saas,modular-service.modularSdk.awsRegion=${modular_region},modular-service.modularSdk.assumeRoleArn=${MODULAR_SDK_ROLE_ARN//,/\\,} --set=modularSdk.serviceMode=saas,modularSdk.awsRegion=${modular_region},modularSdk.assumeRoleArn=${MODULAR_SDK_ROLE_ARN//,/\\,} --set=syndicate-rightsizer.service_mode_s3=saas"
+  echo -n "--set=modular-service.modularSdk.serviceMode=saas,modular-service.modularSdk.awsRegion=${modular_region},modular-service.modularSdk.assumeRoleArn=${MODULAR_SDK_ROLE_ARN//,/\\,} --set=modularSdk.serviceMode=saas,modularSdk.awsRegion=${modular_region},modularSdk.assumeRoleArn=${MODULAR_SDK_ROLE_ARN//,/\\,} --set=rightsizer.service_mode_s3=saas"
 }
 
 # $R8S_LOCAL_PATH $LM_API_LINK, $RIGHTSIZER_RELEASE, $FIRST_USER will be provided from outside
