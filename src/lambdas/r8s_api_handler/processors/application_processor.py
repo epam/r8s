@@ -358,27 +358,38 @@ class ApplicationProcessor(AbstractCommandProcessor):
             application_id=application.application_id,
             only_active=True
         )
-        if parents:
-            _LOG.debug('Active linked parents found, deleting')
-            for parent in parents:
-                _LOG.debug(f'Deleting parent {parent.parent_id}')
-                self.parent_service.mark_deleted(parent=parent)
-
         force = event.get(FORCE_ATTR)
-        try:
-            if force:
-                self.application_service.force_delete(application=application)
-            else:
-                self.application_service.mark_deleted(application=application)
-        except ModularException as e:
-            return build_response(
-                code=e.code,
-                content=e.content
-            )
+
+        if force:
+            if parents:
+                _LOG.debug('Active linked parents found, deleting')
+                for parent in parents:
+                    _LOG.debug(f'Force deleting parent {parent.parent_id}')
+                    self.parent_service.force_delete(parent=parent)
+            self.application_service.force_delete(application=application)
+        else:
+            if parents:
+                active_parent_ids = [parent.parent_id for parent in parents]
+                message = (f'Can\'t delete application with active parents: '
+                           f'{", ".join(active_parent_ids)}')
+                _LOG.error(message)
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content=message
+                )
+            try:
+                self.application_service.mark_deleted(
+                    application=application)
+            except ModularException as e:
+                return build_response(
+                    code=e.code,
+                    content=e.content
+                )
+
         return build_response(
             code=RESPONSE_OK_CODE,
             content=f'Application \'{application.application_id}\' has been '
-                    f'deleted.'
+                    f'{"deleted" if force else "marked as deleted"}.'
         )
 
     @staticmethod
