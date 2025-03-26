@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.12.1] - 2025-03-14
+* `r8s application delete` - Do not remove the application if the linked parents exist. if --force, both application and linked parents will be permanently deleted
+* `r8s license delete` - Fix issue on describing linked algorithms
+
 ## [3.12.0] - 2025-03-14
 * Add ability to run Syndicate RightSizer instance with SaaS ModularSDK / S3
 
