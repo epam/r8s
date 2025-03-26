@@ -156,6 +156,25 @@ class ApplicationProcessor(AbstractCommandProcessor):
                 content=f'Customer \'{customer}\' does not exist'
             )
 
+        _LOG.debug(f'Validating that {MAESTRO_RIGHTSIZER_APPLICATION_TYPE} '
+                   f'application does not exist for \'{customer}\' customer')
+        existing_application = list(
+            self.application_service.i_get_application_by_customer(
+                customer_id=customer,
+                application_type=MAESTRO_RIGHTSIZER_APPLICATION_TYPE,
+                deleted=False
+            )
+        )
+        if existing_application:
+            message = (f'Application of type '
+                       f'\'{MAESTRO_RIGHTSIZER_APPLICATION_TYPE}\' '
+                       f'already exist for customer \'{customer}\'')
+            _LOG.error(message)
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=message
+            )
+
         input_storage = event.get(INPUT_STORAGE_ATTR)
         _LOG.debug(f'Validating input storage \'{input_storage}\'')
         input_storage_obj = self.storage_service.get_by_name(
