@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.12.1] - 2025-03-14
 * `r8s application delete` - Do not remove the application if the linked parents exist. if --force, both application and linked parents will be permanently deleted
 * `r8s license delete` - Fix issue on describing linked algorithms
+* Remove separate confirmation from `r8s application/parent delete --force` - not supported in Modular
 
 ## [3.12.0] - 2025-03-14
 * Add ability to run Syndicate RightSizer instance with SaaS ModularSDK / S3
