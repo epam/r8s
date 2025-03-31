@@ -41,19 +41,19 @@ spec:
               name: http
               protocol: TCP
           env:
-            - name: modular_mongo_user
+            - name: r8s_mongo_user
               valueFrom:
                 secretKeyRef:
                   name: mongo-secret
                   key: username
-            - name: modular_mongo_password
+            - name: r8s_mongo_password
               valueFrom:
                 secretKeyRef:
                   name: mongo-secret
                   key: password
-            - name: modular_mongo_url
+            - name: r8s_mongo_url
               value: "{{ .Values.mongoService }}:{{ .Values.mongoPort }}"
-            - name: modular_mongo_db_name
+            - name: r8s_mongo_db_name
               valueFrom:
                 configMapKeyRef:
                   name: {{ include "rightsizer.fullname" . }}
@@ -66,6 +66,8 @@ spec:
             - name: MODULAR_AWS_REGION
               value: {{ .Values.modularSdk.awsRegion | quote }}
             {{- end }}
+            - name: modular_secrets_service_mode
+              value: {{ default "docker" .Values.modularSdk.modular_secrets_service_mode }}
             - name: SERVICE_MODE
               value: docker
             - name: SERVICE_MODE_S3

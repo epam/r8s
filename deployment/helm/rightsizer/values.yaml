@@ -49,7 +49,17 @@ metric-collector:
   fullnameOverride: metric-collector
 
 modularSdk:
+  logLevel: WARNING
+
   serviceMode: docker
+  dbBackend: ''
+  modular_secrets_service_mode: 'docker' # saas for SSM, docker for Vault
+
+  # for "mongo" dbBackend
+  mongoUri:
+  databaseName: r8s
+
+  # for "dynamo" dbBackend
   awsRegion:
   assumeRoleArn:
 
