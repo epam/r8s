@@ -179,6 +179,7 @@ ENV_VAULT_PORT = 'VAULT_SERVICE_SERVICE_PORT'
 
 ENV_FORCE_RESCAN = 'FORCE_RESCAN'
 ENV_LM_TOKEN_LIFETIME_MINUTES = 'lm_token_lifetime_minutes'
+ENV_MODULAR_SECRETS_SERVICE_MODE = 'modular_secrets_service_mode'
 JOB_ID = 'job_id'
 
 # License Manager

@@ -24,15 +24,12 @@ def get_from_ssm():
         secret_name=MONGODB_CONNECTION_URI_PARAMETER)
 
 
-def get_from_modular_sdk():
-    from modular_sdk.commons.constants import (
-        PARAM_MONGO_USER, PARAM_MONGO_DB_NAME,
-        PARAM_MONGO_URL, PARAM_MONGO_PASSWORD
-    )
-    user = os.environ.get(PARAM_MONGO_USER)
-    password = os.environ.get(PARAM_MONGO_PASSWORD)
-    url = os.environ.get(PARAM_MONGO_URL)
-    db = os.environ.get(PARAM_MONGO_DB_NAME)
+def get_from_envs():
+    user = os.environ.get('r8s_mongo_user')
+    password = os.environ.get('r8s_mongo_password')
+    url = os.environ.get('r8s_mongo_url')
+    db = os.environ.get('r8s_mongo_db_name')
+
     if all((user, password, url, db)):
         host, port = url.split(':')
         return {
@@ -54,8 +51,8 @@ except mongoengine.ConnectionFailure:
     connection_uri = os.environ.get(MONGODB_CONNECTION_URI_PARAMETER)
     connection_kwargs = None
     if not connection_uri:
-        _LOG.debug(f'Describing connection from ssm modular_sdk envs')
-        connection_kwargs = get_from_modular_sdk()
+        _LOG.debug(f'Describing connection from envs')
+        connection_kwargs = get_from_envs()
     if not connection_uri and not connection_kwargs:
         _LOG.debug(f'Describing connection uri from ssm '
                    f'\'{MONGODB_CONNECTION_URI_PARAMETER}\'')
