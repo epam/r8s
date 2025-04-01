@@ -111,4 +111,10 @@ spec:
               value: 'false'
             - name: log_level
               value: "DEBUG"
+            - name: MODULAR_SDK_MONGO_URI
+            { { - if .Values.modularSdk.mongoUri } }
+            value: "{{ .Values.modularSdk.mongoUri }}"
+            { { - else } }
+            value: "mongodb://$(MODULAR_SDK_MONGO_USER):$(MODULAR_SDK_MONGO_PASSWORD)@{{ .Values.mongoService }}:{{ .Values.mongoPort }}/"
+            { { - end } }
       restartPolicy: Always
