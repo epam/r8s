@@ -133,7 +133,8 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
         )
         self._execute_license_sync(
             license_obj=license_obj,
-            customer=customer
+            customer=customer,
+            tenant_license_key=tenant_license_key
         )
         license_key = license_obj.license_key
         algorithm_map = license_obj.algorithm_mapping
@@ -279,14 +280,20 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
 
         return license_obj
 
-    def _execute_license_sync(self, license_obj: License, customer: str):
+    def _execute_license_sync(self, license_obj: License, customer: str,
+                              tenant_license_key: str):
         _LOG.info(f'Syncing license \'{license_obj.license_key}\'')
         response = self.license_manager_service.synchronize_license(
             license_key=license_obj.license_key,
             customer=customer
         )
         if response.status_code != 200:
-            return
+            _message = f'License manager does not allow to activate ' \
+                       f'tenant license \'{tenant_license_key}\'' \
+                       f' for customer \'{customer}\''
+            _LOG.warning(_message)
+            return build_response(code=RESPONSE_FORBIDDEN_CODE,
+                                  content=_message)
 
         license_data = response.json()['items'][0]
 
