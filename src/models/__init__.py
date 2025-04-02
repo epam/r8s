@@ -25,10 +25,10 @@ def get_from_ssm():
 
 
 def get_from_envs():
-    user = os.environ.get('r8s_mongo_user')
-    password = os.environ.get('r8s_mongo_password')
-    url = os.environ.get('r8s_mongo_url')
-    db = os.environ.get('r8s_mongo_db_name')
+    user = os.environ.get(ENV_R8S_MONGODB_USER)
+    password = os.environ.get(ENV_R8S_MONGODB_PASSWORD)
+    url = os.environ.get(ENV_R8S_MONGODB_URL)
+    db = os.environ.get(ENV_R8S_MONGODB_DB)
 
     if all((user, password, url, db)):
         host, port = url.split(':')
@@ -44,7 +44,9 @@ def get_from_envs():
 try:
     mongoengine.get_connection()
 except mongoengine.ConnectionFailure:
-    from commons.constants import MONGODB_CONNECTION_URI_PARAMETER
+    from commons.constants import MONGODB_CONNECTION_URI_PARAMETER, \
+    ENV_R8S_MONGODB_USER, ENV_R8S_MONGODB_PASSWORD, ENV_R8S_MONGODB_URL, \
+    ENV_R8S_MONGODB_DB
 
     _LOG.debug(f'Initializing mongoDB connection.')
 

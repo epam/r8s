@@ -180,6 +180,13 @@ ENV_VAULT_PORT = 'VAULT_SERVICE_SERVICE_PORT'
 ENV_FORCE_RESCAN = 'FORCE_RESCAN'
 ENV_LM_TOKEN_LIFETIME_MINUTES = 'lm_token_lifetime_minutes'
 ENV_MODULAR_SECRETS_SERVICE_MODE = 'modular_secrets_service_mode'
+ENV_MODULAR_SDK_MONGO_URI = 'MODULAR_SDK_MONGO_URI'
+
+ENV_R8S_MONGODB_USER = 'r8s_mongo_user'
+ENV_R8S_MONGODB_PASSWORD = 'r8s_mongo_password'
+ENV_R8S_MONGODB_URL = 'r8s_mongo_url'
+ENV_R8S_MONGODB_DB = 'r8s_mongo_db_name'
+
 JOB_ID = 'job_id'
 
 # License Manager
