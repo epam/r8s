@@ -41,10 +41,12 @@ def describe(job_id=None, job_name=None, limit=None):
 @click.option('--scan_to_date', '-std', type=str, required=False,
               help='Processing end date. Format: "%Y-%m-%d" '
                    'Example: 2023-06-20. If not set, scan will be '
-                   'limitated by tomorrow\'s date.')
+                   'limited by tomorrow\'s date.')
+@click.option('--force_rescan', '-fr', is_flag=True,
+              help='To rescan instances without recent metric updates.')
 @cli_response()
 def submit(application_id, parent_id, scan_tenants,
-           scan_from_date, scan_to_date):
+           scan_from_date, scan_to_date, force_rescan):
     """
     Submits a R8s job.
     """
@@ -57,7 +59,9 @@ def submit(application_id, parent_id, scan_tenants,
         parent_id=parent_id,
         scan_tenants=scan_tenants,
         scan_from_date=scan_from_date,
-        scan_to_date=scan_to_date)
+        scan_to_date=scan_to_date,
+        force_rescan=force_rescan
+    )
 
 
 @job.command(cls=ViewCommand, name='terminate')

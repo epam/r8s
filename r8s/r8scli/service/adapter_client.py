@@ -465,13 +465,14 @@ class AdapterClient:
                                    payload=request)
 
     def job_post(self, application_id, parent_id,
-                 scan_tenants, scan_from_date, scan_to_date):
+                 scan_tenants, scan_from_date, scan_to_date, force_rescan):
         request = {
             PARAM_APPLICATION_ID: application_id,
             PARAM_PARENT_ID: parent_id,
             PARAM_TENANTS: scan_tenants,
             PARAM_SCAN_FROM_DATE: scan_from_date,
             PARAM_SCAN_TO_DATE: scan_to_date,
+            PARAM_FORCE_RESCAN: force_rescan
         }
 
         request = {k: v for k, v in request.items()}
