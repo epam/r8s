@@ -35,6 +35,7 @@ class Job(BaseModel):
     status = EnumField(JobStatusEnum,
                        default=JobStatusEnum.JOB_RUNNABLE_STATUS)
     tenant_status_map = DictField(null=True)
+    tenant_fail_reason_map = DictField(null=True)
     fail_reason = StringField(null=True)
 
     def get_dto(self):

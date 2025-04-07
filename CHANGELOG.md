@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `r8s license delete` - Fix issue on describing linked algorithms
 * Remove separate confirmation from `r8s application/parent delete --force` - not supported in Modular
 * Support separate secret managers for r8s/modular
+* `r8s job describe`: changed default limit to 10 jobs
+* `r8s job submit`: add optional `--force_rescan` parameter, to force Rightsizer to generate recommendation for instances without metric updates
+* Reason of tenant scan failure will now be saved in Job.tenant_fail_reason_map($tenant:$reason)
 
 ## [3.11.0] - 2024-09-17
 * Update onprem version of the service
