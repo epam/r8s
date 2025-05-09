@@ -587,7 +587,8 @@ def main():
             job_service.set_licensed_job_status(
                 job=job,
                 tenant=tenant,
-                status=JobTenantStatusEnum.TENANT_FAILED_STATUS
+                status=JobTenantStatusEnum.TENANT_FAILED_STATUS,
+                fail_reason=str(e)
             )
         except Exception as e:
             _LOG.error(f'Unexpected error occurred while processing '
@@ -595,7 +596,8 @@ def main():
             job_service.set_licensed_job_status(
                 job=job,
                 tenant=tenant,
-                status=JobTenantStatusEnum.TENANT_FAILED_STATUS
+                status=JobTenantStatusEnum.TENANT_FAILED_STATUS,
+                fail_reason=str(e)
             )
 
     _LOG.debug(f'Job {JOB_ID} has finished successfully')

@@ -48,3 +48,20 @@ metric-collector:
   enabled: true
   fullnameOverride: metric-collector
 
+modularSdk:
+  logLevel: WARNING
+
+  serviceMode: docker
+  dbBackend: ''
+  modular_secrets_service_mode: 'docker' # saas for SSM, docker for Vault
+
+  # for "mongo" dbBackend
+  mongoUri:
+  databaseName: r8s
+
+  # for "dynamo" dbBackend
+  awsRegion:
+  assumeRoleArn:
+
+rightsizer:
+  service_mode_s3: docker

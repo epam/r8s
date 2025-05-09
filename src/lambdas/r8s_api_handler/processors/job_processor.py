@@ -16,12 +16,12 @@ from commons import RESPONSE_BAD_REQUEST_CODE, build_response, \
 from commons.constants import CLOUD_AWS, TENANTS_ATTR, \
     ENV_TENANT_CUSTOMER_INDEX, FORBIDDEN_ATTR, ALLOWED_ATTR, \
     REMAINING_BALANCE_ATTR, ENV_LM_TOKEN_LIFETIME_MINUTES, LIMIT_ATTR, \
-    MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE, \
-    APPLICATION_TENANTS_ALL
-from commons.constants import (POST_METHOD, GET_METHOD, DELETE_METHOD,
-                               ID_ATTR, NAME_ATTR, USER_ID_ATTR,
-                               PARENT_ID_ATTR, SCAN_FROM_DATE_ATTR,
-                               SCAN_TO_DATE_ATTR, TENANT_LICENSE_KEY_ATTR)
+    APPLICATION_ID_ATTR, MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE, \
+    APPLICATION_TENANTS_ALL, MAESTRO_RIGHTSIZER_APPLICATION_TYPE, \
+    ENV_FORCE_RESCAN, FORCE_RESCAN_ATTR
+from commons.constants import POST_METHOD, GET_METHOD, DELETE_METHOD, ID_ATTR, \
+    NAME_ATTR, USER_ID_ATTR, PARENT_ID_ATTR, SCAN_FROM_DATE_ATTR, \
+    SCAN_TO_DATE_ATTR, TENANT_LICENSE_KEY_ATTR, PARENT_SCOPE_SPECIFIC_TENANT
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -43,6 +43,7 @@ _LOG = get_logger('r8s-job-processor')
 
 DEFAULT_SCAN_CLOUDS = [CLOUD_AWS]
 DATE_FORMAT = '%Y-%m-%d'
+DEFAULT_JOB_LIMIT = 10
 
 
 class JobProcessor(AbstractCommandProcessor):
@@ -83,7 +84,7 @@ class JobProcessor(AbstractCommandProcessor):
         applications = self.application_service.resolve_application(
             event=event
         )
-        limit = event.get(LIMIT_ATTR)
+        limit = event.get(LIMIT_ATTR, DEFAULT_JOB_LIMIT)
         if not applications:
             _LOG.error(f'No suitable application found to describe jobs.')
             return build_response(
@@ -204,12 +205,14 @@ class JobProcessor(AbstractCommandProcessor):
                         'found matching given query'
             )
 
+        force_rescan = self._resolve_force_rescan(event)
+
         envs = {
             "AWS_REGION": self.environment_service.aws_region(),
             "log_level": os.environ.get('log_level', 'ERROR'),
             "licensed_application_id": licensed_application.application_id,
             "application_id": application.application_id,
-            "FORCE_RESCAN": os.environ.get('force_rescan', "False"),
+            ENV_FORCE_RESCAN: str(force_rescan),
             "DEBUG": str(self.environment_service.is_debug()),
             ENV_LM_TOKEN_LIFETIME_MINUTES: str(
                 self.environment_service.lm_token_lifetime_minutes())
@@ -269,7 +272,8 @@ class JobProcessor(AbstractCommandProcessor):
             envs[SCAN_TO_DATE_ATTR.upper()] = scan_to_date
 
         _LOG.debug(f'Going to submit job from application '
-                   f'\'{licensed_application.application_id}\'')
+                   f'\'{licensed_application.application_id}\' '
+                   f'with envs: {envs}')
         response = self.job_service.submit_job(
             job_owner=user_id,
             application_id=licensed_application.application_id,
@@ -557,3 +561,15 @@ class JobProcessor(AbstractCommandProcessor):
                 code=RESPONSE_BAD_REQUEST_CODE,
                 content=message
             )
+
+    @staticmethod
+    def _resolve_force_rescan(event: dict):
+        event_param = event.get(FORCE_RESCAN_ATTR, False)
+        if not isinstance(event_param, bool):
+            event_param = False
+        env_param = os.environ.get(FORCE_RESCAN_ATTR)
+        if env_param:
+            env_param = env_param.lower() in ('true', 't')
+
+        return bool(event_param or env_param)
+

@@ -5,7 +5,7 @@ from commons.constants import INSTANCE_SPECS_STORAGE_TYPE, \
     DEFAULT_META_POSTPONED_FOR_ACTIONS_KEY, \
     ENV_SERVICE_MODE, DOCKER_SERVICE_MODE, ENV_FORCE_RESCAN, \
     ENV_LM_TOKEN_LIFETIME_MINUTES, PARENT_ID_ATTR, APPLICATION_ID_ATTR, \
-    LICENSED_APPLICATION_ID_ATTR
+    LICENSED_APPLICATION_ID_ATTR, ENV_MODULAR_SECRETS_SERVICE_MODE
 
 DEFAULT_LM_TOKEN_LIFETIME_MINUTES = 120
 
@@ -95,3 +95,8 @@ class EnvironmentService:
                                       DEFAULT_LM_TOKEN_LIFETIME_MINUTES))
         except ValueError:
             return DEFAULT_LM_TOKEN_LIFETIME_MINUTES
+
+    @staticmethod
+    def modular_secrets_service_mode():
+        return os.environ.get(ENV_MODULAR_SECRETS_SERVICE_MODE,
+                              os.environ.get('modular_service_mode', 'docker'))

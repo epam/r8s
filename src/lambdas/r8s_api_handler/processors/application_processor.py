@@ -144,6 +144,25 @@ class ApplicationProcessor(AbstractCommandProcessor):
                 content=f'Customer \'{customer}\' does not exist'
             )
 
+        _LOG.debug(f'Validating that {MAESTRO_RIGHTSIZER_APPLICATION_TYPE} '
+                   f'application does not exist for \'{customer}\' customer')
+        existing_application = list(
+            self.application_service.i_get_application_by_customer(
+                customer_id=customer,
+                application_type=MAESTRO_RIGHTSIZER_APPLICATION_TYPE,
+                deleted=False
+            )
+        )
+        if existing_application:
+            message = (f'Application of type '
+                       f'\'{MAESTRO_RIGHTSIZER_APPLICATION_TYPE}\' '
+                       f'already exist for customer \'{customer}\'')
+            _LOG.error(message)
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=message
+            )
+
         input_storage = event.get(INPUT_STORAGE_ATTR)
         _LOG.debug(f'Validating input storage \'{input_storage}\'')
         input_storage_obj = self.storage_service.get_by_name(
@@ -345,27 +364,38 @@ class ApplicationProcessor(AbstractCommandProcessor):
             application_id=application.application_id,
             only_active=True
         )
-        if parents:
-            _LOG.debug('Active linked parents found, deleting')
-            for parent in parents:
-                _LOG.debug(f'Deleting parent {parent.parent_id}')
-                self.parent_service.mark_deleted(parent=parent)
-
         force = event.get(FORCE_ATTR)
-        try:
-            if force:
-                self.application_service.force_delete(application=application)
-            else:
-                self.application_service.mark_deleted(application=application)
-        except ModularException as e:
-            return build_response(
-                code=e.code,
-                content=e.content
-            )
+
+        if force:
+            if parents:
+                _LOG.debug('Active linked parents found, deleting')
+                for parent in parents:
+                    _LOG.debug(f'Force deleting parent {parent.parent_id}')
+                    self.parent_service.force_delete(parent=parent)
+            self.application_service.force_delete(application=application)
+        else:
+            if parents:
+                active_parent_ids = [parent.parent_id for parent in parents]
+                message = (f'Can\'t delete application with active parents: '
+                           f'{", ".join(active_parent_ids)}')
+                _LOG.error(message)
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content=message
+                )
+            try:
+                self.application_service.mark_deleted(
+                    application=application)
+            except ModularException as e:
+                return build_response(
+                    code=e.code,
+                    content=e.content
+                )
+
         return build_response(
             code=RESPONSE_OK_CODE,
             content=f'Application \'{application.application_id}\' has been '
-                    f'deleted.'
+                    f'{"deleted" if force else "marked as deleted"}.'
         )
 
     @staticmethod

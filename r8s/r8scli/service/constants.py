@@ -98,6 +98,7 @@ PARAM_RECOMMENDED_SHAPES = 'recommended_shapes'
 PARAM_TIMESTAMP = 'timestamp'
 PARAM_SCAN_FROM_DATE = 'scan_from_date'
 PARAM_SCAN_TO_DATE = 'scan_to_date'
+PARAM_FORCE_RESCAN = 'force_rescan'
 PARAM_SCAN_CLOUDS = 'scan_clouds'
 PARAM_DETAILED = 'detailed'
 

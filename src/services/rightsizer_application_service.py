@@ -142,9 +142,13 @@ class RightSizerApplicationService(ApplicationService):
             _LOG.debug(f'Application {application.application_id} '
                        f'secret is not specified.')
             return
-        self.ssm_service.delete_secret(secret_name=secret_name)
-        _LOG.debug(f'Application {application.application_id} '
-                   f'secret has been deleted.')
+        try:
+            self.ssm_service.delete_secret(secret_name=secret_name)
+            _LOG.debug(f'Application {application.application_id} '
+                       f'secret has been deleted.')
+        except Exception as e:
+            _LOG.error(f'Exception occurred while deleting secret '
+                       f'{secret_name}:{e}')
 
     def get_host_application(self, customer):
         applications = list(self.list(

@@ -1,7 +1,8 @@
 import mongoengine
 import os
 from commons.exception import ExecutorException
-from commons.constants import JOB_STEP_INITIALIZATION
+from commons.constants import JOB_STEP_INITIALIZATION, ENV_R8S_MONGODB_USER, \
+    ENV_R8S_MONGODB_PASSWORD, ENV_R8S_MONGODB_URL, ENV_R8S_MONGODB_DB
 from commons.log_helper import get_logger
 from services.environment_service import EnvironmentService
 
@@ -25,15 +26,11 @@ def get_from_ssm():
         secret_name=MONGODB_CONNECTION_URI_PARAMETER)
 
 
-def get_from_modular_sdk():
-    from modular_sdk.commons.constants import (
-        PARAM_MONGO_USER, PARAM_MONGO_DB_NAME,
-        PARAM_MONGO_URL, PARAM_MONGO_PASSWORD
-    )
-    user = os.environ.get(PARAM_MONGO_USER)
-    password = os.environ.get(PARAM_MONGO_PASSWORD)
-    url = os.environ.get(PARAM_MONGO_URL)
-    db = os.environ.get(PARAM_MONGO_DB_NAME)
+def get_from_envs():
+    user = os.environ.get(ENV_R8S_MONGODB_USER)
+    password = os.environ.get(ENV_R8S_MONGODB_PASSWORD)
+    url = os.environ.get(ENV_R8S_MONGODB_URL)
+    db = os.environ.get(ENV_R8S_MONGODB_DB)
     if all((user, password, url, db)):
         host, port = url.split(':')
         return {
@@ -55,8 +52,8 @@ except mongoengine.ConnectionFailure:
     connection_uri = os.environ.get(MONGODB_CONNECTION_URI_PARAMETER)
     connection_kwargs = None
     if not connection_uri:
-        _LOG.debug(f'Describing connection from ssm modular_sdk envs')
-        connection_kwargs = get_from_modular_sdk()
+        _LOG.debug(f'Describing connection from envs')
+        connection_kwargs = get_from_envs()
     if not connection_uri and not connection_kwargs:
         _LOG.debug(f'Describing connection uri from ssm '
                    f'\'{MONGODB_CONNECTION_URI_PARAMETER}\'')

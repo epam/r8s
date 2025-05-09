@@ -12,7 +12,7 @@ where the following list of parameters should be specified.
 ## 2. Specify AWS CloudFormation stack parameters
 
 Required parameters:
-- **AWS Subnet id:** сhoose a subnet to launch the instance in;
+- **AWS Subnet id:** сhoose a **public** subnet to launch the instance in;
 - **AWS Security groups ids:** specify security groups to be attached to the instance. By default, 
 the following ports are used: 80 (Defect dojo), 8085 (API), 9000 (Minio API).
 Consider to select Security Group with the ports opened if these services should be available outside the instance;
@@ -23,6 +23,10 @@ Optional parameters:
 - **Instance Name:** name for the instance. Stack name will be used as instance name if custom value is not specified;
 - **IAM Role Name:** name of AWS IAM Role to be attached to the instance. The role is used by EPAM Syndicate Rightsizer to access accounts resources.
   Keep the field empty if you do not want any role to be attached;
+  
+  Recommended role scope:
+  - `AmazonSSMManagedInstanceCore` AWS-Manager IAM Policy
+  - `ec2:DescribeInstances`, `cloudwatch:GetMetricStatistics`, `pricing:GetProducts` and `cloudformation:SignalResource` IAM Permissions
 - **Tenant Name:** name for the tenant to be activated during service configuration. The 
   tenant represents the AWS Account where the instance is launched. The name can contain ONLY uppercase letters, digits, dashes and underscores.
   If the value is not specified, the default `TENANT_1` will be used;
