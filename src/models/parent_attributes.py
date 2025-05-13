@@ -20,7 +20,8 @@ class ResourceGroupAttribute(MapAttribute):
 
 class LicensesParentMeta(MapAttribute):
     shape_rules = ListAttribute(of=ShapeRule, null=True, default=[])
-    resource_groups = ResourceGroupAttribute(null=True)
+    resource_groups = ListAttribute(of=ResourceGroupAttribute,
+                                    null=True, default=[])
 
 
 class DojoParentMeta(MapAttribute):

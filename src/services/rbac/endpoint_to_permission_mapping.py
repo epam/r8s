@@ -101,7 +101,9 @@ ENDPOINT_PERMISSION_MAPPING = {
     },
     '/parents/resource-groups/': {
         GET_METHOD: 'r8s:parent:describe_group_config',
+        POST_METHOD: 'r8s:parent:add_group_config',
         PATCH_METHOD: 'r8s:parent:update_group_config',
+        DELETE_METHOD: 'r8s:parent:delete_group_config'
     },
     '/parents/shape-rules/dry-run/': {
         GET_METHOD: 'r8s:parent:dry_run_shape_rule'

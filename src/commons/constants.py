@@ -362,5 +362,7 @@ DESIRED_ATTR = 'desired'
 SCALE_STEP_ATTR = 'scale_step'
 SCALE_STEP_AUTO_DETECT = 'AUTO_DETECT'
 COOLDOWN_DAYS_ATTR = 'cooldown_days'
+ALLOWED_RESOURCE_GROUPS_ATTR = 'allowed_resource_groups'
+ALLOWED_TAGS_ATTR = 'allowed_tags'
 
 ERROR_NO_APPLICATION_FOUND = 'No application found matching given query.'
