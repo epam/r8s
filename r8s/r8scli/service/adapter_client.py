@@ -844,32 +844,65 @@ class AdapterClient:
                                    method=HTTP_GET,
                                    payload=request)
 
-    def resource_group_get(self, parent_id: str):
+    def resource_group_get(self, parent_id: str, group_id: str = None):
         request = {
             PARAM_PARENT_ID: parent_id
         }
+        if group_id:
+            request[PARAM_ID] = group_id
 
         return self.__make_request(resource=API_RESOURCE_GROUPS,
                                    method=HTTP_GET,
                                    payload=request)
 
-    def resource_group_patch(self, parent_id: str, add_tags: list = None,
+    def resource_group_post(self, parent_id: str, allowed_tags: list = None,
+                            allowed_resource_groups: list = None,
+                            scale_step: int = None,
+                            cooldown_days: int = None):
+        request = {
+            PARAM_PARENT_ID: parent_id
+        }
+        if allowed_tags:
+            request[PARAM_ALLOWED_TAGS] = allowed_tags
+        if allowed_resource_groups:
+            request[PARAM_ALLOWED_RESOURCE_GROUPS] = allowed_resource_groups
+        if scale_step:
+            request[PARAM_SCALE_STEP] = scale_step
+        if cooldown_days:
+            request[PARAM_COOLDOWN] = cooldown_days
+
+        return self.__make_request(resource=API_RESOURCE_GROUPS,
+                                   method=HTTP_POST,
+                                   payload=request)
+
+    def resource_group_patch(self, parent_id: str, group_id: str,
+                             add_tags: list = None,
                              remove_tags: list = None,
                              add_resource_groups: list = None,
                              remove_resource_groups: list = None):
         request = {
             PARAM_PARENT_ID: parent_id,
+            PARAM_ID: group_id,
             PARAM_ADD_TAGS: add_tags,
             PARAM_REMOVE_TAGS: remove_tags,
             PARAM_ADD_RESOURCE_GROUPS: add_resource_groups,
             PARAM_REMOVE_RESOURCE_GROUPS: remove_resource_groups
         }
 
-        request = {k: v for k, v in request.items() if
-                   v and isinstance(v, list)}
+        request = {k: v for k, v in request.items() if v}
 
         return self.__make_request(resource=API_RESOURCE_GROUPS,
                                    method=HTTP_PATCH,
+                                   payload=request)
+
+    def resource_group_delete(self, parent_id: str, group_id: str):
+        request = {
+            PARAM_PARENT_ID: parent_id,
+            PARAM_ID: group_id
+        }
+
+        return self.__make_request(resource=API_RESOURCE_GROUPS,
+                                   method=HTTP_DELETE,
                                    payload=request)
 
     def shape_get(self, name=None, cloud=None):
