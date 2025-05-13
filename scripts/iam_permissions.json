@@ -69,7 +69,11 @@
       "link_tenant",
       "unlink_tenant",
       "dry_run_shape_rule",
-      "describe_resize_insights"
+      "describe_resize_insights",
+      "describe_group_config",
+      "add_group_config",
+      "update_group_config",
+      "delete_group_config"
     ],
     "r8s:shape": [
       "describe_shape",
