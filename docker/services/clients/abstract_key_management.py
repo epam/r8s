@@ -40,20 +40,7 @@ class AbstractKeyManagementClient(ABC):
         raise NotImplemented
 
     @abstractmethod
-    def verify(self, key_id: str, message: Union[str, bytes], algorithm: str,
-               signature: bytes, encoding='utf-8') -> bool:
-        raise NotImplemented
-
-    @abstractmethod
     def generate(self, key_type: str, key_std: str, **data) -> IKey:
-        raise NotImplemented
-
-    @abstractmethod
-    def save(self, key_id: str, key: IKey, key_format: str, **data):
-        raise NotImplemented
-
-    @abstractmethod
-    def delete(self, key_id: str):
         raise NotImplemented
 
     @abstractmethod
