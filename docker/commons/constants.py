@@ -252,3 +252,5 @@ DESIRED_ATTR = 'desired'
 SCALE_STEP_ATTR = 'scale_step'
 SCALE_STEP_AUTO_DETECT = 'AUTO_DETECT'
 COOLDOWN_DAYS_ATTR = 'cooldown_days'
+
+META_KEY_RESOURCE_GROUPS = 'resource_groups'

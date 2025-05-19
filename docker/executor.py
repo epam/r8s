@@ -234,24 +234,42 @@ def process_tenant_instances(metrics_dir, reports_dir,
                 recommendations=past_recommendations
             )
 
-    app_meta = application_service.get_application_meta(
-        application=application)
-
-    group_resources_mapping = {}
-    if app_meta.group_policies:
-        _LOG.debug('Processing application group policies')
-        group_resources_mapping, metric_file_paths = (
-            recommendation_service.divide_by_group_policies(
-                metric_file_paths=metric_file_paths,
-                group_policies=app_meta.group_policies,
-                instance_meta_mapping=instance_meta_mapping
-            ))
+    group_resources_mapping = {} # {$group_id: {"tag/arn": ['resource1']}}
+    if parent_meta.resource_groups:
+        for group_config in parent_meta.resource_groups:
+            group_id = group_config.get('id')
+            native_group_arns = group_config.get('allowed_resource_groups')
+            tags = group_config.get('allowed_tags')
+            if native_group_arns:
+                _LOG.debug(f'Processing resource group based on native '
+                           f'AWS Resource groups:'
+                           f'{native_group_arns}')
+                resources_mapping, ind_metric_file_paths = (
+                    recommendation_service.divide_by_native_resource_groups(
+                        metric_file_paths=metric_file_paths,
+                        instance_meta_mapping=instance_meta_mapping,
+                        allowed_resource_group_arns=native_group_arns,
+                    ))
+            else:
+                _LOG.debug(f'Processing parent tag-based group policies: '
+                           f'{tags}')
+                resources_mapping, ind_metric_file_paths = (
+                    recommendation_service.divide_by_tag_keys(
+                        metric_file_paths=metric_file_paths,
+                        instance_meta_mapping=instance_meta_mapping,
+                        allowed_tag_keys=tags,
+                    ))
+            if resources_mapping:
+                group_resources_mapping[group_id] = resources_mapping
+                metric_file_paths = list(
+                    set(metric_file_paths) - set(ind_metric_file_paths)
+                )
 
     if group_resources_mapping:
         _LOG.debug(f'Group resources: {group_resources_mapping}')
         for group_id, group_resources in group_resources_mapping.items():
-            group = application_service.get_group_policy(
-                meta=app_meta,
+            group = parent_service.get_resource_group(
+                meta=parent_meta,
                 group_id=group_id
             )
             if not group:
@@ -260,12 +278,12 @@ def process_tenant_instances(metrics_dir, reports_dir,
                              f'as individual resources')
                 metric_file_paths.extend(group_resources)
             _LOG.debug(f'Processing group {group_id} resources')
-            for tag_value, tag_resources in group_resources.items():
-                _LOG.debug(f'Processing group tag {tag_value}')
+            for group_key, resources in group_resources.items():
+                _LOG.debug(f'Processing group {group_id}:{group_key}')
                 recommendation_service.process_group_resources(
-                    group_id=tag_value,
+                    group_id=f'{group_id}:{group_key}',
                     group_policy=group,
-                    metric_file_paths=tag_resources,
+                    metric_file_paths=resources,
                     algorithm=algorithm,
                     reports_dir=reports_dir,
                     instance_meta_mapping=instance_meta_mapping
