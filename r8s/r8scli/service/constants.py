@@ -35,7 +35,6 @@ API_USER = 'users'
 
 API_APPLICATION = 'applications'
 API_APPLICATION_LICENSES = 'applications/licenses'
-API_APPLICATION_POLICIES = 'applications/policies'
 API_APPLICATION_DOJO = 'applications/dojo'
 API_PARENT = 'parents'
 API_PARENT_LICENSES = 'parents/licenses'

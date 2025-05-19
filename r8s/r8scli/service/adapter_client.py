@@ -1,6 +1,7 @@
 import json
 
 import requests
+
 from r8scli.service.constants import *
 from r8scli.service.local_response_processor import LocalCommandResponse
 from r8scli.service.logger import get_logger, get_user_logger
@@ -656,47 +657,6 @@ class AdapterClient:
         if force:
             request[PARAM_FORCE] = force
         return self.__make_request(resource=API_APPLICATION_DOJO,
-                                   method=HTTP_DELETE,
-                                   payload=request)
-
-    def application_policies_get(self, application_id, group_id=None):
-        request = {
-            PARAM_APPLICATION_ID: application_id
-        }
-        if group_id:
-            request[PARAM_ID] = group_id
-
-        return self.__make_request(resource=API_APPLICATION_POLICIES,
-                                   method=HTTP_GET,
-                                   payload=request)
-
-    def application_policies_post(self, application_id, group_policy: dict):
-        request = {
-            PARAM_APPLICATION_ID: application_id,
-            **group_policy
-        }
-
-        return self.__make_request(resource=API_APPLICATION_POLICIES,
-                                   method=HTTP_POST,
-                                   payload=request)
-
-    def application_policies_patch(self, application_id, group_policy: dict):
-        request = {
-            PARAM_APPLICATION_ID: application_id,
-            **group_policy
-        }
-
-        return self.__make_request(resource=API_APPLICATION_POLICIES,
-                                   method=HTTP_PATCH,
-                                   payload=request)
-
-    def application_policies_delete(self, application_id, group_id=None):
-        request = {
-            PARAM_APPLICATION_ID: application_id,
-            PARAM_ID: group_id
-        }
-
-        return self.__make_request(resource=API_APPLICATION_POLICIES,
                                    method=HTTP_DELETE,
                                    payload=request)
 
