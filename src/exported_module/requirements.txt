@@ -1,9 +1,9 @@
 bottle==0.12.19
 gunicorn==20.1.0
 typing_extensions==4.7.1
-pymongo==4.5.0
+pymongo==4.11.2
 bcrypt==4.0.0
 psutil==5.8.0
-modular-sdk>=5.0.0,<=6.0.0
-hvac==1.2.1
+modular-sdk @ git+https://github.com/epam/modular-sdk@2904a0d9532817b960ef076a5fe240c7ef50d359
+hvac==2.1.0
 python-dotenv==1.0.1

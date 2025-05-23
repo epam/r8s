@@ -2,30 +2,29 @@ import os
 
 from modular_sdk.services.customer_service import CustomerService
 from modular_sdk.services.tenant_service import TenantService
-
-from commons.constants import ENV_SERVICE_MODE
-from services.algorithm_service import AlgorithmService
-from services.clients.s3 import S3Client
-from services.clients.ssm import SSMClient
 from services.clustering_service import ClusteringService
-from services.customer_preferences_service import CustomerPreferencesService
-from services.environment_service import EnvironmentService
-from services.job_service import JobService
 from services.meta_service import MetaService
 from services.metrics_service import MetricsService
 from services.mocked_data_service import MockedDataService
 from services.os_service import OSService
 from services.recomendation_service import RecommendationService
-from services.recommendation_history_service import \
-    RecommendationHistoryService
 from services.reformat_service import ReformatService
 from services.resize.resize_service import ResizeService
 from services.resource_group_service import ResourceGroupService
+from services.saving.saving_service import SavingService
+from services.schedule.schedule_service import ScheduleService
+
+from commons.constants import ENV_SERVICE_MODE, DOCKER_SERVICE_MODE
+from services.algorithm_service import AlgorithmService
+from services.clients.s3 import S3Client
+from services.customer_preferences_service import CustomerPreferencesService
+from services.environment_service import EnvironmentService
+from services.job_service import JobService
+from services.recommendation_history_service import \
+    RecommendationHistoryService
 from services.rightsizer_application_service import \
     RightSizerApplicationService
 from services.rightsizer_parent_service import RightSizerParentService
-from services.saving.saving_service import SavingService
-from services.schedule.schedule_service import ScheduleService
 from services.setting_service import SettingsService
 from services.shape_price_service import ShapePriceService
 from services.shape_service import ShapeService
@@ -41,12 +40,14 @@ class ServiceProvider:
         # clients
         __s3_conn = None
         __ssm_conn = None
+        __modular_ssm_conn = None
         __license_manager_conn = None
         __standalone_key_management = None
 
         # services
         __environment_service = None
         __ssm_service = None
+        __modular_ssm_service = None
         __algorithm_service = None
         __storage_service = None
         __settings_service = None
@@ -99,6 +100,19 @@ class ServiceProvider:
                     self.__ssm_conn = SSMClient(environment_service=_env)
             return self.__ssm_conn
 
+        def modular_ssm(self):
+            if not self.__modular_ssm_conn:
+                from services.clients.ssm import SSMClient, VaultSSMClient
+                _env = self.environment_service()
+                mode = _env.modular_secrets_service_mode()
+                if mode == DOCKER_SERVICE_MODE:
+                    self.__modular_ssm_conn = VaultSSMClient(
+                        environment_service=_env)
+                else:
+                    self.__modular_ssm_conn = SSMClient(
+                        environment_service=_env)
+            return self.__modular_ssm_conn
+
         def license_manager_client(self):
             if not self.__license_manager_conn:
                 from services.clients.license_manager import \
@@ -127,6 +141,12 @@ class ServiceProvider:
             if not self.__ssm_service:
                 self.__ssm_service = SSMService(client=self.ssm())
             return self.__ssm_service
+
+        def modular_ssm_service(self):
+            if not self.__modular_ssm_service:
+                self.__modular_ssm_service = SSMService(
+                    client=self.modular_ssm())
+            return self.__modular_ssm_service
 
         def algorithm_service(self):
             if not self.__algorithm_service:

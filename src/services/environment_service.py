@@ -3,7 +3,7 @@ import os
 from commons.constants import ENV_SERVICE_MODE, DOCKER_SERVICE_MODE, \
     MAIL_REPORT_DEFAULT_PROCESSING_DAYS, \
     MAIL_REPORT_DEFAULT_HIGH_PRIORITY_THRESHOLD, ENV_TENANT_CUSTOMER_INDEX, \
-    ENV_LM_TOKEN_LIFETIME_MINUTES
+    ENV_LM_TOKEN_LIFETIME_MINUTES, ENV_MODULAR_SECRETS_SERVICE_MODE
 
 DEFAULT_TENANTS_CUSTOMER_NAME_INDEX_RCU = 5
 DEFAULT_LM_TOKEN_LIFETIME_MINUTES = 120
@@ -80,3 +80,8 @@ class EnvironmentService:
                                       DEFAULT_LM_TOKEN_LIFETIME_MINUTES))
         except ValueError:
             return DEFAULT_LM_TOKEN_LIFETIME_MINUTES
+
+    @staticmethod
+    def modular_secrets_service_mode():
+        return os.environ.get(ENV_MODULAR_SECRETS_SERVICE_MODE,
+                              os.environ.get('modular_service_mode', 'docker'))

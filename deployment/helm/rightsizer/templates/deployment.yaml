@@ -41,29 +41,37 @@ spec:
               name: http
               protocol: TCP
           env:
-            - name: modular_mongo_user
+            - name: r8s_mongo_user
               valueFrom:
                 secretKeyRef:
                   name: mongo-secret
                   key: username
-            - name: modular_mongo_password
+            - name: r8s_mongo_password
               valueFrom:
                 secretKeyRef:
                   name: mongo-secret
                   key: password
-            - name: modular_mongo_url
+            - name: r8s_mongo_url
               value: "{{ .Values.mongoService }}:{{ .Values.mongoPort }}"
-            - name: modular_mongo_db_name
+            - name: r8s_mongo_db_name
               valueFrom:
                 configMapKeyRef:
                   name: {{ include "rightsizer.fullname" . }}
                   key: modular-db-name
             - name: modular_service_mode
-              value: docker
+              value: {{ default "docker" .Values.modularSdk.serviceMode }}
+            {{- if ne (default "docker" .Values.modularSdk.serviceMode) "docker" }}
+            - name: modular_assume_role_arn
+              value: {{ .Values.modularSdk.assumeRoleArn | quote }}
+            - name: MODULAR_AWS_REGION
+              value: {{ .Values.modularSdk.awsRegion | quote }}
+            {{- end }}
+            - name: modular_secrets_service_mode
+              value: {{ default "docker" .Values.modularSdk.modular_secrets_service_mode }}
             - name: SERVICE_MODE
               value: docker
             - name: SERVICE_MODE_S3
-              value: docker
+              value: {{ default "docker" .Values.rightsizer.service_mode_s3 }}
             - name: MONGO_URI
               value: "mongodb://$(modular_mongo_user):$(modular_mongo_password)@$(modular_mongo_url)/"
             - name: CAAS_MONGO_DATABASE
@@ -82,11 +90,6 @@ spec:
                 secretKeyRef:
                   name: vault-secret
                   key: token
-            - name: VAULT_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: vault-secret
-                  key: token
             - name: MINIO_ENDPOINT
               value: "http://{{ .Values.minioService }}:{{ .Values.minioPort }}"
             - name: MINIO_ACCESS_KEY_ID
@@ -99,11 +102,6 @@ spec:
                 secretKeyRef:
                   name: minio-secret
                   key: password
-            - name: CAAS_INNER_CACHE_TTL_SECONDS
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ include "rightsizer.fullname" . }}
-                  key: inner-cache-ttl-seconds
             - name: R8S_SYSTEM_USER_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -113,4 +111,6 @@ spec:
               value: 'false'
             - name: log_level
               value: "DEBUG"
+            - name: MODULAR_SDK_MONGO_URI
+              value: {{ .Values.modularSdk.mongoUri }}
       restartPolicy: Always

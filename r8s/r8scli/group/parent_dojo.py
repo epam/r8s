@@ -60,12 +60,6 @@ def delete(parent_id, force):
     Deletes RIGHTSIZER_SIEM_DEFECT_DOJO Parent
     """
     from r8scli.service.initializer import init_configuration
-    if force:
-        click.confirm(
-            f'Do you really want to completely '
-            f'delete parent {parent_id}?',
-            abort=True
-        )
     return init_configuration().parent_dojo_delete(
         parent_id=parent_id,
         force=force

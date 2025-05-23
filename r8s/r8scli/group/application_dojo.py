@@ -69,11 +69,5 @@ def delete(application_id, force):
     Deletes DEFECT_DOJO Application.
     """
     from r8scli.service.initializer import init_configuration
-    if force:
-        click.confirm(
-            f'Do you really want to completely '
-            f'delete application {application_id}?',
-            abort=True
-        )
     return init_configuration().application_dojo_delete(
-        application_id=application_id)
+        application_id=application_id, force=force)
