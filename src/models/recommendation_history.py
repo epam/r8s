@@ -113,7 +113,7 @@ class RecommendationHistory(BaseModel):
         for attribute_name in dt_attributes:
             attribute_value = recommendation_dto.get(attribute_name)
 
-            if isinstance(attribute_value, datetime):
+            if isinstance(attribute_value, datetime.datetime):
                 recommendation_dto[attribute_name] = (
                     attribute_value.isoformat())
 

@@ -1028,10 +1028,10 @@ class AdapterClient:
             resource=API_LICENSE, method=HTTP_DELETE, payload=request
         )
 
-    def license_sync_post(self, license_key=None):
-        request = {}
-        if license_key:
-            request[PARAM_LICENSE_KEY] = license_key
+    def license_sync_post(self, application_id: str):
+        request = {
+            PARAM_APPLICATION_ID: application_id
+        }
         return self.__make_request(
             resource=API_LICENSE_SYNC, method=HTTP_POST, payload=request
         )

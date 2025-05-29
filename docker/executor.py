@@ -7,13 +7,13 @@ from modular_sdk.models.parent import Parent
 
 from commons.constants import (JOB_STEP_INITIALIZATION,
                                TENANT_LICENSE_KEY_ATTR, PROFILE_LOG_PATH,
-                               JOB_STEP_INITIALIZE_ALGORITHM, RESOURCE_TYPE_VM)
+                               JOB_STEP_INITIALIZE_ALGORITHM, RESOURCE_TYPE_VM,
+                               CUSTOMERS_ATTR)
 from commons.exception import ExecutorException, LicenseForbiddenException
 from commons.log_helper import get_logger
 from commons.profiler import profiler
 from models.algorithm import Algorithm
 from models.job import Job, JobStatusEnum, JobTenantStatusEnum
-from models.license import License
 from models.parent_attributes import LicensesParentMeta
 from models.recommendation_history import RecommendationTypeEnum
 from models.storage import Storage
@@ -23,7 +23,6 @@ from services.defect_dojo_service import DefectDojoService
 from services.environment_service import EnvironmentService
 from services.job_service import JobService
 from services.license_manager_service import LicenseManagerService
-from services.license_service import LicenseService
 from services.meta_service import MetaService
 from services.metrics_service import MetricsService, \
     INSUFFICIENT_DATA_ERROR_TEMPLATE
@@ -59,7 +58,6 @@ parent_service: RightSizerParentService = SERVICE_PROVIDER.parent_service()
 mocked_data_service: MockedDataService = SERVICE_PROVIDER.mocked_data_service()
 application_service: RightSizerApplicationService = SERVICE_PROVIDER. \
     application_service()
-license_service: LicenseService = SERVICE_PROVIDER.license_service()
 license_manager_service: LicenseManagerService = SERVICE_PROVIDER. \
     license_manager_service()
 recommendation_history_service: RecommendationHistoryService = (
@@ -95,10 +93,13 @@ def set_job_fail_reason(exception: Exception):
 
 
 @profiler(execution_step=f'lm_submit_job')
-def submit_licensed_job(application: Application, tenant_name: str,
-                        license_: License):
+def submit_licensed_job(application: Application, tenant_name: str):
     customer = application.customer_id
-    tenant_license_key = license_.customers.get(customer, {}).get(
+    app_meta = application_service.get_application_meta(
+        application=application
+    )
+    meta_dict = app_meta.as_dict()
+    tenant_license_key = meta_dict.get(CUSTOMERS_ATTR).get(customer, {}).get(
         TENANT_LICENSE_KEY_ATTR)
     algorithm_name = application.meta.algorithm_map[RESOURCE_TYPE_VM]
 
@@ -553,9 +554,6 @@ def main():
     tenant_meta_map = parent_service.resolve_tenant_parent_meta_map(
         parents=parents)
 
-    _LOG.debug(f'Describing License \'{license_key}\'')
-    license_: License = license_service.get_license(license_id=license_key)
-
     for tenant in scan_tenants:
         try:
             _LOG.info(f'Processing tenant {tenant}')
@@ -563,11 +561,10 @@ def main():
             _LOG.debug(f'Submitting licensed job for tenant {tenant}')
             licensed_job_data = submit_licensed_job(
                 application=licensed_application,
-                license_=license_,
                 tenant_name=tenant)
             for algorithm in algorithm_map.values():
                 _LOG.debug(f'Syncing licensed algorithm from license '
-                           f'{license_.license_key}')
+                           f'{license_key}')
                 algorithm_service.update_from_licensed_job(
                     algorithm=algorithm,
                     licensed_job=licensed_job_data

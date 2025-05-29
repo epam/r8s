@@ -31,7 +31,6 @@ from services.abstract_api_handler_lambda import PARAM_USER_ID, \
 from services.environment_service import EnvironmentService
 from services.job_service import JobService
 from services.license_manager_service import LicenseManagerService
-from services.license_service import LicenseService
 from services.rightsizer_application_service import \
     RightSizerApplicationService
 from services.rightsizer_parent_service import RightSizerParentService
@@ -56,7 +55,6 @@ class JobProcessor(AbstractCommandProcessor):
                  shape_service: ShapeService,
                  shape_price_service: ShapePriceService,
                  parent_service: RightSizerParentService,
-                 license_service: LicenseService,
                  license_manager_service: LicenseManagerService):
         self.job_service = job_service
         self.application_service = application_service
@@ -67,7 +65,6 @@ class JobProcessor(AbstractCommandProcessor):
         self.shape_service = shape_service
         self.shape_price_service = shape_price_service
         self.parent_service = parent_service
-        self.license_service = license_service
         self.license_manager_service = license_manager_service
 
         self.method_to_handler = {
@@ -240,9 +237,12 @@ class JobProcessor(AbstractCommandProcessor):
         else:
             _LOG.debug(f'Resolving tenant names from parents: '
                        f'{", ".join([p.parent_id for p in parents])}')
+            app_meta = self.application_service.get_application_meta(
+                application=licensed_application
+            )
             scan_tenants = self.parent_service.resolve_tenant_names(
                 parents=parents,
-                cloud=licensed_application.meta.cloud
+                cloud=app_meta.cloud
             )
         _LOG.debug(f'Setting scan_tenants env to '
                    f'\'{scan_tenants}\'')
@@ -433,19 +433,20 @@ class JobProcessor(AbstractCommandProcessor):
                 content=f'At least 1 tenant must be specified '
                         f'for licensed jobs.'
             )
-        _license = self.license_service.get_license(license_key)
-        if self.license_service.is_expired(_license):
+
+        if self.application_service.is_license_expired(application=application):
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
                 content='Affected license has expired'
             )
-        tenant_license_key = _license.customers.get(
-            application.customer_id, {}).get(TENANT_LICENSE_KEY_ATTR)
+        app_meta = self.application_service.get_application_meta(
+            application=application)
+
         _LOG.debug(f'Validating permission to submit licensed job.')
         return self._ensure_job_is_allowed(
             customer=application.customer_id,
             tenant_names=scan_tenants,
-            tlk=tenant_license_key
+            tlk=app_meta.tenant_license_key
         )
 
     def _ensure_job_is_allowed(self, customer, tenant_names: list, tlk: str,

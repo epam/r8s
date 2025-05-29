@@ -1,21 +1,23 @@
 import json
 from typing import List, Union
 
+from modular_sdk.commons.constants import ApplicationType
 from modular_sdk.models.application import Application
 from modular_sdk.services.application_service import ApplicationService
 from modular_sdk.services.customer_service import CustomerService
-from modular_sdk.commons.constants import ApplicationType
-
 from pynamodb.attributes import MapAttribute
 
 from commons import ApplicationException, RESPONSE_INTERNAL_SERVER_ERROR
 from commons.constants import APPLICATION_ID_ATTR, \
     MAESTRO_RIGHTSIZER_APPLICATION_TYPE, \
-    MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE, ID_ATTR
+    MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE, ALGORITHM_MAPPING_ATTR, \
+    CUSTOMERS_ATTR, TENANTS_ATTR, \
+    APPLICATION_TENANTS_ALL
 from commons.log_helper import get_logger
+from commons.time_helper import utc_iso
 from models.application_attributes import RightsizerApplicationMeta, \
     ConnectionAttribute, RightsizerLicensesApplicationMeta, \
-    RightSizerDojoApplicationMeta
+    RightSizerDojoApplicationMeta, AllowanceAttribute
 from models.storage import Storage
 from services.abstract_api_handler_lambda import PARAM_USER_CUSTOMER
 from services.ssm_service import SSMService
@@ -196,7 +198,8 @@ class RightSizerApplicationService(ApplicationService):
 
     def set_application_meta(
             self, application: Application,
-            meta: Union[RightsizerApplicationMeta, RightsizerLicensesApplicationMeta]
+            meta: Union[
+                RightsizerApplicationMeta, RightsizerLicensesApplicationMeta]
     ):
         meta_dict = meta.as_dict()
 
@@ -263,3 +266,52 @@ class RightSizerApplicationService(ApplicationService):
             secret_value=password
         )
         return secret_name
+
+    def update_license(self, application: Application, license_data: dict):
+        allowance = AllowanceAttribute(**license_data.get('allowance'))
+        app_meta = self.get_application_meta(application=application)
+        app_meta.allowance = allowance
+        app_meta.expiration = license_data.get('valid_until')
+        app_meta.algorithm_map = license_data.get(ALGORITHM_MAPPING_ATTR)
+
+        license_customers = license_data.get(CUSTOMERS_ATTR)
+
+        meta_customers = {
+            application.customer_id: license_customers.get(
+                application.customer_id, {})
+        }
+        allowed_tenants = meta_customers.get(
+            application.customer_id, {}).get(TENANTS_ATTR)
+        if not allowed_tenants:
+            meta_customers[application.customer_id][TENANTS_ATTR] = [
+                APPLICATION_TENANTS_ALL
+            ]
+        app_meta.customers = meta_customers
+        app_meta.latest_sync = utc_iso()
+
+        application.meta = app_meta
+        self.save(application)
+
+        return application
+
+    def is_license_expired(self, application: Application):
+        app_meta = self.get_application_meta(application=application)
+        return app_meta.expiration <= utc_iso()
+
+    def get_by_license_key(self, customer, license_key: str):
+        applications = self.list(
+            customer=customer,
+            _type=MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE,
+            deleted=False
+        )
+        for application in applications:
+            app_meta = self.get_application_meta(application=application)
+            if app_meta.license_key == license_key:
+                return application
+
+    def list_allowed_license_tenants(self, application: Application):
+        app_meta = self.get_application_meta(application=application)
+        customer_map = app_meta.customers.get(application.customer_id)
+        if not customer_map:
+            return
+        return list(customer_map.get(TENANTS_ATTR, []))

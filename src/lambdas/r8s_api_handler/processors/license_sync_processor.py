@@ -1,24 +1,27 @@
-from commons import RESPONSE_OK_CODE, RESPONSE_RESOURCE_NOT_FOUND_CODE, build_response
-from commons.constants import LICENSE_KEY_ATTR
+from commons import RESPONSE_OK_CODE, RESPONSE_RESOURCE_NOT_FOUND_CODE, \
+    build_response, validate_params, RESPONSE_BAD_REQUEST_CODE
+from commons.constants import APPLICATION_ID_ATTR, \
+    MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE
 from commons.constants import POST_METHOD
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
-from models.license import License
 from services.algorithm_service import AlgorithmService
 from services.license_manager_service import LicenseManagerService
-from services.license_service import LicenseService
+from services.rightsizer_application_service import \
+    RightSizerApplicationService
 
 _LOG = get_logger('r8s-license-sync-processor')
 
 
 class LicenseSyncProcessor(AbstractCommandProcessor):
-    def __init__(self, license_service: LicenseService,
-                 license_manager_service: LicenseManagerService,
-                 algorithm_service: AlgorithmService):
-        self.license_service = license_service
+    def __init__(self, license_manager_service: LicenseManagerService,
+                 algorithm_service: AlgorithmService,
+                 application_service: RightSizerApplicationService):
+
         self.license_manager_service = license_manager_service
         self.algorithm_service = algorithm_service
+        self.application_service = application_service
 
         self.method_to_handler = {
             POST_METHOD: self.post,
@@ -26,54 +29,70 @@ class LicenseSyncProcessor(AbstractCommandProcessor):
 
     def post(self, event):
         _LOG.debug(f'Sync license event: {event}')
-        license_key = event.get(LICENSE_KEY_ATTR)
+        validate_params(event, (APPLICATION_ID_ATTR,))
+        application_id = event.get(APPLICATION_ID_ATTR)
 
-        licenses = list(self.license_service.list_licenses(
-            license_key=license_key))
-
-        license_key_list = [l.license_key for l in licenses]
-        _LOG.debug(f'Licenses to sync: '
-                   f'{", ".join(license_key_list)}')
-        if not license_key_list:
-            _LOG.error('No licenses matching given query found.')
+        application = self.application_service.get_application_by_id(
+            application_id=application_id
+        )
+        if (not application or application.type !=
+                MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE):
+            _LOG.error('No RIGHTSIZER_LICENSES application matching '
+                       'given query found.')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
-                content='No licenses matching given query found.'
+                content='No RIGHTSIZER_LICENSES application matching '
+                        'given query found.'
             )
-        for license_ in licenses:
-            _LOG.debug(f'Syncing license \'{license_.license_key}\'')
-            self._execute_license_sync(
-                license_obj=license_,
+        app_meta = self.application_service.get_application_meta(
+            application=application
+        )
+        license_key = app_meta.license_key
+        if not license_key:
+            _LOG.error(f'Invalid application {application_id} meta '
+                       f'configuration. Missing "license_key" parameter')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'Invalid application {application_id} meta '
+                        f'configuration. Missing "license_key" parameter'
             )
-        _LOG.debug(f'Licenses: {", ".join(license_key_list)} '
-                   f'have been synced')
-        return build_response(
-            code=RESPONSE_OK_CODE,
-            content=f'Licenses: {", ".join(license_key_list)} '
-                    f'have been synced'
+
+        self._execute_license_sync(
+            application=application,
         )
 
-    def _execute_license_sync(self, license_obj: License):
-        _LOG.info(f'Syncing license \'{license_obj.license_key}\'')
-        customer = list(license_obj.customers.keys())[0]
+        _LOG.debug(
+            f'License {license_key} from application {application_id} has been synced')
+        return build_response(
+            code=RESPONSE_OK_CODE,
+            content=f'License {license_key} from application {application_id} has been synced'
+        )
+
+    def _execute_license_sync(self, application):
+        app_meta = self.application_service.get_application_meta(
+            application=application
+        )
+        license_key = app_meta.license_key
+        _LOG.info(f'Syncing license {license_key} '
+                  f'in application {application.application_id}')
         response = self.license_manager_service.synchronize_license(
-            license_key=license_obj.license_key,
-            customer=customer
+            license_key=license_key,
+            customer=application.customer_id
         )
         if not response.status_code == 200:
             return
 
         license_data = response.json()['items'][0]
 
-        _LOG.debug(f'Updating license {license_obj.license_key}')
-        license_obj = self.license_service.update_license(
-            license_obj=license_obj,
+        _LOG.debug(f'Updating license {license_key}')
+        application = self.application_service.update_license(
+            application=application,
             license_data=license_data
         )
         _LOG.debug(f'Updating licensed algorithm')
-        for customer in license_obj.customers.keys():
-            self.algorithm_service.sync_licensed_algorithm(
-                license_data=license_data,
-                customer=customer
-            )
-        return license_obj
+
+        self.algorithm_service.sync_licensed_algorithm(
+            license_data=license_data,
+            customer=application.customer_id
+        )
+        return application

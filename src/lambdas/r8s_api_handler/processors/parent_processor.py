@@ -18,7 +18,6 @@ from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
 from services.algorithm_service import AlgorithmService
 from services.license_manager_service import LicenseManagerService
-from services.license_service import LicenseService
 from services.rbac.access_control_service import PARAM_USER_SUB
 from services.rightsizer_application_service import \
     RightSizerApplicationService
@@ -35,14 +34,12 @@ class ParentProcessor(AbstractCommandProcessor):
                  application_service: RightSizerApplicationService,
                  parent_service: RightSizerParentService,
                  tenant_service: TenantService,
-                 license_service: LicenseService,
                  license_manager_service: LicenseManagerService):
         self.algorithm_service = algorithm_service
         self.customer_service = customer_service
         self.application_service = application_service
         self.parent_service = parent_service
         self.tenant_service = tenant_service
-        self.license_service = license_service
         self.license_manager_service = license_manager_service
 
         self.method_to_handler = {

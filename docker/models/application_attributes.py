@@ -15,11 +15,21 @@ class RightsizerApplicationMeta(MapAttribute):
     connection = ConnectionAttribute(null=True)
 
 
+class AllowanceAttribute(MapAttribute):
+    time_range = UnicodeAttribute(null=True)
+    job_balance = NumberAttribute(null=True)
+    balance_exhaustion_model = UnicodeAttribute(null=True)
+
+
 class RightsizerLicensesApplicationMeta(MapAttribute):
     cloud = UnicodeAttribute(null=True)
     algorithm_map = MapAttribute(null=True)
     license_key = UnicodeAttribute(null=True)
-    tenants = ListAttribute(of=UnicodeAttribute, default=[])
+    tenant_license_key = UnicodeAttribute(null=True)
+    expiration = UnicodeAttribute(null=True)
+    latest_sync = UnicodeAttribute(null=True)
+    allowance = AllowanceAttribute(null=True)
+    customers = MapAttribute(null=True)
 
 
 class RightSizerDojoApplicationMeta(MapAttribute):
