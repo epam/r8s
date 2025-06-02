@@ -143,29 +143,32 @@ class StorageProcessor(AbstractCommandProcessor):
 
         access = event.get(ACCESS_ATTR)
         if access:
-            access_doc = None
-            if access.get(BUCKET_NAME_ATTR):
-                access_doc = {
-                    BUCKET_NAME_ATTR: access.get(BUCKET_NAME_ATTR),
-                    PREFIX_ATTR: access.get(PREFIX_ATTR)
-                }
-            elif access.get(PREFIX_ATTR):
-                access_doc = {
-                    BUCKET_NAME_ATTR: storage.access.bucket_name,
-                    PREFIX_ATTR: access.get(PREFIX_ATTR)
-                }
-            if access_doc:
-                _LOG.debug(f'Validating storage type access')
-                access_doc = self.storage_service.validate_storage_access(
-                    service=storage.service,
-                    access=access_doc
+            bucket_name = event.get(BUCKET_NAME_ATTR)
+            prefix = event.get(PREFIX_ATTR)
+            if not bucket_name and not prefix:
+                _LOG.debug('\'bucket_name\' or \'prefix\' must be specified ')
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content='\'bucket_name\' or \'prefix\' must be specified '
                 )
-                _LOG.debug(f'Updating storage \'{name}\' access to '
-                           f'\'{access_doc}\'')
-                if isinstance(storage, Storage):
-                    storage.access = access_doc.to_mongo().to_dict()
-                elif isinstance(storage, S3Storage):
-                    storage.access = access_doc
+            access_config = storage.to_mongo().to_dict().get(ACCESS_ATTR, {})
+            if bucket_name:
+                access_config[BUCKET_NAME_ATTR] = bucket_name
+            elif prefix:
+                access_config[PREFIX_ATTR] = prefix
+
+            _LOG.debug(f'Validating storage type access')
+            access_doc = self.storage_service.validate_storage_access(
+                service=storage.service,
+                access=access_config
+            )
+            _LOG.debug(f'Updating storage \'{name}\' access to '
+                       f'\'{access_doc}\'')
+            if isinstance(storage, S3Storage):
+                # S3Storage needs to be checked first
+                storage.access = access_doc
+            elif isinstance(storage, Storage):
+                storage.access = access_doc.to_mongo().to_dict()
 
         _LOG.debug(f'Saving updated storage')
         self.storage_service.save(storage=storage)

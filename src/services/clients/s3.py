@@ -98,14 +98,23 @@ class S3Client:
         s3_object = self.resource.Object(bucket_name, object_name)
         return s3_object.put(Body=body, ContentEncoding='utf-8')
 
-    def is_bucket_exists(self, bucket_name):
-        """
-        Check if specified bucket exists.
-        :param bucket_name: name of the bucket to check;
-        :return: True if exists, otherwise - False
-        """
-        existing_buckets = self._list_buckets()
-        return bucket_name in existing_buckets
+    def is_bucket_exists(self, bucket_name: str) -> bool:
+        try:
+            self.client.head_bucket(Bucket=bucket_name)
+            _LOG.info(f"Bucket '{bucket_name}' exists and is accessible.")
+            return True
+        except self.client.exceptions.NoSuchBucket:
+            _LOG.error(f"Bucket '{bucket_name}' does not exist.")
+            return False
+        except self.client.exceptions.ClientError as e:
+            error_code = e.response['Error'].get('Code', 'Unknown')
+            _LOG.error(
+                f"Failed to access bucket '{bucket_name}'. "
+                f"Error code: {error_code}")
+            return False
+        except Exception as e:
+            _LOG.error(f"An error occurred: {str(e)}")
+            return False
 
     def _list_buckets(self):
         response = self.client.list_buckets()
