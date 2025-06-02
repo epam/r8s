@@ -1,6 +1,5 @@
-from importlib.metadata import version as lib_version
-
 import click
+
 from r8scli.group import cli_response, ViewCommand, cast_to_list
 from r8scli.group.algorithm import algorithm
 from r8scli.group.application import application
@@ -15,8 +14,8 @@ from r8scli.group.setting import setting
 from r8scli.group.shape import shape
 from r8scli.group.storage import storage
 from r8scli.group.user import user
-from r8scli.service.config import create_configuration, clean_up_configuration, \
-    save_token
+from r8scli.service.config import (create_configuration,
+                                   clean_up_configuration, save_token)
 from r8scli.service.constants import AVAILABLE_CHECK_TYPES
 from r8scli.version import __version__
 
@@ -47,7 +46,7 @@ def configure(api_link):
 @click.option('--password', '-p', type=str,
               required=True, hide_input=True, prompt=True,
               help='R8s user password.')
-@cli_response(secured_params=['password'])
+@cli_response()
 def login(username: str, password: str):
     """
     Authenticates user to work with R8s.
@@ -68,7 +67,7 @@ def login(username: str, password: str):
 @cli_response()
 def refresh():
     """
-    Refreshe r8s access token using stored refresh token.
+    Refresh r8s access token using stored refresh token.
     """
     from r8scli.service.initializer import init_configuration
 
@@ -94,7 +93,7 @@ def refresh():
 @click.option('--role_name', '-rn', type=str,
               required=True,
               help='R8s user role name.')
-@cli_response(secured_params=['password'])
+@cli_response()
 def register(username: str, password: str, customer_id, role_name):
     """
     Creates user to work with R8s.

@@ -1,7 +1,6 @@
 import hashlib
 import json
 from datetime import datetime
-from functools import cached_property
 
 from mongoengine import StringField, ListField, IntField, EnumField, \
     EmbeddedDocument, BooleanField, EmbeddedDocumentField, DateTimeField
@@ -37,7 +36,7 @@ class AnalysisPriceEnum(ListEnum):
 
 class InterpMethodEnum(ListEnum):
     INTERP1D = 'interp1d'
-    POLYMONIAL = 'polynomial'
+    POLYNOMIAL = 'polynomial'
 
 
 class KMeansInitEnum(ListEnum):
@@ -46,12 +45,12 @@ class KMeansInitEnum(ListEnum):
 
 
 class MetricFormatSettings(EmbeddedDocument):
-    delimiter = StringField(null=True, max_length=3)
+    delimiter = StringField(null=True, min_length=1, max_length=2)
     skipinitialspace = BooleanField(null=True)
-    lineterminator = StringField(null=True, max_length=5)
-    quotechar = StringField(null=True, max_length=3)
+    lineterminator = StringField(null=True, min_length=1, max_length=3)
+    quotechar = StringField(null=True, min_length=1, max_length=1)
     quoting = EnumField(QuotingEnum, null=True)
-    escapechar = StringField(null=True, max_length=3)
+    escapechar = StringField(null=True, min_length=1, max_length=1)
     doublequote = BooleanField(null=True)
 
 
@@ -59,20 +58,21 @@ class ClusteringSettings(EmbeddedDocument):
     max_clusters = IntField(min_value=1, max_value=10, default=5)
     wcss_kmeans_init = EnumField(KMeansInitEnum,
                                  default=KMeansInitEnum.KMEANS)
-    wcss_kmeans_max_iter = IntField(min_value=1, default=300)
-    wcss_kmeans_n_init = IntField(min_value=1, default=10)
+    wcss_kmeans_max_iter = IntField(min_value=1, default=300, max_value=1000)
+    wcss_kmeans_n_init = IntField(min_value=1, default=10, max_value=100)
     knee_interp_method = EnumField(InterpMethodEnum,
-                                   default=InterpMethodEnum.POLYMONIAL)
-    knee_polynomial_degree = IntField(default=5)
+                                   default=InterpMethodEnum.POLYNOMIAL)
+    knee_polynomial_degree = IntField(default=5, min_value=1, max_value=20)
 
 
 class RecommendationSettings(EmbeddedDocument):
     record_step_minutes = IntField(min_value=1, max_value=60, default=5)
-    thresholds = ListField(field=IntField(null=True), max_length=3,
-                           default=[10, 30, 70])
-    min_allowed_days = IntField(default=1, min_value=1)
-    max_days = IntField(default=90, min_value=7)
-    min_allowed_days_schedule = IntField(default=14, min_value=7)
+    thresholds = ListField(field=IntField(null=True, min_value=0,
+                                          max_value=100),
+                           max_length=3, default=[10, 30, 70])
+    min_allowed_days = IntField(default=1, min_value=1, max_value=90)
+    max_days = IntField(default=90, min_value=7, max_value=365)
+    min_allowed_days_schedule = IntField(default=14, min_value=7, max_value=60)
     max_allowed_days_schedule = IntField(default=28, min_value=14)
     min_schedule_day_duration_minutes = IntField(default=90, min_value=30,
                                                  max_value=360)
@@ -103,10 +103,9 @@ class Algorithm(BaseModel):
 
     name = StringField(unique=True)
     resource_type = StringField(null=True)
-    licensed = BooleanField(default=False)
     customer = StringField(null=True)
     cloud = EnumField(CloudEnum)
-
+    licensed = BooleanField(default=False)
     metric_format = EmbeddedDocumentField(MetricFormatSettings, null=True)
     required_data_attributes = ListField(StringField(null=True))
     metric_attributes = ListField(StringField(null=True))
@@ -129,8 +128,7 @@ class Algorithm(BaseModel):
             algorithm_dto['last_modified'] = last_modified.isoformat()
         return algorithm_dto
 
-    @cached_property
-    def read_configuration(self):
+    def get_read_configuration(self):
         if not self.metric_format:
             return {}
         return {k: v for k, v in self.metric_format.to_mongo().items() if v}

@@ -1,21 +1,23 @@
 import json
 from typing import List, Union
 
+from modular_sdk.commons.constants import ApplicationType
 from modular_sdk.models.application import Application
 from modular_sdk.services.application_service import ApplicationService
 from modular_sdk.services.customer_service import CustomerService
-from modular_sdk.commons.constants import ApplicationType
-
 from pynamodb.attributes import MapAttribute
 
 from commons import ApplicationException, RESPONSE_INTERNAL_SERVER_ERROR
 from commons.constants import APPLICATION_ID_ATTR, \
     MAESTRO_RIGHTSIZER_APPLICATION_TYPE, \
-    MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE, ID_ATTR
+    MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE, ALGORITHM_MAPPING_ATTR, \
+    CUSTOMERS_ATTR, TENANTS_ATTR, \
+    APPLICATION_TENANTS_ALL
 from commons.log_helper import get_logger
+from commons.time_helper import utc_iso
 from models.application_attributes import RightsizerApplicationMeta, \
     ConnectionAttribute, RightsizerLicensesApplicationMeta, \
-    RightSizerDojoApplicationMeta
+    RightSizerDojoApplicationMeta, AllowanceAttribute
 from models.storage import Storage
 from services.abstract_api_handler_lambda import PARAM_USER_CUSTOMER
 from services.ssm_service import SSMService
@@ -194,9 +196,11 @@ class RightSizerApplicationService(ApplicationService):
             application_meta_obj = meta_attr_class()
         return application_meta_obj
 
-    def set_application_meta(self, application: Application,
-                             meta: Union[RightsizerApplicationMeta,
-                             RightsizerLicensesApplicationMeta]):
+    def set_application_meta(
+            self, application: Application,
+            meta: Union[
+                RightsizerApplicationMeta, RightsizerLicensesApplicationMeta]
+    ):
         meta_dict = meta.as_dict()
 
         excess_attributes = self._excess_attributes_cache.get(
@@ -216,9 +220,10 @@ class RightSizerApplicationService(ApplicationService):
                 filtered.append(application)
         return filtered
 
-    def resolve_application(self, event: dict,
-                            type_=MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE) -> \
-            List[Application]:
+    def resolve_application(
+            self, event: dict,
+            type_=MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE
+    ) -> List[Application]:
         user_customer = event.get(PARAM_USER_CUSTOMER)
         event_application = event.get(APPLICATION_ID_ATTR)
 
@@ -262,47 +267,51 @@ class RightSizerApplicationService(ApplicationService):
         )
         return secret_name
 
-    @staticmethod
-    def list_group_policies(meta: RightsizerApplicationMeta):
-        if not meta.group_policies:
-            return []
-        return meta.group_policies
+    def update_license(self, application: Application, license_data: dict):
+        allowance = AllowanceAttribute(**license_data.get('allowance'))
+        app_meta = self.get_application_meta(application=application)
+        app_meta.allowance = allowance
+        app_meta.expiration = license_data.get('valid_until')
+        app_meta.algorithm_map = license_data.get(ALGORITHM_MAPPING_ATTR)
 
-    @staticmethod
-    def get_group_policy(meta: RightsizerApplicationMeta, group_id: str):
-        if not meta.group_policies:
+        license_customers = license_data.get(CUSTOMERS_ATTR)
+
+        meta_customers = {
+            application.customer_id: license_customers.get(
+                application.customer_id, {})
+        }
+        allowed_tenants = meta_customers.get(
+            application.customer_id, {}).get(TENANTS_ATTR)
+        if not allowed_tenants:
+            meta_customers[application.customer_id][TENANTS_ATTR] = [
+                APPLICATION_TENANTS_ALL
+            ]
+        app_meta.customers = meta_customers
+        app_meta.latest_sync = utc_iso()
+
+        application.meta = app_meta
+        self.save(application)
+
+        return application
+
+    def is_license_expired(self, application: Application):
+        app_meta = self.get_application_meta(application=application)
+        return app_meta.expiration <= utc_iso()
+
+    def get_by_license_key(self, customer, license_key: str):
+        applications = self.list(
+            customer=customer,
+            _type=MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE,
+            deleted=False
+        )
+        for application in applications:
+            app_meta = self.get_application_meta(application=application)
+            if app_meta.license_key == license_key:
+                return application
+
+    def list_allowed_license_tenants(self, application: Application):
+        app_meta = self.get_application_meta(application=application)
+        customer_map = app_meta.customers.get(application.customer_id)
+        if not customer_map:
             return
-        for group_policy in meta.group_policies:
-            if group_policy.get(ID_ATTR) == group_id:
-                return group_policy
-
-    @staticmethod
-    def add_group_policy_to_meta(meta: RightsizerApplicationMeta,
-                                 group_policy: dict):
-        if not meta.group_policies:
-            meta.group_policies = [group_policy]
-            return
-
-        group_policies = meta.group_policies
-        group_policies.append(group_policy)
-        meta.group_policies = group_policies
-
-    @staticmethod
-    def update_group_policy_in_meta(meta: RightsizerApplicationMeta,
-                                    group_policy: dict):
-        if not meta.group_policies:
-            return
-        target_group_id = group_policy.get(ID_ATTR)
-        for index, group_policy in enumerate(meta.group_policies):
-            if group_policy.get(ID_ATTR) == target_group_id:
-                meta.group_policies[index] = group_policy
-                return
-
-    @staticmethod
-    def remove_group_from_meta(meta: RightsizerApplicationMeta, group_id: str):
-        if not meta.group_policies:
-            return
-        for index, group_policy in enumerate(meta.group_policies):
-            if group_policy.get(ID_ATTR) == group_id:
-                del meta.group_policies[index]
-                return
+        return list(customer_map.get(TENANTS_ATTR, []))

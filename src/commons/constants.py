@@ -143,12 +143,12 @@ WCSS_KMEANS_INIT_ATTR = 'wcss_kmeans_init'
 WCSS_KMEANS_MAX_ITER_ATTR = 'wcss_kmeans_max_iter'
 WCSS_KMEANS_N_INIT_ATTR = 'wcss_kmeans_n_init'
 KNEE_INTERP_METHOD_ATTR = 'knee_interp_method'
-KNEE_POLYMONIAL_DEGREE_ATTR = 'knee_polynomial_degree'
+KNEE_POLYNOMIAL_DEGREE_ATTR = 'knee_polynomial_degree'
 
 CLUSTERING_SETTINGS_ATTRS = [
     MAX_CLUSTERS_ATTR, WCSS_KMEANS_INIT_ATTR, WCSS_KMEANS_N_INIT_ATTR,
     WCSS_KMEANS_MAX_ITER_ATTR, KNEE_INTERP_METHOD_ATTR,
-    KNEE_POLYMONIAL_DEGREE_ATTR]
+    KNEE_POLYNOMIAL_DEGREE_ATTR]
 
 RECOMMENDATION_SETTINGS_ATTR = 'recommendation_settings'
 RECORD_STEP_MINUTES_ATTR = 'record_step_minutes'
@@ -260,6 +260,11 @@ MAIL_REPORT_DEFAULT_HIGH_PRIORITY_THRESHOLD = 10
 RULE_ID_ATTR = 'rule_id'
 INSTANCE_TYPE_ATTR = 'instance_type'
 
+ADD_TAGS_ATTR = 'add_tags'
+ADD_RESOURCE_GROUPS_ATTR = 'add_resource_groups'
+REMOVE_TAGS_ATTR = 'remove_tags'
+REMOVE_RESOURCE_GROUPS_ATTR = 'remove_resource_groups'
+
 ENV_SERVICE_MODE = 'SERVICE_MODE'
 ENV_SERVICE_MODE_S3 = 'SERVICE_MODE_S3'
 DOCKER_SERVICE_MODE, SAAS_SERVICE_MODE = 'docker', 'saas'
@@ -340,6 +345,9 @@ STAGE_ATTR = 'stage'
 KEY_ID_ATTR = 'key_id'
 B64ENCODED_ATTR = 'b64_encoded'
 
+SERVICE_TYPE_ATTR = 'service_type'
+SERVICE_TYPE_RIGHTSIZER = 'RIGHTSIZER'
+
 ALLOWED_ATTR = 'allowed'
 FORBIDDEN_ATTR = 'forbidden'
 REMAINING_BALANCE_ATTR = 'remaining_balance'
@@ -354,5 +362,7 @@ DESIRED_ATTR = 'desired'
 SCALE_STEP_ATTR = 'scale_step'
 SCALE_STEP_AUTO_DETECT = 'AUTO_DETECT'
 COOLDOWN_DAYS_ATTR = 'cooldown_days'
+ALLOWED_RESOURCE_GROUPS_ATTR = 'allowed_resource_groups'
+ALLOWED_TAGS_ATTR = 'allowed_tags'
 
 ERROR_NO_APPLICATION_FOUND = 'No application found matching given query.'

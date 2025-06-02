@@ -2,10 +2,9 @@ import os
 
 from modular_sdk.services.tenant_service import TenantService
 
-from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
+from commons import RESPONSE_BAD_REQUEST_CODE, build_response, \
+    RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
     validate_params, RESPONSE_FORBIDDEN_CODE
-from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import GET_METHOD, TENANT_ATTR, \
     CUSTOMER_ATTR, DATA_SOURCE_ATTR, REGION_ATTR, \
     INSTANCE_ID_ATTR, CLOUD_ATTR
@@ -35,17 +34,6 @@ class StorageDataProcessor(AbstractCommandProcessor):
             TIMESTAMP_ATTR: '',
             INSTANCE_ID_ATTR: '',
         }
-
-    def process(self, event) -> dict:
-        method = event.get(PARAM_HTTP_METHOD)
-        command_handler = self.method_to_handler.get(method)
-        if not command_handler:
-            message = f'Unable to handle command {method} in ' \
-                      f'storage data processor'
-            _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
-                       f'process error: {message}')
-            raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
-        return command_handler(event=event)
 
     def get(self, event):
         _LOG.debug(f'Sign up event: {event}')

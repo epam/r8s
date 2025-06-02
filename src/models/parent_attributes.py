@@ -11,8 +11,17 @@ class ShapeRule(MapAttribute):
     value = UnicodeAttribute(null=True)
 
 
+class ResourceGroupAttribute(MapAttribute):
+    allowed_resource_groups = ListAttribute(of=UnicodeAttribute, null=True,
+                                            default=list())
+    allowed_tags = ListAttribute(of=UnicodeAttribute, null=True,
+                                 default=list())
+
+
 class LicensesParentMeta(MapAttribute):
     shape_rules = ListAttribute(of=ShapeRule, null=True, default=[])
+    resource_groups = ListAttribute(of=ResourceGroupAttribute,
+                                    null=True, default=[])
 
 
 class DojoParentMeta(MapAttribute):
@@ -47,3 +56,18 @@ class DojoParentMeta(MapAttribute):
             't': self.test,
             'saj': self.send_after_job
         }
+
+    @classmethod
+    def from_dict(cls, dct: dict):
+        return cls(
+            scan_type=dct['st'],
+            product_type=dct['pt'],
+            product=dct['p'],
+            engagement=dct['e'],
+            test=dct['t'],
+            send_after_job=dct.get('saj') or False,
+        )
+
+    @classmethod
+    def from_parent(cls, parent):
+        return cls.from_dict(parent.meta.as_dict())

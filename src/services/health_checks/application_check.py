@@ -5,11 +5,10 @@ from commons.constants import MAESTRO_RIGHTSIZER_APPLICATION_TYPE, \
 from commons.log_helper import get_logger
 from models.application_attributes import ConnectionAttribute
 from services.clients.api_gateway_client import ApiGatewayClient
+from services.environment_service import EnvironmentService
 from services.health_checks.abstract_health_check import AbstractHealthCheck
 from services.health_checks.check_result import CheckResult, \
     CheckCollectionResult
-
-from services.environment_service import EnvironmentService
 from services.rightsizer_application_service import \
     RightSizerApplicationService
 from services.ssm_service import SSMService
@@ -156,13 +155,17 @@ class ApplicationCheckHandler:
         self.environment_service = environment_service
 
         self.checks = [
-            ApplicationConnectionCheck(application_service=application_service,
-                                       api_gateway_client=api_gateway_client,
-                                       user_service=user_service,
-                                       ssm_service=ssm_service,
-                                       environment_service=environment_service),
-            ApplicationStorageCheck(application_service=application_service,
-                                    storage_service=storage_service)
+            ApplicationConnectionCheck(
+                application_service=application_service,
+                api_gateway_client=api_gateway_client,
+                user_service=user_service,
+                ssm_service=ssm_service,
+                environment_service=environment_service
+            ),
+            ApplicationStorageCheck(
+                application_service=application_service,
+                storage_service=storage_service
+            )
         ]
 
     def check(self):

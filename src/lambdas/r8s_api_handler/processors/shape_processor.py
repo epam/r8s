@@ -1,7 +1,6 @@
-from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    build_response, RESPONSE_OK_CODE, RESPONSE_RESOURCE_NOT_FOUND_CODE, \
-    validate_params
-from commons.abstract_lambda import PARAM_HTTP_METHOD
+from commons import (RESPONSE_BAD_REQUEST_CODE, build_response,
+                     RESPONSE_OK_CODE, RESPONSE_RESOURCE_NOT_FOUND_CODE,
+                     validate_params)
 from commons.constants import POST_METHOD, GET_METHOD, PATCH_METHOD, \
     DELETE_METHOD, NAME_ATTR, CLOUD_ATTR, CPU_ATTR, MEMORY_ATTR, \
     NETWORK_THROUGHPUT_ATTR, IOPS_ATTR, FAMILY_TYPE_ATTR, \
@@ -28,17 +27,6 @@ class ShapeProcessor(AbstractCommandProcessor):
             PATCH_METHOD: self.patch,
             DELETE_METHOD: self.delete,
         }
-
-    def process(self, event) -> dict:
-        method = event.get(PARAM_HTTP_METHOD)
-        command_handler = self.method_to_handler.get(method)
-        if not command_handler:
-            message = f'Unable to handle command {method} in ' \
-                      f'shape rule processor'
-            _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
-                       f'process error: {message}')
-            raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
-        return command_handler(event=event)
 
     def get(self, event):
         _LOG.debug(f'Describe shape event: {event}')

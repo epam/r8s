@@ -1,13 +1,14 @@
-from datetime import datetime
+import datetime
 
+from commons.enum import ListEnum
 from mongoengine import StringField, DateTimeField, FloatField, \
     ListField, DictField, EnumField
 
-from commons.enum import ListEnum
 from models.base_model import BaseModel
 
 RESOURCE_TYPE_INSTANCE = 'INSTANCE'
 RESOURCE_TYPE_GROUP = 'GROUP'
+
 
 class FeedbackStatusEnum(ListEnum):
     APPLIED = 'APPLIED'
@@ -19,6 +20,18 @@ class FeedbackStatusEnum(ListEnum):
     TOO_SHORT = 'TOO_SHORT'
     TOO_LONG = 'TOO_LONG'
 
+    @classmethod
+    def common(cls):
+        return [cls.APPLIED, cls.DONT_RECOMMEND, cls.NO_ANSWER, cls.WRONG]
+
+    @classmethod
+    def resize(cls):
+        return [cls.TOO_LARGE, cls.TOO_SMALL]
+
+    @classmethod
+    def schedule(cls):
+        return [cls.TOO_LONG, cls.TOO_SHORT]
+
 
 class RecommendationTypeEnum(ListEnum):
     ACTION_SCHEDULE = 'SCHEDULE'
@@ -27,6 +40,7 @@ class RecommendationTypeEnum(ListEnum):
     ACTION_SCALE_DOWN = 'SCALE_DOWN'
     ACTION_CHANGE_SHAPE = 'CHANGE_SHAPE'
     ACTION_SPLIT = 'SPLIT'
+    ACTION_EMPTY = 'NO_ACTION'
 
     @classmethod
     def get_allowed_feedback_types(cls, recommendation_type):
@@ -62,7 +76,7 @@ class RecommendationHistory(BaseModel):
     customer = StringField(null=True)
     tenant = StringField(null=True)
     region = StringField(null=True)
-    added_at = DateTimeField(null=False, default=datetime.utcnow)
+    added_at = DateTimeField(null=False, default=datetime.datetime.utcnow)
     current_instance_type = StringField(null=True)
     current_month_price_usd = FloatField(null=True)
     recommendation_type = EnumField(RecommendationTypeEnum, null=True)
@@ -99,7 +113,7 @@ class RecommendationHistory(BaseModel):
         for attribute_name in dt_attributes:
             attribute_value = recommendation_dto.get(attribute_name)
 
-            if isinstance(attribute_value, datetime):
+            if isinstance(attribute_value, datetime.datetime):
                 recommendation_dto[attribute_name] = (
                     attribute_value.isoformat())
 

@@ -55,9 +55,11 @@ class AbstractApiHandlerLambda:
             else:
                 validate_params(event=event,
                                 required_params_list=[PARAM_USER_ID])
-                if not SERVICE_PROVIDER.access_control_service(). \
-                        is_allowed_to_access(
-                    event=event, target_permission=target_permission):
+                ac_service = SERVICE_PROVIDER.access_control_service()
+                if not ac_service.is_allowed_to_access(
+                        event=event,
+                        target_permission=target_permission
+                ):
                     _LOG.debug(f'User \'{event.get(PARAM_USER_ID)}\' is not '
                                f'allowed to access the resource: '
                                f'{event.get(PARAM_REQUEST_PATH)}')

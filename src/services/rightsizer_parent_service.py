@@ -3,13 +3,14 @@ from typing import List, Union
 from modular_sdk.commons import generate_id
 from modular_sdk.commons.constants import RIGHTSIZER_PARENT_TYPE, \
     TENANT_PARENT_MAP_RIGHTSIZER_TYPE, RIGHTSIZER_LICENSES_PARENT_TYPE, \
-    TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE, ParentScope, ParentType
+    TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE, ParentScope
 from modular_sdk.models.parent import Parent
 from modular_sdk.services.customer_service import CustomerService
 from modular_sdk.services.parent_service import ParentService
 from modular_sdk.services.tenant_service import TenantService
 from pynamodb.attributes import MapAttribute
 
+from commons.constants import ID_ATTR
 from commons.log_helper import get_logger
 from models.parent_attributes import ShapeRule, LicensesParentMeta
 from services.environment_service import EnvironmentService
@@ -133,6 +134,48 @@ class RightSizerParentService(ParentService):
     @staticmethod
     def get_shape_rule_dto(shape_rule: ShapeRule):
         return shape_rule.as_dict()
+
+    @staticmethod
+    def list_resource_groups(meta: LicensesParentMeta):
+        if not meta.resource_groups:
+            return []
+        return meta.resource_groups
+
+    @staticmethod
+    def get_resource_group(meta: LicensesParentMeta, group_id: str):
+        if not meta.resource_groups:
+            return
+        for group_policy in meta.resource_groups:
+            if group_policy.get(ID_ATTR) == group_id:
+                return group_policy
+
+    @staticmethod
+    def add_resource_group(meta: LicensesParentMeta, resource_group: dict):
+        if not meta.resource_groups:
+            meta.resource_groups = []
+
+        meta.resource_groups.append(resource_group)
+
+    @staticmethod
+    def update_resource_group(meta: LicensesParentMeta, resource_group: dict):
+        if not meta.resource_groups:
+            return
+        target_group_id = resource_group.get(ID_ATTR)
+        if not target_group_id:
+            return
+        for index, group_config in enumerate(meta.resource_groups):
+            if group_config.get(ID_ATTR) == target_group_id:
+                meta.resource_groups[index] = resource_group
+                return
+
+    @staticmethod
+    def remove_resource_group(meta: LicensesParentMeta, group_id: str):
+        if not meta.resource_groups:
+            return
+        for index, group_config in enumerate(meta.resource_groups):
+            if group_config.get(ID_ATTR) == group_id:
+                del meta.resource_groups[index]
+                return
 
     def filter_directly_linked_tenants(self, tenant_names: List[str],
                                        parent: Parent):

@@ -1,17 +1,21 @@
+from functools import cached_property
 from json import JSONDecodeError
 from typing import Optional
 from typing import Union, List, Type, Dict
 
+from commons import secure_event
+from commons.constants import (
+    POST_METHOD, PATCH_METHOD, \
+    LICENSE_KEY_ATTR, STATUS_ATTR, TENANT_ATTR,
+    TENANT_LICENSE_KEY_ATTR, \
+    AUTHORIZATION_PARAM, CUSTOMER_ATTR,
+    TENANT_LICENSE_KEYS_ATTR,
+    TENANTS_ATTR, SERVICE_TYPE_ATTR,
+    SERVICE_TYPE_RIGHTSIZER, ALGORITHM_MAPPING_ATTR)
+from commons.log_helper import get_logger
 from modular_sdk.services.impl.maestro_credentials_service import AccessMeta
 from requests import request, Response
 from requests.exceptions import RequestException
-from functools import cached_property
-
-from commons.constants import POST_METHOD, PATCH_METHOD, \
-    LICENSE_KEY_ATTR, STATUS_ATTR, TENANT_ATTR, TENANT_LICENSE_KEY_ATTR, \
-    AUTHORIZATION_PARAM, CUSTOMER_ATTR, TENANT_LICENSE_KEYS_ATTR, TENANTS_ATTR
-from commons import secure_event
-from commons.log_helper import get_logger
 from services.setting_service import SettingsService
 
 SET_TENANT_ACTIVATION_DATE_PATH = '/tenants/set-activation-date'
@@ -42,7 +46,7 @@ class LicenseManagerClient:
         return self.setting_service.get_license_manager_access_data() or {}
 
     @property
-    def host(self) -> str:
+    def host(self) -> Optional[str]:
         return AccessMeta.from_dict(self.access_data).url
 
     @property
@@ -77,9 +81,47 @@ class LicenseManagerClient:
             url=url, method=POST_METHOD, payload=payload, headers=headers
         )
 
+    def post_job(self, job_id: str, customer: str, tenant: str,
+                 algorithm_map: Dict[str, List[str]], auth: str):
+        """
+        Delegated to instantiate a licensed Job, bound to a tenant within a
+        customer utilizing rulesets which are grouped by tenant-license-keys,
+        allowing to request for a ruleset-content-source collection.
+        :parameter job_id: str
+        :parameter customer: str
+        :parameter tenant: str
+        :parameter auth: str, authorization token
+        :parameter algorithm_map: Dict[str, List[str]]
+        :return: Union[Response, Type[None]]
+        """
+        host, method = self.host, POST_METHOD
+        if not host:
+            _LOG.error('CustodianLicenceManager access data has not been'
+                       ' provided.')
+            return None
+
+        host = host.strip('/')
+        url = host + JOBS_PATH
+
+        payload = {
+            SERVICE_TYPE_ATTR: SERVICE_TYPE_RIGHTSIZER,
+            JOB_ID: job_id,
+            CUSTOMER_ATTR: customer,
+            TENANT_ATTR: tenant,
+            ALGORITHM_MAPPING_ATTR: algorithm_map
+        }
+
+        headers = {
+            AUTHORIZATION_PARAM: auth
+        }
+
+        return self._send_request(
+            url=url, method=method, payload=payload, headers=headers
+        )
+
     def job_get_allowance_map(
-        self, customer: str, tenants: List[str],
-        tenant_license_keys: List[str], auth: str
+            self, customer: str, tenants: List[str],
+            tenant_license_keys: List[str], auth: str
     ):
         """
         Delegated to check for permission to license Job,
@@ -114,8 +156,9 @@ class LicenseManagerClient:
             url=url, method=method, payload=payload, headers=headers
         )
 
-    def update_job(self, job_id: str, created_at: str, started_at: str,
-                   stopped_at: str, status: str, auth: str):
+    def update_job(self, job_id: str, auth: str, created_at: str = None,
+                   started_at: str = None, stopped_at: str = None,
+                   status: str = None):
         """
         Delegated to update an id-derivable licensed Job entity, providing
         necessary state data.
@@ -128,6 +171,10 @@ class LicenseManagerClient:
         :return: Union[Response, Type[None]]
         """
         host, method = self.host, PATCH_METHOD
+
+        if not any([created_at, started_at, stopped_at, status]):
+            _LOG.warning('No attributes to update provided. Skipping')
+            return
         if not host:
             _LOG.error('LicenceManager access data has not been'
                        ' provided.')
@@ -143,12 +190,15 @@ class LicenseManagerClient:
         headers = {
             AUTHORIZATION_PARAM: auth
         }
+
+        payload = {k: v for k, v in payload.items()
+                   if isinstance(v, (bool, int)) or v}
         return self._send_request(
             url=url, method=method, payload=payload, headers=headers
         )
 
     def activate_tenant(
-        self, tenant: str, tlk: str, auth: str
+            self, tenant: str, tlk: str, auth: str
     ) -> Optional[Response]:
         if not self.host:
             _LOG.warning('LicenceManager access data has not been'
@@ -180,15 +230,15 @@ class LicenseManagerClient:
 
     @classmethod
     def _send_request(
-        cls, url: str, method: str, payload: dict,
-        headers: Optional[dict] = None
+            cls, url: str, method: str, payload: dict,
+            headers: Optional[dict] = None
     ) -> Optional[Response]:
         """
         Meant to commence a request to a given url, by deriving a
         proper delegated handler. Apart from that, catches any risen
         request related exception.
         :parameter url: str
-        :parameter method:str
+        :parameter method: str
         :parameter payload: dict
         :return: Union[Response, Type[None]]
         """

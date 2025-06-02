@@ -1,13 +1,12 @@
 from typing import Optional, Union, List
 
-from modular_sdk.commons.constants import ParentType
 from modular_sdk.models.application import Application
 from modular_sdk.models.parent import Parent
 from modular_sdk.services.tenant_service import TenantService
 
 from commons.constants import MAESTRO_RIGHTSIZER_APPLICATION_TYPE, \
     INPUT_STORAGE_ATTR, OUTPUT_STORAGE_ATTR, CLOUD_ATTR, SCOPE_ATTR, \
-    ALGORITHM_ATTR, CHECK_TYPE_OPERATION_MODE, PARENT_SCOPE_ALL, CLOUD_AWS, \
+    CHECK_TYPE_OPERATION_MODE, PARENT_SCOPE_ALL, CLOUD_AWS, \
     CLOUD_GOOGLE, CLOUD_AZURE
 from commons.log_helper import get_logger
 from services.health_checks.abstract_health_check import AbstractHealthCheck
@@ -23,6 +22,7 @@ CHECK_ID_OPERATION_MODE_CONFIGURATION = 'OPERATION_MODE_CONFIGURATION'
 CHECK_ID_OPERATION_MODE_COMPATIBILITY = 'OPERATION_MODE_COMPATIBILITY'
 
 CLOUD_ALL = 'ALL'
+
 
 class OperationModeConfigurationCheck(AbstractHealthCheck):
 
@@ -206,7 +206,7 @@ class OperationModeCheckHandler:
         }
 
         for parent in parents:
-            if parent.cloud and  parent.cloud not in pairs:
+            if parent.cloud and parent.cloud not in pairs:
                 continue
             related_application = [app for app in applications
                                    if parent.application_id ==
@@ -232,8 +232,9 @@ class OperationModeCheckHandler:
                            f'Parent: {parent.parent_id}')
                 checks = []
                 for check_instance in self.checks:
-                    check_result = check_instance.check(application=application,
-                                                        parent=parent)
+                    check_result = check_instance.check(
+                        application=application,
+                        parent=parent)
 
                     checks.append(check_result)
 

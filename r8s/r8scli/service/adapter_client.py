@@ -1,6 +1,7 @@
 import json
 
 import requests
+
 from r8scli.service.constants import *
 from r8scli.service.local_response_processor import LocalCommandResponse
 from r8scli.service.logger import get_logger, get_user_logger
@@ -110,7 +111,7 @@ class AdapterClient:
         refresh_token = response.get('items')[0].get('refresh_token')
         if not isinstance(access_token, str):
             return LocalCommandResponse(
-                body={"message": "Mailformed response obtained. "
+                body={"message": "Malformed response obtained. "
                                  "Please check your configuration."},
                 code=400)
         return access_token, refresh_token
@@ -286,7 +287,7 @@ class AdapterClient:
                                    method=HTTP_POST,
                                    payload=request)
 
-    def algorithm_pathc_general_settings(self, algorithm_name, data_attribute,
+    def algorithm_patch_general_settings(self, algorithm_name, data_attribute,
                                          metric_attribute,
                                          timestamp_attribute):
         request = {
@@ -339,7 +340,7 @@ class AdapterClient:
             PARAM_WCSS_KMEANS_MAX_ITER: wcss_kmeans_max_iter,
             PARAM_WCSS_KMEANS_N_INIT: wcss_kmeans_n_init,
             PARAM_KNEE_INTERP_METHOD: knee_interp_method,
-            PARAM_KNEE_POLYMONIAL_DEGREE: knee_polynomial_degree,
+            PARAM_KNEE_POLYNOMIAL_DEGREE: knee_polynomial_degree,
         }
         clustering_settings = {k: v for k, v in clustering_settings.items() if
                                v is not None}
@@ -659,47 +660,6 @@ class AdapterClient:
                                    method=HTTP_DELETE,
                                    payload=request)
 
-    def application_policies_get(self, application_id, group_id=None):
-        request = {
-            PARAM_APPLICATION_ID: application_id
-        }
-        if group_id:
-            request[PARAM_ID] = group_id
-
-        return self.__make_request(resource=API_APPLICATION_POLICIES,
-                                   method=HTTP_GET,
-                                   payload=request)
-
-    def application_policies_post(self, application_id, group_policy: dict):
-        request = {
-            PARAM_APPLICATION_ID: application_id,
-            **group_policy
-        }
-
-        return self.__make_request(resource=API_APPLICATION_POLICIES,
-                                   method=HTTP_POST,
-                                   payload=request)
-
-    def application_policies_patch(self, application_id, group_policy: dict):
-        request = {
-            PARAM_APPLICATION_ID: application_id,
-            **group_policy
-        }
-
-        return self.__make_request(resource=API_APPLICATION_POLICIES,
-                                   method=HTTP_PATCH,
-                                   payload=request)
-
-    def application_policies_delete(self, application_id, group_id=None):
-        request = {
-            PARAM_APPLICATION_ID: application_id,
-            PARAM_ID: group_id
-        }
-
-        return self.__make_request(resource=API_APPLICATION_POLICIES,
-                                   method=HTTP_DELETE,
-                                   payload=request)
-
     def parent_insights_resize(self, parent_id, instance_type):
         request = {
             PARAM_PARENT_ID: parent_id,
@@ -844,6 +804,67 @@ class AdapterClient:
                                    method=HTTP_GET,
                                    payload=request)
 
+    def resource_group_get(self, parent_id: str, group_id: str = None):
+        request = {
+            PARAM_PARENT_ID: parent_id
+        }
+        if group_id:
+            request[PARAM_ID] = group_id
+
+        return self.__make_request(resource=API_RESOURCE_GROUPS,
+                                   method=HTTP_GET,
+                                   payload=request)
+
+    def resource_group_post(self, parent_id: str, allowed_tags: list = None,
+                            allowed_resource_groups: list = None,
+                            scale_step: int = None,
+                            cooldown_days: int = None):
+        request = {
+            PARAM_PARENT_ID: parent_id
+        }
+        if allowed_tags:
+            request[PARAM_ALLOWED_TAGS] = allowed_tags
+        if allowed_resource_groups:
+            request[PARAM_ALLOWED_RESOURCE_GROUPS] = allowed_resource_groups
+        if scale_step:
+            request[PARAM_SCALE_STEP] = scale_step
+        if cooldown_days:
+            request[PARAM_COOLDOWN] = cooldown_days
+
+        return self.__make_request(resource=API_RESOURCE_GROUPS,
+                                   method=HTTP_POST,
+                                   payload=request)
+
+    def resource_group_patch(self, parent_id: str, group_id: str,
+                             add_tags: list = None,
+                             remove_tags: list = None,
+                             add_resource_groups: list = None,
+                             remove_resource_groups: list = None):
+        request = {
+            PARAM_PARENT_ID: parent_id,
+            PARAM_ID: group_id,
+            PARAM_ADD_TAGS: add_tags,
+            PARAM_REMOVE_TAGS: remove_tags,
+            PARAM_ADD_RESOURCE_GROUPS: add_resource_groups,
+            PARAM_REMOVE_RESOURCE_GROUPS: remove_resource_groups
+        }
+
+        request = {k: v for k, v in request.items() if v}
+
+        return self.__make_request(resource=API_RESOURCE_GROUPS,
+                                   method=HTTP_PATCH,
+                                   payload=request)
+
+    def resource_group_delete(self, parent_id: str, group_id: str):
+        request = {
+            PARAM_PARENT_ID: parent_id,
+            PARAM_ID: group_id
+        }
+
+        return self.__make_request(resource=API_RESOURCE_GROUPS,
+                                   method=HTTP_DELETE,
+                                   payload=request)
+
     def shape_get(self, name=None, cloud=None):
         request = {}
         if name:
@@ -854,14 +875,14 @@ class AdapterClient:
                                    method=HTTP_GET,
                                    payload=request)
 
-    def shape_post(self, name, cloud, cpu, memory, network_throughtput, iops,
+    def shape_post(self, name, cloud, cpu, memory, network_throughput, iops,
                    family_type, physical_processor, architecture):
         request = {
             PARAM_NAME: name,
             PARAM_CLOUD: cloud,
             PARAM_CPU: cpu,
             PARAM_MEMORY: memory,
-            PARAM_NETWORK_THROUGHPUT: network_throughtput,
+            PARAM_NETWORK_THROUGHPUT: network_throughput,
             PARAM_IOPS: iops,
             PARAM_FAMILY_TYPE: family_type,
             PARAM_PHYSICAL_PROCESSOR: physical_processor,
@@ -872,14 +893,14 @@ class AdapterClient:
                                    method=HTTP_POST,
                                    payload=request)
 
-    def shape_patch(self, name, cloud, cpu, memory, network_throughtput, iops,
+    def shape_patch(self, name, cloud, cpu, memory, network_throughput, iops,
                     family_type, physical_processor, architecture):
         request = {
             PARAM_NAME: name,
             PARAM_CLOUD: cloud,
             PARAM_CPU: cpu,
             PARAM_MEMORY: memory,
-            PARAM_NETWORK_THROUGHPUT: network_throughtput,
+            PARAM_NETWORK_THROUGHPUT: network_throughput,
             PARAM_IOPS: iops,
             PARAM_FAMILY_TYPE: family_type,
             PARAM_PHYSICAL_PROCESSOR: physical_processor,
@@ -905,8 +926,7 @@ class AdapterClient:
             PARAM_CUSTOMER: customer,
             PARAM_CLOUD: cloud,
             PARAM_REGION: region,
-            PARAM_OS: os,
-            PARAM_CUSTOMER: customer
+            PARAM_OS: os
         }
         request = {k: v for k, v in request.items() if v}
         return self.__make_request(resource=API_SHAPE_PRICE,
@@ -954,6 +974,19 @@ class AdapterClient:
             request[PARAM_CUSTOMER] = customer
         return self.__make_request(resource=API_SHAPE_PRICE,
                                    method=HTTP_DELETE,
+                                   payload=request)
+
+    def shape_price_sync(self, cloud, region, os):
+        request = {
+            PARAM_REGION: region
+        }
+        if cloud:
+            request[PARAM_CLOUD] = cloud
+        if os:
+            request[PARAM_OS] = os
+
+        return self.__make_request(resource=API_SHAPE_PRICE_SYNC,
+                                   method=HTTP_POST,
                                    payload=request)
 
     def health_check_post(self, check_types=None):
@@ -1008,10 +1041,10 @@ class AdapterClient:
             resource=API_LICENSE, method=HTTP_DELETE, payload=request
         )
 
-    def license_sync_post(self, license_key=None):
-        request = {}
-        if license_key:
-            request[PARAM_LICENSE_KEY] = license_key
+    def license_sync_post(self, application_id: str):
+        request = {
+            PARAM_APPLICATION_ID: application_id
+        }
         return self.__make_request(
             resource=API_LICENSE_SYNC, method=HTTP_POST, payload=request
         )

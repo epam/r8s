@@ -1,9 +1,7 @@
-import os
-
 import click
 import requests
-
 from modular_cli_sdk.services.credentials_manager import CredentialsProvider
+
 from r8scli.service.local_response_processor import LocalCommandResponse
 from r8scli.service.logger import get_logger, get_user_logger
 
@@ -17,17 +15,17 @@ def create_configuration(api_link, context):
     message = None
     try:
         requests.get(api_link)
-        # to allow connect to localhost
+        # to allow to connect to localhost
         # if response.status_code == 404:
         #     return f'Invalid API link: {api_link}. Status code: 404.'
     except (requests.exceptions.MissingSchema,
             requests.exceptions.ConnectionError):
         message = f'Invalid API link: {api_link}'
     except requests.exceptions.InvalidURL:
-        message =  f'Invalid URL \'{api_link}\': No host specified.'
+        message = f'Invalid URL \'{api_link}\': No host specified.'
     except requests.exceptions.InvalidSchema:
-        message =  f'Invalid URL \'{api_link}\': No network protocol specified ' \
-               f'(http/https).'
+        message = (f'Invalid URL \'{api_link}\': No network '
+                   f'protocol specified (http/https).')
 
     if message:
         return LocalCommandResponse(body={'message': message})

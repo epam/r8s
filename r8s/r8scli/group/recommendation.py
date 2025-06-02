@@ -1,6 +1,6 @@
 import click
 
-from r8scli.group import cli_response, cast_to_list, ViewCommand
+from r8scli.group import cli_response, ViewCommand
 from r8scli.service.constants import AVAILABLE_RECOMMENDATION_TYPES, \
     AVAILABLE_FEEDBACK_STATUSES
 
@@ -47,7 +47,7 @@ def describe(instance_id=None, recommendation_type=None, job_id=None,
 @click.option('--customer_id', '-cid', type=str,
               help='Update recommendation by customer (admin users only)')
 @cli_response()
-def update(instance_id, recommendation_type,feedback_status,
+def update(instance_id, recommendation_type, feedback_status,
            customer_id):
     """
     Saves feedback for r8s recommendation

@@ -2,11 +2,10 @@ from modular_sdk.commons import ModularException
 from modular_sdk.commons.constants import ParentType, ParentScope
 from modular_sdk.services.customer_service import CustomerService
 
-from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
+from commons import RESPONSE_BAD_REQUEST_CODE, build_response, \
+    RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
     validate_params, RESPONSE_FORBIDDEN_CODE, \
     RESPONSE_SERVICE_UNAVAILABLE_CODE, secure_event
-from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import POST_METHOD, GET_METHOD, PATCH_METHOD, \
     DELETE_METHOD, CUSTOMER_ATTR, \
     DESCRIPTION_ATTR, OUTPUT_STORAGE_ATTR, INPUT_STORAGE_ATTR, \
@@ -55,17 +54,6 @@ class ApplicationProcessor(AbstractCommandProcessor):
             PATCH_METHOD: self.patch,
             DELETE_METHOD: self.delete,
         }
-
-    def process(self, event) -> dict:
-        method = event.get(PARAM_HTTP_METHOD)
-        command_handler = self.method_to_handler.get(method)
-        if not command_handler:
-            message = f'Unable to handle command {method} in ' \
-                      f'job definition processor'
-            _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
-                       f'process error: {message}')
-            raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
-        return command_handler(event=event)
 
     def get(self, event):
         _LOG.debug(f'Describe application event: {event}')
@@ -200,8 +188,7 @@ class ApplicationProcessor(AbstractCommandProcessor):
         connection_obj = ConnectionAttribute(**connection)
         try:
             _LOG.debug('Creating application')
-            application = self.application_service. \
-                create_rightsizer_application(
+            app = self.application_service.create_rightsizer_application(
                 customer_id=customer,
                 description=description,
                 input_storage=input_storage_obj,
@@ -220,8 +207,8 @@ class ApplicationProcessor(AbstractCommandProcessor):
 
         _LOG.debug('Creating RIGHTSIZER parent with ALL scope')
         parent = self.parent_service.build(
-            application_id=application.application_id,
-            customer_id=application.customer_id,
+            application_id=app.application_id,
+            customer_id=app.customer_id,
             parent_type=ParentType.RIGHTSIZER_PARENT,
             description='Automatically created RIGHTSIZER parent',
             meta={},
@@ -230,15 +217,15 @@ class ApplicationProcessor(AbstractCommandProcessor):
         )
 
         _LOG.debug(f'Saving application '
-                   f'\'{application.application_id}\'')
-        self.application_service.save(application=application)
+                   f'\'{app.application_id}\'')
+        self.application_service.save(application=app)
 
         _LOG.debug(f'Saving parent: {parent.parent_id}')
         self.parent_service.save(parent=parent)
 
         _LOG.debug('Extracting created application dto')
         application_dto = self.application_service.get_dto(
-            application=application)
+            application=app)
 
         _LOG.debug(f'Response: {application_dto}')
         return build_response(

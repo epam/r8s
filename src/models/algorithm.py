@@ -36,7 +36,7 @@ class AnalysisPriceEnum(ListEnum):
 
 class InterpMethodEnum(ListEnum):
     INTERP1D = 'interp1d'
-    POLYMONIAL = 'polynomial'
+    POLYNOMIAL = 'polynomial'
 
 
 class KMeansInitEnum(ListEnum):
@@ -61,7 +61,7 @@ class ClusteringSettings(EmbeddedDocument):
     wcss_kmeans_max_iter = IntField(min_value=1, default=300, max_value=1000)
     wcss_kmeans_n_init = IntField(min_value=1, default=10, max_value=100)
     knee_interp_method = EnumField(InterpMethodEnum,
-                                   default=InterpMethodEnum.POLYMONIAL)
+                                   default=InterpMethodEnum.POLYNOMIAL)
     knee_polynomial_degree = IntField(default=5, min_value=1, max_value=20)
 
 

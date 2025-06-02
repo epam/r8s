@@ -1,19 +1,18 @@
+import os
 from datetime import datetime
 from typing import List
-import os
+
 from modular_sdk.commons.constants import (RIGHTSIZER_LICENSES_PARENT_TYPE,
-                                           ParentScope, ApplicationType,
-                                           ParentType)
+                                           ParentScope, ApplicationType)
 from modular_sdk.models.application import Application
-from modular_sdk.models.tenant import Tenant
 from modular_sdk.models.parent import Parent
+from modular_sdk.models.tenant import Tenant
 from modular_sdk.services.customer_service import CustomerService
 from modular_sdk.services.tenant_service import TenantService
 
-from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
+from commons import RESPONSE_BAD_REQUEST_CODE, build_response, \
+    RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
     validate_params, RESPONSE_FORBIDDEN_CODE, RESPONSE_SERVICE_UNAVAILABLE_CODE
-from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import CLOUD_AWS, TENANTS_ATTR, \
     ENV_TENANT_CUSTOMER_INDEX, FORBIDDEN_ATTR, ALLOWED_ATTR, \
     REMAINING_BALANCE_ATTR, ENV_LM_TOKEN_LIFETIME_MINUTES, LIMIT_ATTR, \
@@ -32,7 +31,6 @@ from services.abstract_api_handler_lambda import PARAM_USER_ID, \
 from services.environment_service import EnvironmentService
 from services.job_service import JobService
 from services.license_manager_service import LicenseManagerService
-from services.license_service import LicenseService
 from services.rightsizer_application_service import \
     RightSizerApplicationService
 from services.rightsizer_parent_service import RightSizerParentService
@@ -57,7 +55,6 @@ class JobProcessor(AbstractCommandProcessor):
                  shape_service: ShapeService,
                  shape_price_service: ShapePriceService,
                  parent_service: RightSizerParentService,
-                 license_service: LicenseService,
                  license_manager_service: LicenseManagerService):
         self.job_service = job_service
         self.application_service = application_service
@@ -68,7 +65,6 @@ class JobProcessor(AbstractCommandProcessor):
         self.shape_service = shape_service
         self.shape_price_service = shape_price_service
         self.parent_service = parent_service
-        self.license_service = license_service
         self.license_manager_service = license_manager_service
 
         self.method_to_handler = {
@@ -76,17 +72,6 @@ class JobProcessor(AbstractCommandProcessor):
             POST_METHOD: self.post,
             DELETE_METHOD: self.delete,
         }
-
-    def process(self, event) -> dict:
-        method = event.get(PARAM_HTTP_METHOD)
-        command_handler = self.method_to_handler.get(method)
-        if not command_handler:
-            message = f'Unable to handle command {method} in ' \
-                      f'job processor'
-            _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
-                       f'process error: {message}')
-            raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
-        return command_handler(event=event)
 
     def get(self, event):
         _LOG.debug(f'Describe job event: {event}')
@@ -178,8 +163,9 @@ class JobProcessor(AbstractCommandProcessor):
             )
 
         parent_id = event.get(PARENT_ID_ATTR)
-        _LOG.debug(f'Extracting application {licensed_application.application_id} parents. '
-                   f'Parent id {parent_id}')
+        _LOG.debug(
+            f'Extracting application {licensed_application.application_id} '
+            f'parents. Parent id {parent_id}')
         parents = self._get_parents(
             application_id=licensed_application.application_id,
             parent_id=parent_id
@@ -251,9 +237,12 @@ class JobProcessor(AbstractCommandProcessor):
         else:
             _LOG.debug(f'Resolving tenant names from parents: '
                        f'{", ".join([p.parent_id for p in parents])}')
+            app_meta = self.application_service.get_application_meta(
+                application=licensed_application
+            )
             scan_tenants = self.parent_service.resolve_tenant_names(
                 parents=parents,
-                cloud=licensed_application.meta.cloud
+                cloud=app_meta.cloud
             )
         _LOG.debug(f'Setting scan_tenants env to '
                    f'\'{scan_tenants}\'')
@@ -444,19 +433,20 @@ class JobProcessor(AbstractCommandProcessor):
                 content=f'At least 1 tenant must be specified '
                         f'for licensed jobs.'
             )
-        _license = self.license_service.get_license(license_key)
-        if self.license_service.is_expired(_license):
+
+        if self.application_service.is_license_expired(application=application):
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
                 content='Affected license has expired'
             )
-        tenant_license_key = _license.customers.get(
-            application.customer_id, {}).get(TENANT_LICENSE_KEY_ATTR)
+        app_meta = self.application_service.get_application_meta(
+            application=application)
+
         _LOG.debug(f'Validating permission to submit licensed job.')
         return self._ensure_job_is_allowed(
             customer=application.customer_id,
             tenant_names=scan_tenants,
-            tlk=tenant_license_key
+            tlk=app_meta.tenant_license_key
         )
 
     def _ensure_job_is_allowed(self, customer, tenant_names: list, tlk: str,

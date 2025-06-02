@@ -47,6 +47,7 @@ class ServiceProvider:
         __lambda_client = None
         __license_manager_conn = None
         __standalone_key_management = None
+        __pricing_client = None
 
         # services
         __environment_service = None
@@ -74,7 +75,6 @@ class ServiceProvider:
         __token_service = None
         __license_manager_service = None
         __key_management_service = None
-        __license_service = None
 
         def __str__(self):
             return id(self)
@@ -158,6 +158,11 @@ class ServiceProvider:
                     StandaloneKeyManagementClient(ssm_client=self.ssm())
             return self.__standalone_key_management
 
+        def pricing_client(self):
+            if not self.__pricing_client:
+                from services.clients.pricing import PricingClient
+                self.__pricing_client = PricingClient()
+            return self.__pricing_client
         # services
 
         def environment_service(self):
@@ -383,15 +388,6 @@ class ServiceProvider:
                     key_management_client=self.standalone_key_management()
                 )
             return self.__key_management_service
-
-        def license_service(self):
-            if not self.__license_service:
-                from services.license_service import \
-                    LicenseService
-                self.__license_service = LicenseService(
-                    settings_service=self.settings_service()
-                )
-            return self.__license_service
 
     instance = None
 

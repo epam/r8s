@@ -26,8 +26,8 @@ def describe(policy_name=None):
 @click.option('--permission', '-p', multiple=True,
               required=False,
               help='List of permissions to attach to the policy')
-@click.option('--permissions_admin', '-padm', is_flag=True, required=False,
-              help='Adds all admin permissions')
+@click.option('--permissions_admin', '-padm', is_flag=True,
+              required=False, help='Adds all admin permissions')
 @click.option('--path_to_permissions', '-path', required=False,
               help='Path to .json file that contains list of permissions to '
                    'attach to the policy')
@@ -39,10 +39,12 @@ def add(policy_name, permission, permissions_admin,
     """
     from r8scli.service.initializer import init_configuration
     permissions = cast_to_list(permission)
-    return init_configuration().policy_post(policy_name=policy_name,
-                                            permissions=permissions,
-                                            permissions_admin=permissions_admin,
-                                            path_to_permissions=path_to_permissions)
+    return init_configuration().policy_post(
+        policy_name=policy_name,
+        permissions=permissions,
+        permissions_admin=permissions_admin,
+        path_to_permissions=path_to_permissions
+    )
 
 
 @policy.command(cls=ViewCommand, name='update')

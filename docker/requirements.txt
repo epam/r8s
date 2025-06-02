@@ -6,7 +6,7 @@ cffi==1.15.1
 cryptography==41.0.3
 dnspython==2.4.2
 dynamodb-json~=1.4.2
-mongoengine==0.24.2
+mongoengine==0.29.1
 oauthlib==3.2.2
 pymongo==4.11.2
 pynamodb>=5.5.1,<6
