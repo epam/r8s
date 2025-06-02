@@ -47,6 +47,7 @@ class ServiceProvider:
         __lambda_client = None
         __license_manager_conn = None
         __standalone_key_management = None
+        __pricing_client = None
 
         # services
         __environment_service = None
@@ -157,6 +158,11 @@ class ServiceProvider:
                     StandaloneKeyManagementClient(ssm_client=self.ssm())
             return self.__standalone_key_management
 
+        def pricing_client(self):
+            if not self.__pricing_client:
+                from services.clients.pricing import PricingClient
+                self.__pricing_client = PricingClient()
+            return self.__pricing_client
         # services
 
         def environment_service(self):

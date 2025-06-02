@@ -41,6 +41,8 @@ from lambdas.r8s_api_handler.processors.resource_group_processor import \
 from lambdas.r8s_api_handler.processors.role_processor import RoleProcessor
 from lambdas.r8s_api_handler.processors.shape_price_processor import \
     ShapePriceProcessor
+from lambdas.r8s_api_handler.processors.shape_price_sync_processor import \
+    ShapePriceSyncProcessor
 from lambdas.r8s_api_handler.processors.shape_processor import ShapeProcessor
 from lambdas.r8s_api_handler.processors.shape_rule_dry_run_processor import \
     ShapeRuleDryRunProcessor
@@ -59,6 +61,7 @@ from services.algorithm_service import AlgorithmService
 from services.clients.api_gateway_client import ApiGatewayClient
 from services.clients.batch import BatchClient
 from services.clients.lambda_func import LambdaClient
+from services.clients.pricing import PricingClient
 from services.clients.s3 import S3Client
 from services.customer_preferences_service import CustomerPreferencesService
 from services.environment_service import EnvironmentService
@@ -106,6 +109,7 @@ PARENT_DOJO_ACTION = 'parent_dojo'
 PARENT_INSIGHTS_RESIZE_ACTION = 'parent_insights_resize'
 SHAPE_ACTION = 'shape'
 SHAPE_PRICE_ACTION = 'shape_price'
+SHAPE_PRICE_SYNC_ACTION = 'shape_price_sync'
 USER_ACTION = 'user'
 HEALTH_CHECK_ACTION = 'health_check'
 RECOMMENDATION_ACTION = 'recommendation'
@@ -139,7 +143,8 @@ class R8sApiHandler(AbstractApiHandlerLambda):
                  customer_preferences_service: CustomerPreferencesService,
                  resize_service: ResizeService,
                  key_management_service: KeyManagementService,
-                 license_manager_service: LicenseManagerService):
+                 license_manager_service: LicenseManagerService,
+                 pricing_client: PricingClient):
         self.user_service = user_service
         self.access_control_service = access_control_service
         self.algorithm_service = algorithm_service
@@ -166,6 +171,7 @@ class R8sApiHandler(AbstractApiHandlerLambda):
         self.resize_service = resize_service
         self.key_management_service = key_management_service
         self.license_manager_service = license_manager_service
+        self.pricing_client = pricing_client
 
         self.processor_registry = {
             SIGNIN_ACTION: self._instantiate_signin_processor,
@@ -193,6 +199,8 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             USER_ACTION: self._instantiate_user_processor,
             SHAPE_ACTION: self._instantiate_shape_processor,
             SHAPE_PRICE_ACTION: self._instantiate_shape_price_processor,
+            SHAPE_PRICE_SYNC_ACTION:
+                self._instantiate_shape_price_sync_processor,
             HEALTH_CHECK_ACTION: self._instantiate_health_check_processor,
             RECOMMENDATION_ACTION: self._instantiate_recommendation_processor,
             PARENT_INSIGHTS_RESIZE_ACTION:
@@ -374,6 +382,13 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             customer_service=self.customer_service
         )
 
+    def _instantiate_shape_price_sync_processor(self):
+        return ShapePriceSyncProcessor(
+            shape_price_service=self.shape_price_service,
+            settings_service=self.settings_service,
+            pricing_client=self.pricing_client
+        )
+
     def _instantiate_user_processor(self):
         return UserProcessor(
             user_service=self.user_service,
@@ -463,7 +478,8 @@ HANDLER = R8sApiHandler(
     customer_preferences_service=SERVICE_PROVIDER.customer_preferences_service(),
     resize_service=SERVICE_PROVIDER.resize_service(),
     key_management_service=SERVICE_PROVIDER.key_management_service(),
-    license_manager_service=SERVICE_PROVIDER.license_manager_service()
+    license_manager_service=SERVICE_PROVIDER.license_manager_service(),
+    pricing_client=SERVICE_PROVIDER.pricing_client()
 )
 
 
