@@ -976,6 +976,19 @@ class AdapterClient:
                                    method=HTTP_DELETE,
                                    payload=request)
 
+    def shape_price_sync(self, cloud, region, os):
+        request = {
+            PARAM_REGION: region
+        }
+        if cloud:
+            request[PARAM_CLOUD] = cloud
+        if os:
+            request[PARAM_OS] = os
+
+        return self.__make_request(resource=API_SHAPE_PRICE_SYNC,
+                                   method=HTTP_POST,
+                                   payload=request)
+
     def health_check_post(self, check_types=None):
         request = {}
         if check_types:
