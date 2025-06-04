@@ -1,41 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: "Syndicate RightSizer AMI deployment template"
-Mappings:
-  RegionMap:
-    eu-north-1:
-      ImageId: ami-xxxxxxxxxxxxxxxxx
-    ap-south-1:
-      ImageId: ami-xxxxxxxxxxxxxxxxx
-    eu-west-3:
-      ImageId: ami-xxxxxxxxxxxxxxxxx
-    eu-west-2:
-      ImageId: ami-xxxxxxxxxxxxxxxxx
-    eu-west-1:
-      ImageId: ami-xxxxxxxxxxxxxxxxx
-    ap-northeast-3:
-      ImageId: ami-xxxxxxxxxxxxxxxxx
-    ap-northeast-2:
-      ImageId: ami-xxxxxxxxxxxxxxxxx
-    ap-northeast-1:
-      ImageId: ami-xxxxxxxxxxxxxxxxx
-    sa-east-1:
-      ImageId: ami-xxxxxxxxxxxxxxxxx
-    ca-central-1:
-      ImageId: ami-xxxxxxxxxxxxxxxxx
-    ap-southeast-1:
-      ImageId: ami-xxxxxxxxxxxxxxxxx
-    ap-southeast-2:
-      ImageId: ami-xxxxxxxxxxxxxxxxx
-    eu-central-1:
-      ImageId: ami-xxxxxxxxxxxxxxxxx
-    us-east-1:
-      ImageId: ami-0894db8dba66349bd
-    us-east-2:
-      ImageId: ami-xxxxxxxxxxxxxxxxx
-    us-west-1:
-      ImageId: ami-xxxxxxxxxxxxxxxxx
-    us-west-2:
-      ImageId: ami-xxxxxxxxxxxxxxxxx
 Parameters:
   SubnetId:
     Description: "ID of a subnet within the VPC"
@@ -47,19 +11,19 @@ Parameters:
     Description: "Name of an existing EC2 KeyPair to enable SSH access to the instances"
     Type: "AWS::EC2::KeyPair::KeyName"
     ConstraintDescription: "must be the name of an existing EC2 KeyPair."
+  ImageId:
+    Type: AWS::EC2::Image::Id
+    Description: "AMI ID to launch the instance"
   InstanceType:
     Description: "EC2 Instance type"
     Type: String
-    Default: m7g.medium
+    Default: c7g.large
     ConstraintDescription: "must be ARM-based instance type, m7g.medium is minimal required type"
     AllowedValues:
-      - m7g.medium
       - m7g.large
       - m7g.xlarge
-      - r7g.medium
       - r7g.large
-      - r7s.xlarge
-      - c7g.medium
+      - r7g.xlarge
       - c7g.large
       - c7g.xlarge
   InstanceName:
@@ -70,10 +34,6 @@ Parameters:
     Description: "IAM Role name to attach to the instance. Keep empty to start instance without attached role"
     Type: String
     Default: ""
-  AdminEmails:
-    Description: "Administrator emails split by space"
-    Default: ""
-    Type: String
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterLabels:
@@ -89,8 +49,6 @@ Metadata:
         default: "Graviton Instance Type"
       InstanceRoleName:
         default: "IAM Role name"
-      AdminEmails:
-        default: "Emails of Syndicate RightSizer admins"
     ParameterGroups:
       - Label:
           default: "Network configuration"
@@ -104,10 +62,6 @@ Metadata:
           - InstanceType
           - KeyName
           - InstanceRoleName
-      - Label:
-          default: "Syndicate RightSizer configuration"
-        Parameters:
-          - AdminEmails
 Conditions:
   AttachRole: !Not [!Equals [!Ref InstanceRoleName, ""]]
   IsInstanceNameGiven: !Not [!Equals [!Ref InstanceName, ""]]
@@ -134,10 +88,7 @@ Resources:
         Count: 1
         Timeout: PT20M
     Properties:
-      ImageId: !FindInMap
-        - RegionMap
-        - !Ref AWS::Region
-        - ImageId
+      ImageId: !Ref ImageId
       InstanceType: !Ref InstanceType
       IamInstanceProfile: !If [AttachRole, !Ref SyndicateRightSizerInstanceProfile, !Ref "AWS::NoValue"]
       KeyName: !Ref KeyName
@@ -152,7 +103,6 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           export CF_STACK_NAME="${AWS::StackName}"
-          export ADMIN_EMAILS="${AdminEmails}"
       BlockDeviceMappings:
         - DeviceName: "/dev/xvda"
           Ebs:
