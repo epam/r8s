@@ -73,7 +73,8 @@ fi
 log "Installing jq and curl"
 sudo apt update -y && sudo apt install -y jq curl
 
-RIGHTSIZER_RELEASE="$(curl -fLs "https://api.github.com/repos/$GITHUB_REPO/releases/latest" | jq -r '.tag_name')"
+log "Going to resolve release version from Github api"
+export RIGHTSIZER_RELEASE="${RIGHTSIZER_RELEASE:-$(curl -fLs "https://api.github.com/repos/$GITHUB_REPO/releases/latest" | jq -r '.tag_name')}"
 
 if [ -z "$RIGHTSIZER_RELEASE" ]; then
   log "Could not find latest release"
