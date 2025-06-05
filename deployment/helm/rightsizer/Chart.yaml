@@ -20,7 +20,7 @@ dependencies:
 - condition: modular-api.enabled
   name: modular-api
   repository: s3://charts-repository/syndicate/
-  version: 4.1.4
+  version: 4.2.10
 - condition: metric-collector.enabled
   name: metric-collector
   repository: s3://charts-repository/syndicate/
