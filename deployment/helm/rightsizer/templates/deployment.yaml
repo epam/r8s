@@ -115,6 +115,6 @@ spec:
             {{- if .Values.modularSdk.mongoUri }}
               value: "{{ .Values.modularSdk.mongoUri }}"
             {{- else }}
-              value: "mongodb://$(MODULAR_SDK_MONGO_USER):$(MODULAR_SDK_MONGO_PASSWORD)@{{ .Values.mongoService }}:{{ .Values.mongoPort }}/"
+              value: "mongodb://$(r8s_mongo_user):$(r8s_mongo_password)@$(r8s_mongo_url)/${r8s_mongo_db_name}"
             {{- end }}
       restartPolicy: Always
