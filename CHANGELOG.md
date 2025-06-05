@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     * `remove_resource_group` - Removes specified resource groups from configuration
 * Delete `Licenses` collection and related crud commands, move all license-related data to RIGHTSIZER_LICENSES application
 * Add `r8s shape price sync` command to update shape prices for specific AWS region / OS
+* Update modular-service version in the HELM chart
+* Update the CloudFormation template to meet requirements
 
 ## [3.12.0] - 2025-03-14
 * Add ability to run Syndicate RightSizer instance with SaaS ModularSDK / S3
