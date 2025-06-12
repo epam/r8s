@@ -4,11 +4,11 @@ dependencies:
 - condition: vault.enabled
   name: vault
   repository: s3://charts-repository/syndicate/
-  version: ^1.0.0
+  version: ^1.1.0
 - condition: minio.enabled
   name: minio
   repository: s3://charts-repository/syndicate/
-  version: ^1.0.0
+  version: ^1.2.0
 - condition: mongo.enabled
   name: mongo
   repository: s3://charts-repository/syndicate/
