@@ -104,14 +104,16 @@ class RightSizerApplicationService(ApplicationService):
         if connection:
             meta.connection = connection
         if password:
+            _LOG.debug('New password obtained')
             if application.secret:
+                _LOG.debug(f'Deleting old application secret '
+                           f'{application.secret}')
                 self.ssm_service.delete_secret(
                     secret_name=application.secret)
-
-            secret_value = json.dumps({'api_key': password})
+            _LOG.debug(f'Creating new application secret {application.secret}]')
             secret_name = self._create_application_secret(
                 application_id=application.application_id,
-                password=secret_value
+                password=password
             )
             application.secret = secret_name
             update_attributes.append(Application.secret)
