@@ -105,13 +105,15 @@ spec:
                 secretKeyRef:
                   name: rightsizer-secret
                   key: system-password
-            - name: CAAS_TESTING
-              value: 'false'
             - name: log_level
               value: "DEBUG"
             {{- if .Values.modularSdk.mongoUri }}
             - name: MODULAR_SDK_MONGO_URI
               value: "{{ .Values.modularSdk.mongoUri }}"
+            - name: MODULAR_SDK_SECRETS_BACKEND
+              value: "ssm"
+            - name: MODULAR_SDK_ASSUME_ROLE_ARN
+              value: "{{ .Values.modularSdk.assumeRoleArn }}"
             {{- else }}
             - name: MODULAR_SDK_MONGO_USER
               value: "$(r8s_mongo_user)"
@@ -123,5 +125,7 @@ spec:
               value: "mongodb://$(r8s_mongo_user):$(r8s_mongo_password)@$(r8s_mongo_url)/"
             - name: MODULAR_SDK_MONGO_DB_NAME
               value: "$(r8s_mongo_db_name)"
+            - name: MODULAR_SDK_SECRETS_BACKEND
+              value: "vault"
             {{- end }}
       restartPolicy: Always
