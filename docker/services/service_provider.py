@@ -40,7 +40,6 @@ class ServiceProvider:
         # clients
         __s3_conn = None
         __ssm_conn = None
-        __modular_ssm_conn = None
         __license_manager_conn = None
         __standalone_key_management = None
 
@@ -99,19 +98,6 @@ class ServiceProvider:
                     self.__ssm_conn = SSMClient(environment_service=_env)
             return self.__ssm_conn
 
-        def modular_ssm(self):
-            if not self.__modular_ssm_conn:
-                from services.clients.ssm import SSMClient, VaultSSMClient
-                _env = self.environment_service()
-                mode = _env.modular_secrets_service_mode()
-                if mode == DOCKER_SERVICE_MODE:
-                    self.__modular_ssm_conn = VaultSSMClient(
-                        environment_service=_env)
-                else:
-                    self.__modular_ssm_conn = SSMClient(
-                        environment_service=_env)
-            return self.__modular_ssm_conn
-
         def license_manager_client(self):
             if not self.__license_manager_conn:
                 from services.clients.license_manager import \
@@ -143,8 +129,11 @@ class ServiceProvider:
 
         def modular_ssm_service(self):
             if not self.__modular_ssm_service:
+                from modular_sdk.modular import Modular
+                client = Modular().ssm_service()
                 self.__modular_ssm_service = SSMService(
-                    client=self.modular_ssm())
+                    client=client
+                )
             return self.__modular_ssm_service
 
         def algorithm_service(self):

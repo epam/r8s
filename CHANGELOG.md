@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     * `remove_resource_group` - Removes specified resource groups from configuration
 * Delete `Licenses` collection and related crud commands, move all license-related data to RIGHTSIZER_LICENSES application
 * Add `r8s shape price sync` command to update shape prices for specific AWS region / OS
+* Fix issue with `r8s application update` ssm secret update, while modular_sdk is in saas mode
+
+## [3.12.1] - 2025-06-04
 * Update modular-service version in the HELM chart
 * Update the CloudFormation template to meet requirements
 

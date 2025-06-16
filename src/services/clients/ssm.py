@@ -1,7 +1,7 @@
 import json
 import os
 from abc import ABC, abstractmethod
-from typing import Optional, List, Dict, Union
+from typing import Optional, Union
 
 import boto3
 from botocore.client import ClientError
@@ -20,16 +20,16 @@ class AbstractSSMClient(ABC):
         self._environment_service = environment_service
 
     @abstractmethod
-    def get_secret_value(self, secret_name: str):
+    def get_parameter(self, name: str):
         pass
 
     @abstractmethod
-    def create_secret(self, secret_name: str, secret_value: SecretValue,
+    def put_parameter(self, secret_name: str, secret_value: SecretValue,
                       secret_type='SecureString') -> bool:
         pass
 
     @abstractmethod
-    def delete_parameter(self, secret_name: str) -> bool:
+    def delete_parameter(self, name: str) -> bool:
         pass
 
     @abstractmethod
@@ -53,10 +53,10 @@ class SSMClient(AbstractSSMClient):
                 'ssm', self._environment_service.aws_region())
         return self._client
 
-    def get_secret_value(self, secret_name):
+    def get_parameter(self, name):
         try:
             response = self.client.get_parameter(
-                Name=secret_name,
+                Name=name,
                 WithDecryption=True
             )
             value_str = response['Parameter']['Value']
@@ -66,31 +66,31 @@ class SSMClient(AbstractSSMClient):
                 return value_str
         except ClientError as e:
             error_code = e.response['Error']['Code']
-            _LOG.error(f'Can\'t get secret for name \'{secret_name}\', '
+            _LOG.error(f'Can\'t get secret for name \'{name}\', '
                        f'error code: \'{error_code}\'')
 
-    def create_secret(self, secret_name: str,
-                      secret_value: Union[str, list, dict],
+    def put_parameter(self, name: str,
+                      value: Union[str, list, dict],
                       secret_type='SecureString'):
         try:
-            if isinstance(secret_value, (list, dict)):
-                secret_value = json.dumps(secret_value)
+            if isinstance(value, (list, dict)):
+                value = json.dumps(value)
             self.client.put_parameter(
-                Name=secret_name,
-                Value=secret_value,
+                Name=name,
+                Value=value,
                 Overwrite=True,
                 Type=secret_type)
         except ClientError as e:
             error_code = e.response['Error']['Code']
-            _LOG.error(f'Can\'t get secret for name \'{secret_name}\', '
+            _LOG.error(f'Can\'t get secret for name \'{name}\', '
                        f'error code: \'{error_code}\'')
 
-    def delete_parameter(self, secret_name: str):
+    def delete_parameter(self, name: str):
         try:
-            self.client.delete_parameter(Name=secret_name)
+            self.client.delete_parameter(Name=name)
         except ClientError as e:
             error_code = e.response['Error']['Code']
-            _LOG.error(f'Can\'t delete secret name \'{secret_name}\', '
+            _LOG.error(f'Can\'t delete secret name \'{name}\', '
                        f'error code: \'{error_code}\'')
 
     def enable_secrets_engine(self, mount_point=None):
@@ -128,31 +128,27 @@ class VaultSSMClient(AbstractSSMClient):
             self._init_client()
         return self._client
 
-    def get_secret_value(self, secret_name: str) -> Optional[SecretValue]:
+    def get_parameter(self, name: str) -> Optional[SecretValue]:
         try:
             response = self.client.secrets.kv.v2.read_secret_version(
-                path=secret_name, mount_point=self.mount_point) or {}
+                path=name, mount_point=self.mount_point) or {}
         except Exception as e:  # hvac.InvalidPath
-            _LOG.warning(f'Failed to read secret {secret_name} from '
+            _LOG.warning(f'Failed to read secret {name} from '
                          f'mount point {self.mount_point}: {e}')
             return
         return response.get('data', {}).get('data', {}).get(self.key)
 
-    def create_secret(self, secret_name: str, secret_value: SecretValue,
+    def put_parameter(self, name: str, value: SecretValue,
                       secret_type='SecureString') -> bool:
         return self.client.secrets.kv.v2.create_or_update_secret(
-            path=secret_name,
-            secret={self.key: secret_value},
+            path=name,
+            secret={self.key: value},
             mount_point=self.mount_point
         )
 
-    def delete_parameter(self, secret_name: str) -> bool:
+    def delete_parameter(self, name: str) -> bool:
         return bool(self.client.secrets.kv.v2.delete_metadata_and_all_versions(
-            path=secret_name, mount_point=self.mount_point))
-
-    def get_secret_values(self, secret_names: List[str]
-                          ) -> Optional[Dict[str, SecretValue]]:
-        return {name: self.get_secret_value(name) for name in secret_names}
+            path=name, mount_point=self.mount_point))
 
     def enable_secrets_engine(self, mount_point=None):
         try:

@@ -72,8 +72,6 @@ spec:
               value: docker
             - name: SERVICE_MODE_S3
               value: {{ default "docker" .Values.rightsizer.service_mode_s3 }}
-            - name: MONGO_URI
-              value: "mongodb://$(modular_mongo_user):$(modular_mongo_password)@$(modular_mongo_url)/"
             - name: CAAS_MONGO_DATABASE
               valueFrom:
                 configMapKeyRef:
@@ -107,10 +105,27 @@ spec:
                 secretKeyRef:
                   name: rightsizer-secret
                   key: system-password
-            - name: CAAS_TESTING
-              value: 'false'
             - name: log_level
               value: "DEBUG"
+            {{- if .Values.modularSdk.mongoUri }}
             - name: MODULAR_SDK_MONGO_URI
-              value: {{ .Values.modularSdk.mongoUri }}
+              value: "{{ .Values.modularSdk.mongoUri }}"
+            - name: MODULAR_SDK_SECRETS_BACKEND
+              value: "ssm"
+            - name: MODULAR_SDK_ASSUME_ROLE_ARN
+              value: "{{ .Values.modularSdk.assumeRoleArn }}"
+            {{- else }}
+            - name: MODULAR_SDK_MONGO_USER
+              value: "$(r8s_mongo_user)"
+            - name: MODULAR_SDK_MONGO_PASSWORD
+              value: "$(r8s_mongo_password)"
+            - name: MODULAR_SDK_MONGO_URL
+              value: "$(r8s_mongo_url)"
+            - name: MODULAR_SDK_MONGO_URI
+              value: "mongodb://$(r8s_mongo_user):$(r8s_mongo_password)@$(r8s_mongo_url)/"
+            - name: MODULAR_SDK_MONGO_DB_NAME
+              value: "$(r8s_mongo_db_name)"
+            - name: MODULAR_SDK_SECRETS_BACKEND
+              value: "vault"
+            {{- end }}
       restartPolicy: Always
