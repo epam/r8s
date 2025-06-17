@@ -262,6 +262,26 @@ update_modular_api_policy() {
   rm /tmp/modular-admin-policy.json
 }
 
+build_multiple_params() {
+  # build_multiple_params --email "admin@gmail.com admin2@gmail.com" -> --email admin@gmail.com --email admin2gmail.com
+  local item counter=0
+  for item in $2; do
+    if [ -n "$3" ] && [ "$counter" -eq "$3" ]; then return; fi
+    [ -z "$item" ] && continue
+    printf "%s %s " "$1" "$item"
+    ((counter++))
+  done
+}
+
+resolve_customer_name() {
+  # used only if license activation is disabled
+  if [ -n "$CUSTOMER_NAME" ]; then
+    echo "$CUSTOMER_NAME"
+  else
+    echo CUSTOMER_1
+  fi
+}
+
 initialize_system() {
   # creates:
   # - non-system admin users for RightSizer & Modular Service
@@ -295,24 +315,37 @@ initialize_system() {
   syndicate admin configure --api_link http://modular-service:8040/dev --json
   syndicate admin login --username system_user --password "$(get_kubectl_secret modular-service-secret system-password)" --json
 
-  lm_response=$(get_kubectl_secret lm-data lm-response)
-  customer_name=$(echo "$lm_response" | jq ".customer_name" -r)
-
   echo "Generating passwords for modular-service and rightsizer non-system users"
   modular_service_password="$(generate_password)"
   rightsizer_password="$(generate_password)"
   patch_kubectl_secret "$RIGHTSIZER_SECRET_NAME" "admin-password" "$rightsizer_password"
   patch_kubectl_secret "$MODULAR_SERVICE_SECRET_NAME" "admin-password" "$modular_service_password"
 
-  echo "Creating modular service customer and its user"
-  syndicate admin signup --username "$MODULAR_SERVICE_USERNAME" --password "$modular_service_password" --customer_name "$customer_name" --customer_display_name "$customer_name" --customer_admin admin@example.com --json
+  if [ -z "$DO_NOT_ACTIVATE_LICENSE" ]; then
+    customer_name="$(jq ".customer_name" -r <<<"$(get_kubectl_secret lm-data lm-response)")"
+    lm_response="$(get_kubectl_secret lm-data lm-response)"
+  else
+    customer_name="$(resolve_customer_name)"
+  fi
+  # here i must create customer if it does not exit
+  if ! syndicate admin customer describe --name "$customer_name" >/dev/null 2>&1; then
+    echo "Creating customer $customer_name"
+    syndicate admin customer add --name "$customer_name" --display_name "$customer_name" $(build_multiple_params --admin "$ADMIN_EMAILS") --json
+  fi
+
+  echo "Creating modular service policy, role and user"
+  syndicate admin policy add --name admin_policy --permissions_admin --customer_id "$customer_name" --json
+  syndicate admin role add --name admin_role --policies admin_policy --customer_id "$customer_name" --json
+  syndicate admin users create --username "$MODULAR_SERVICE_USERNAME" --password "$modular_service_password" --role_name admin_role --customer_id "$customer_name" --json
 
   echo "Creating rightsizer lm setting"
   LM_API_LINK=$(get_kubectl_secret lm-data api-link)
   syndicate r8s setting config add --host $LM_API_LINK --port 443 --protocol "HTTPS" --stage '/' --json
 
-  echo "Creating rightsizer lm client"
-  syndicate r8s setting client add --key_id "$(echo "$lm_response" | jq ".private_key.key_id" -r)" --algorithm "$(echo "$lm_response" | jq ".private_key.algorithm" -r)" --private_key "$(echo "$lm_response" | jq ".private_key.value" -r)" --format "PEM" --b64encoded --json
+  if [ -z "$DO_NOT_ACTIVATE_LICENSE" ]; then
+    echo "Creating rightsizer lm client"
+    syndicate r8s setting client add --key_id "$(echo "$lm_response" | jq ".private_key.key_id" -r)" --algorithm "$(echo "$lm_response" | jq ".private_key.algorithm" -r)" --private_key "$(echo "$lm_response" | jq ".private_key.value" -r)" --format "PEM" --b64encoded --json
+  fi
 
   echo "Creating rightsizer customer users"
   syndicate r8s register --username "$RIGHTSIZER_USERNAME" --password "$rightsizer_password" --role_name admin_role --customer_id "$customer_name" --json
@@ -321,31 +354,38 @@ initialize_system() {
   syndicate admin login --username "$MODULAR_SERVICE_USERNAME" --password "$modular_service_password" --json
   syndicate r8s login --username "$RIGHTSIZER_USERNAME" --password "$rightsizer_password" --json
 
-  echo "Activating tenant for the current aws account"
-  syndicate admin tenant create --name "$CURRENT_ACCOUNT_TENANT_NAME" --display_name "Tenant $(account_id)" --cloud AWS --account_id "$(account_id)" --primary_contacts admin@example.com --secondary_contacts admin@example.com --tenant_manager_contacts admin@example.com --default_owner admin@example.com --json
+  if [ -z "$DO_NOT_ACTIVATE_TENANT" ]; then
+    echo "Activating tenant for the current aws account"
+    syndicate admin tenant create --name "$CURRENT_ACCOUNT_TENANT_NAME" --display_name "Tenant $(account_id)" --cloud AWS --account_id "$(account_id)" --primary_contacts admin@example.com --secondary_contacts admin@example.com --tenant_manager_contacts admin@example.com --default_owner admin@example.com --json
 
-  echo "Activating region for tenant"
-  for r in $AWS_REGIONS;
-  do
-    echo "Activating $r for tenant"
-    syndicate admin tenant regions activate --tenant_name "$CURRENT_ACCOUNT_TENANT_NAME" --region_name "$r" --json > /dev/null
-  done
+    echo "Activating region for tenant"
+    for r in $AWS_REGIONS;
+    do
+      echo "Activating $r for tenant"
+      syndicate admin tenant regions activate --tenant_name "$CURRENT_ACCOUNT_TENANT_NAME" --region_name "$r" --json > /dev/null
+    done
+  fi
 
-  echo "Setting up RightSizer Licensed Application"
-  output=$(syndicate r8s application licenses add --customer_id "$customer_name" --description "$customer_name application" --cloud "AWS" --tenant_license_key "$(echo "$lm_response" | jq ".tenant_license_key" -r)" --json)
-  licensed_application_id=$(echo "$output" | jq ".items[0].application_id" -r)
+  if [ -z "$DO_NOT_ACTIVATE_LICENSE" ]; then
+    echo "Setting up RightSizer Licensed Application"
+    output=$(syndicate r8s application licenses add --customer_id "$customer_name" --description "$customer_name application" --cloud "AWS" --tenant_license_key "$(echo "$lm_response" | jq ".tenant_license_key" -r)" --json)
+    licensed_application_id=$(echo "$output" | jq ".items[0].application_id" -r)
 
-  echo "Setting up Licensed Parent"
-  syndicate r8s parent add --application_id "$licensed_application_id" --description "$customer_name parent" --scope "SPECIFIC" --tenant "$CURRENT_ACCOUNT_TENANT_NAME" --json
+    echo "Setting up Licensed Parent"
+    syndicate r8s parent add --application_id "$licensed_application_id" --description "$customer_name parent" --scope "SPECIFIC" --tenant "$CURRENT_ACCOUNT_TENANT_NAME" --json
+  fi
 
-  echo "Setting up Metrics storage"
-  syndicate r8s storage add --storage_name input_storage --type DATA_SOURCE --bucket_name r8s-metrics --json
 
-  echo "Setting up Scan results storage"
-  syndicate r8s storage add --storage_name output_storage --type STORAGE --bucket_name r8s-results --json
+  if [ -z "$DO_NOT_ACTIVATE_STORAGE" ]; then
+    echo "Setting up Metrics storage"
+    syndicate r8s storage add --storage_name input_storage --type DATA_SOURCE --bucket_name r8s-metrics --json
 
-  echo "Setting up RIGHTSIZER Application"
-  syndicate r8s application add --customer_id "$customer_name" --description "$customer_name application" --input_storage input_storage --output_storage output_storage --username "ADMIN" --password "ADMIN" --host "0.0.0.0" --port 8000 --protocol HTTP --json
+    echo "Setting up Scan results storage"
+    syndicate r8s storage add --storage_name output_storage --type STORAGE --bucket_name r8s-results --json
+
+    echo "Setting up RIGHTSIZER Application"
+    syndicate r8s application add --customer_id "$customer_name" --description "$customer_name application" --input_storage input_storage --output_storage output_storage --username "ADMIN" --password "ADMIN" --host "0.0.0.0" --port 8000 --protocol HTTP --json
+  fi
 
   echo "Getting Defect dojo token"
   while [ -z "$dojo_token" ]; do
@@ -784,6 +824,10 @@ R8S_INIT_ARTIFACT_NAME=r8s-init.sh
 MODULAR_CLI_ENTRY_POINT=syndicate
 MODULAR_ADMIN_POLICY='[{"Description": "Admin policy", "Module": "*", "Effect": "Allow", "Resources": ["*"]}, {"Effect": "Deny", "Description": "Prohibited commands", "Module": "r8s", "Resources": ["algorithm:add", "algorithm:update_clustering_settings", "algorithm:update_general_settings", "algorithm:update_metric_format", "algorithm:update_recommendation_settings", "report:initiate_tenant_mail_report"]}]'
 FIRST_USER=$(getent passwd 1000 | cut -d : -f 1)
+
+DO_NOT_ACTIVATE_LICENSE="${DO_NOT_ACTIVATE_LICENSE:-}"
+DO_NOT_ACTIVATE_TENANT="${DO_NOT_ACTIVATE_TENANT:-}"
+DO_NOT_ACTIVATE_STORAGE="${DO_NOT_ACTIVATE_STORAGE:-}"
 
 case "$1" in
   backup) shift; cmd_backup "$@" ;;

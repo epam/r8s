@@ -6,8 +6,8 @@ from modular_sdk.services.tenant_service import TenantService
 from commons import build_response, RESPONSE_SERVICE_UNAVAILABLE_CODE, \
     ApplicationException
 from commons.constants import ENV_SERVICE_MODE
-from connections.batch_extension.base_job_client import BaseBatchClient
 from commons.log_helper import get_logger
+from connections.batch_extension.base_job_client import BaseBatchClient
 from services.algorithm_service import AlgorithmService
 from services.clients.api_gateway_client import ApiGatewayClient
 from services.clients.cognito import CognitoClient
@@ -40,6 +40,7 @@ class ServiceProvider:
         # clients
         __s3_conn = None
         __ssm_conn = None
+        __modular_ssm_conn = None
         __cognito = None
         __batch = None
         __api_gateway_client = None
@@ -50,6 +51,7 @@ class ServiceProvider:
         # services
         __environment_service = None
         __ssm_service = None
+        __modular_ssm_service = None
         __algorithm_service = None
         __storage_service = None
         __settings_service = None
@@ -93,6 +95,19 @@ class ServiceProvider:
                 else:
                     self.__ssm_conn = SSMClient(environment_service=_env)
             return self.__ssm_conn
+
+        def modular_ssm(self):
+            if not self.__modular_ssm_conn:
+                from services.clients.ssm import SSMClient, VaultSSMClient
+                _env = self.environment_service()
+                mode = _env.modular_secrets_service_mode()
+                if mode == 'docker':
+                    self.__modular_ssm_conn = VaultSSMClient(
+                        environment_service=_env)
+                else:
+                    self.__modular_ssm_conn = SSMClient(
+                        environment_service=_env)
+            return self.__modular_ssm_conn
 
         def cognito(self):
             if not self.__cognito:
@@ -154,6 +169,12 @@ class ServiceProvider:
             if not self.__ssm_service:
                 self.__ssm_service = SSMService(client=self.ssm())
             return self.__ssm_service
+
+        def modular_ssm_service(self):
+            if not self.__modular_ssm_service:
+                self.__modular_ssm_service = SSMService(
+                    client=self.modular_ssm())
+            return self.__modular_ssm_service
 
         def algorithm_service(self):
             if not self.__algorithm_service:
@@ -242,7 +263,7 @@ class ServiceProvider:
                 self.__rightsizer_application_service = \
                     RightSizerApplicationService(
                         customer_service=self.customer_service(),
-                        ssm_service=self.ssm_service()
+                        ssm_service=self.modular_ssm_service()
                     )
             return self.__rightsizer_application_service
 
@@ -283,8 +304,8 @@ class ServiceProvider:
                     )
                 application = self.rightsizer_application_service(). \
                     get_application_by_id(
-                        application_id=app_id
-                    )
+                    application_id=app_id
+                )
                 if not application:
                     return build_response(
                         code=RESPONSE_SERVICE_UNAVAILABLE_CODE,
@@ -295,7 +316,7 @@ class ServiceProvider:
                 credentials_service = MaestroCredentialsService.build(
                     ssm_service=modular.ssm_service()
                 )
-                creds: RabbitMQCredentials = credentials_service.\
+                creds: RabbitMQCredentials = credentials_service. \
                     get_by_application(application)
                 if not creds:
                     _LOG.error(f'Failed to get RabbitMQ credentials from '

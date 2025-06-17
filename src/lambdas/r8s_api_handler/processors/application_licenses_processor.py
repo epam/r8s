@@ -133,7 +133,8 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
         )
         self._execute_license_sync(
             license_obj=license_obj,
-            customer=customer
+            customer=customer,
+            tenant_license_key=tenant_license_key
         )
         license_key = license_obj.license_key
         algorithm_map = license_obj.algorithm_mapping
@@ -209,12 +210,34 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
                 content=f'Application {application_id} not found.'
             )
+        _LOG.debug(f'Searching for application {target_application.application_id} '
+                   f'parents')
+        parents = self.parent_service.list_application_parents(
+            application_id=target_application.application_id,
+            only_active=True
+        )
         force = event.get(FORCE_ATTR)
         try:
             if force:
+                if parents:
+                    _LOG.debug('Active linked parents found, deleting')
+                    for parent in parents:
+                        _LOG.debug(f'Force deleting parent {parent.parent_id}')
+                        self.parent_service.force_delete(parent=parent)
                 self.application_service.force_delete(
                     application=target_application)
             else:
+                if parents:
+                    active_parent_ids = [parent.parent_id for parent in
+                                         parents]
+                    message = (
+                        f'Can\'t delete application with active parents: '
+                        f'{", ".join(active_parent_ids)}')
+                    _LOG.error(message)
+                    return build_response(
+                        code=RESPONSE_BAD_REQUEST_CODE,
+                        content=message
+                    )
                 self.application_service.mark_deleted(
                     application=target_application)
         except ModularException as e:
@@ -257,14 +280,20 @@ class ApplicationLicensesProcessor(AbstractCommandProcessor):
 
         return license_obj
 
-    def _execute_license_sync(self, license_obj: License, customer: str):
+    def _execute_license_sync(self, license_obj: License, customer: str,
+                              tenant_license_key: str):
         _LOG.info(f'Syncing license \'{license_obj.license_key}\'')
         response = self.license_manager_service.synchronize_license(
             license_key=license_obj.license_key,
             customer=customer
         )
         if response.status_code != 200:
-            return
+            _message = f'License manager does not allow to activate ' \
+                       f'tenant license \'{tenant_license_key}\'' \
+                       f' for customer \'{customer}\''
+            _LOG.warning(_message)
+            return build_response(code=RESPONSE_FORBIDDEN_CODE,
+                                  content=_message)
 
         license_data = response.json()['items'][0]
 

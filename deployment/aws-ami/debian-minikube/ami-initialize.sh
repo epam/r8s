@@ -197,6 +197,16 @@ server {
 EOF
 }
 
+build_helm_values() {
+  # builds values for modularSdk role
+  if [ -z "$MODULAR_SDK_ROLE_ARN" ]; then
+    return
+  fi
+  local modular_region
+  modular_region="${MODULAR_SDK_REGION:-$(region)}"
+  echo -n "--set=modular-service.modularSdk.serviceMode=docker,modular-service.modularSdk.awsRegion=${modular_region},modular-service.modularSdk.assumeRoleArn=${MODULAR_SDK_ROLE_ARN//,/\\,},modular-service.modularSdk.dbBackend=mongo,modular-service.modularSdk.mongoUri=${MODULAR_SDK_MONGO_URI} --set=modularSdk.serviceMode=docker,modularSdk.awsRegion=${modular_region},modularSdk.assumeRoleArn=${MODULAR_SDK_ROLE_ARN//,/\\,},modularSdk.mongoUri=${MODULAR_SDK_MONGO_URI} --set=rightsizer.service_mode_s3=saas,modularSdk.modular_secrets_service_mode=saas,modularSdk.dbBackend=mongo"
+}
+
 # $R8S_LOCAL_PATH $LM_API_LINK, $RIGHTSIZER_RELEASE, $FIRST_USER will be provided from outside
 if [ -z "$R8S_LOCAL_PATH" ] || [ -z "$LM_API_LINK" ] || [ -z "$RIGHTSIZER_RELEASE" ] || [ -z "$FIRST_USER" ] || [ -z "$GITHUB_REPO" ]; then
   error_log "R8S_LOCAL_PATH=$R8S_LOCAL_PATH LM_API_LINK=$LM_API_LINK RIGHTSIZER_RELEASE=$RIGHTSIZER_RELEASE FIRST_USER=$FIRST_USER. Something is not provided"
@@ -240,7 +250,7 @@ kubectl create secret generic defectdojo-secret --from-literal=secret-key="$(gen
 helm repo add syndicate "$SYNDICATE_HELM_REPOSITORY"
 helm repo update syndicate
 
-helm install "$HELM_RELEASE_NAME" syndicate/rightsizer --version $RIGHTSIZER_RELEASE
+helm install "$HELM_RELEASE_NAME" syndicate/rightsizer --version $RIGHTSIZER_RELEASE $(build_helm_values)
 helm install defectdojo syndicate/defectdojo
 EOF
 

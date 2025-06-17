@@ -1,6 +1,6 @@
-modular-sdk>=6.0.0,<7.0.0
-boto3==1.26.80
-botocore==1.29.80
+modular-sdk @ git+https://github.com/epam/modular-sdk@2904a0d9532817b960ef076a5fe240c7ef50d359
+boto3==1.36.11
+botocore==1.36.11
 certifi==2023.7.22
 cffi==1.15.1
 cryptography==41.0.3
@@ -8,7 +8,7 @@ dnspython==2.4.2
 dynamodb-json~=1.4.2
 mongoengine==0.24.2
 oauthlib==3.2.2
-pymongo==4.5.0
+pymongo==4.11.2
 pynamodb>=5.5.1,<6
 requests==2.31.0
 typing_extensions==4.7.1
