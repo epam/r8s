@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Delete `Licenses` collection and related crud commands, move all license-related data to RIGHTSIZER_LICENSES application
 * Add `r8s shape price sync` command to update shape prices for specific AWS region / OS
 * Fix issue with `r8s application update` ssm secret update, while modular_sdk is in saas mode
+* Updated minio server inside chart to `RELEASE.2025-05-24T17-08-30Z`
+* Updated vault server inside chart to `1.19.5`
 
 ## [3.12.1] - 2025-06-04
 * Update modular-service version in the HELM chart
