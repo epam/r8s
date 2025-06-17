@@ -39,9 +39,13 @@ mongo:
 modular-service:
   enabled: true
   fullnameOverride: modular-service
+  databaseName: custodian_as_a_service
+  modularSdk:
+    databaseName: custodian_as_a_service
 modular-api:
   enabled: true
   fullnameOverride: modular-api
+  disableRateLimiter: "true"
   image:
     tag: 4.2.10-rightsizer
 metric-collector:
@@ -53,7 +57,7 @@ modularSdk:
 
   serviceMode: docker
   dbBackend: ''
-  modular_secrets_service_mode: 'docker' # saas for SSM, docker for Vault
+  modular_secrets_service_mode: 'docker' # saas for SSM, docker for Vault same env as MODULAR_SDK_SECRETS_BACKEND
 
   # for "mongo" dbBackend
   mongoUri:
