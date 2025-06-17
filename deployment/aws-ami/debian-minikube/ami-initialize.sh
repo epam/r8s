@@ -199,12 +199,12 @@ EOF
 
 build_helm_values() {
   # builds values for modularSdk role
-  if [ -z "$MODULAR_SDK_ROLE_ARN" ]; then
+  if [ -z "$MODULAR_SDK_ASSUME_ROLE_ARN" ]; then
     echo -n "--set=rightsizer.modularSdk.dbBackend=mongo,rightsizer.modularSdk.mongoUri=${MODULAR_SDK_MONGO_URI}"
   else
     local modular_region
     modular_region="${MODULAR_SDK_REGION:-$(region)}"
-    echo -n "--set=modular-service.modularSdk.serviceMode=docker,modular-service.modularSdk.awsRegion=${modular_region},modular-service.modularSdk.assumeRoleArn=${MODULAR_SDK_ROLE_ARN//,/\\,},modular-service.modularSdk.dbBackend=mongo,modular-service.modularSdk.mongoUri=${MODULAR_SDK_MONGO_URI} --set=modularSdk.serviceMode=docker,modularSdk.awsRegion=${modular_region},modularSdk.assumeRoleArn=${MODULAR_SDK_ROLE_ARN//,/\\,},modularSdk.mongoUri=${MODULAR_SDK_MONGO_URI} --set=rightsizer.service_mode_s3=saas,modularSdk.modular_secrets_service_mode=saas,modularSdk.dbBackend=mongo"
+    echo -n "--set=modular-service.modularSdk.serviceMode=docker,modular-service.modularSdk.awsRegion=${modular_region},modular-service.modularSdk.assumeRoleArn=${MODULAR_SDK_ASSUME_ROLE_ARN//,/\\,},modular-service.modularSdk.dbBackend=mongo,modular-service.modularSdk.mongoUri=${MODULAR_SDK_MONGO_URI} --set=modularSdk.serviceMode=docker,modularSdk.awsRegion=${modular_region},modularSdk.assumeRoleArn=${MODULAR_SDK_ASSUME_ROLE_ARN//,/\\,},modularSdk.mongoUri=${MODULAR_SDK_MONGO_URI} --set=rightsizer.service_mode_s3=saas,modularSdk.modular_secrets_service_mode=saas,modularSdk.dbBackend=mongo"
   fi
 }
 
