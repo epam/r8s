@@ -12,7 +12,7 @@ from commons.constants import APPLICATION_ID_ATTR, \
     MAESTRO_RIGHTSIZER_APPLICATION_TYPE, \
     MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE, ALGORITHM_MAPPING_ATTR, \
     CUSTOMERS_ATTR, TENANTS_ATTR, \
-    APPLICATION_TENANTS_ALL
+    APPLICATION_TENANTS_ALL, TENANT_LICENSE_KEY_ATTR
 from commons.log_helper import get_logger
 from commons.time_helper import utc_iso
 from models.application_attributes import RightsizerApplicationMeta, \
@@ -290,7 +290,8 @@ class RightSizerApplicationService(ApplicationService):
             ]
         app_meta.customers = meta_customers
         app_meta.latest_sync = utc_iso()
-
+        app_meta.tenant_license_key = meta_customers[application.customer_id][
+            TENANT_LICENSE_KEY_ATTR]
         application.meta = app_meta
         self.save(application)
 

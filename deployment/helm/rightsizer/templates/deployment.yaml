@@ -72,11 +72,6 @@ spec:
               value: docker
             - name: SERVICE_MODE_S3
               value: {{ default "docker" .Values.rightsizer.service_mode_s3 }}
-            - name: CAAS_MONGO_DATABASE
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ include "rightsizer.fullname" . }}
-                  key: db-name
             - name: VAULT_URL
               value: {{ .Values.vaultService }}
             - name: VAULT_SERVICE_SERVICE_PORT

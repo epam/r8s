@@ -262,12 +262,12 @@ class StandaloneKeyManagementClient(AbstractKeyManagementClient):
 
         mapped = data.copy()
         mapped.update({VALUE_ATTR: exported})
-        return self._ssm_client.create_secret(
-            secret_name=key_id, secret_value=mapped
+        return self._ssm_client.put_parameter(
+            name=key_id, value=mapped
         )
 
     def delete(self, key_id: str):
-        return self._ssm_client.delete_parameter(secret_name=key_id)
+        return self._ssm_client.delete_parameter(name=key_id)
 
     def get_key(self, key_type: str, key_std: str, key_data: dict):
         """
@@ -298,7 +298,7 @@ class StandaloneKeyManagementClient(AbstractKeyManagementClient):
         :parameter key_id: str
         :return: Union[dict, Type[None]]
         """
-        item = self._ssm_client.get_secret_value(secret_name=key_id)
+        item = self._ssm_client.get_parameter(name=key_id)
         item = _load_json(item) if isinstance(item, str) else item
         is_dict = isinstance(item, dict)
         predicate = not is_dict or VALUE_ATTR not in item
