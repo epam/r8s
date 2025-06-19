@@ -63,7 +63,7 @@ spec:
             {{- if ne (default "docker" .Values.modularSdk.serviceMode) "docker" }}
             - name: modular_assume_role_arn
               value: {{ .Values.modularSdk.assumeRoleArn | quote }}
-            - name: MODULAR_AWS_REGION
+            - name: MODULAR_SDK_ASSUME_ROLE_REGION
               value: {{ .Values.modularSdk.awsRegion | quote }}
             {{- end }}
             - name: modular_secrets_service_mode
