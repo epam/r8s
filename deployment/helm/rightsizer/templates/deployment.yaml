@@ -60,12 +60,6 @@ spec:
                   key: modular-db-name
             - name: modular_service_mode
               value: {{ default "docker" .Values.modularSdk.serviceMode }}
-            {{- if ne (default "docker" .Values.modularSdk.serviceMode) "docker" }}
-            - name: modular_assume_role_arn
-              value: {{ .Values.modularSdk.assumeRoleArn | quote }}
-            - name: MODULAR_SDK_ASSUME_ROLE_REGION
-              value: {{ .Values.modularSdk.awsRegion | quote }}
-            {{- end }}
             - name: modular_secrets_service_mode
               value: {{ default "docker" .Values.modularSdk.modular_secrets_service_mode }}
             - name: SERVICE_MODE
@@ -109,6 +103,8 @@ spec:
               value: "ssm"
             - name: MODULAR_SDK_ASSUME_ROLE_ARN
               value: "{{ .Values.modularSdk.assumeRoleArn }}"
+            - name: MODULAR_SDK_ASSUME_ROLE_REGION
+              value: "{{ .Values.modularSdk.awsRegion }}"
             {{- else }}
             - name: MODULAR_SDK_MONGO_USER
               value: "$(r8s_mongo_user)"
