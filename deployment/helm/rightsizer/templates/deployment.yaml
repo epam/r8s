@@ -105,6 +105,8 @@ spec:
               value: "{{ .Values.modularSdk.assumeRoleArn }}"
             - name: MODULAR_SDK_ASSUME_ROLE_REGION
               value: "{{ .Values.modularSdk.awsRegion }}"
+            - name: AWS_REGION
+              value: "{{ .Values.modularSdk.awsRegion }}"
             {{- else }}
             - name: MODULAR_SDK_MONGO_USER
               value: "$(r8s_mongo_user)"
