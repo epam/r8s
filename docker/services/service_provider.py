@@ -130,7 +130,7 @@ class ServiceProvider:
         def modular_ssm_service(self):
             if not self.__modular_ssm_service:
                 from modular_sdk.modular import Modular
-                client = Modular().ssm_service()
+                client = Modular().assume_role_ssm_service()
                 self.__modular_ssm_service = SSMService(
                     client=client
                 )
