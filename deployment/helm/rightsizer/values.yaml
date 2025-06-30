@@ -1,5 +1,5 @@
-databaseName: r8s
-modularDatabaseName: r8s
+databaseName: custodian_as_a_service
+modularDatabaseName: custodian_as_a_service
 innerCacheTTLSeconds: '300'
 
 service:
@@ -39,9 +39,9 @@ mongo:
 modular-service:
   enabled: true
   fullnameOverride: modular-service
-  databaseName: r8s
+  databaseName: custodian_as_a_service
   modularSdk:
-    databaseName: r8s
+    databaseName: custodian_as_a_service
 modular-api:
   enabled: true
   fullnameOverride: modular-api
