@@ -1,4 +1,5 @@
 import click
+
 from r8scli.group import cli_response, ViewCommand
 
 PARAM_PEM = 'PEM'
@@ -35,7 +36,7 @@ def describe(format):
               help='Format of the private-key.')
 @click.option('--b64encoded', '-b64', is_flag=True, default=False,
               help='Specify whether the private is b64encoded.')
-@cli_response(secured_params=['private_key', 'key_id'])
+@cli_response()
 def add(key_id, algorithm, private_key, format, b64encoded):
     """
     Adds License Manager provided client-key data

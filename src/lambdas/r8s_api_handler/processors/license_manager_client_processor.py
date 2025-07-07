@@ -1,8 +1,7 @@
 from base64 import standard_b64decode
 
-from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE
-from commons.abstract_lambda import PARAM_HTTP_METHOD
+from commons import RESPONSE_BAD_REQUEST_CODE, build_response, \
+    RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE
 from commons.constants import GET_METHOD, POST_METHOD, DELETE_METHOD, \
     KID_ATTR, ALG_ATTR, VALUE_ATTR, KEY_ID_ATTR, ALGORITHM_ATTR
 from commons.log_helper import get_logger
@@ -38,24 +37,13 @@ class LicenseManagerClientProcessor(AbstractCommandProcessor):
             DELETE_METHOD: self.delete,
         }
 
-    def process(self, event) -> dict:
-        method = event.get(PARAM_HTTP_METHOD)
-        command_handler = self.method_to_handler.get(method)
-        if not command_handler:
-            message = f'Unable to handle command {method} in ' \
-                      f'job definition processor'
-            _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
-                       f'process error: {message}')
-            raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
-        return command_handler(event=event)
-
     def get(self, event: dict):
         _LOG.info(f'{GET_METHOD} License Manager Client-Key event: {event}')
 
         fmt = event.get(FORMAT_ATTR) or PEM_ATTR
 
-        configuration: dict = self.settings_service. \
-                                  get_license_manager_client_key_data() or {}
+        configuration: dict = (self.settings_service.
+                               get_license_manager_client_key_data() or {})
 
         kid = configuration.get(KID_ATTR)
         alg = configuration.get(ALG_ATTR)

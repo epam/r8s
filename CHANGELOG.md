@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.13.0] - 2025-06-02
+* Extend resource group support:
+  * Delete `r8s application policies` command group
+  * Add `r8s parent group` cli group:
+    * `add_allowed_tags` - Adds specified tags to resource group configuration
+    * `remove_tags` - Removes specified resource groups from group configuration
+    * `add_resource_group` - Adds specified resource groups to configuration
+    * `remove_resource_group` - Removes specified resource groups from configuration
+* Delete `Licenses` collection and related crud commands, move all license-related data to RIGHTSIZER_LICENSES application
+* Add `r8s shape price sync` command to update shape prices for specific AWS region / OS
+* Fix issue with `r8s application update` ssm secret update, while modular_sdk is in saas mode
+* Updated minio server inside chart to `RELEASE.2025-05-24T17-08-30Z`
+* Updated vault server inside chart to `1.19.5`
+
 ## [3.12.1] - 2025-06-04
 * Update modular-service version in the HELM chart
 * Update the CloudFormation template to meet requirements

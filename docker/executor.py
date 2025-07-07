@@ -1,20 +1,19 @@
 import os.path
 from typing import Tuple, Optional
 
+from modular_sdk.commons.constants import ParentType
 from modular_sdk.models.application import Application
 from modular_sdk.models.parent import Parent
-from modular_sdk.commons.constants import ParentType
 
 from commons.constants import (JOB_STEP_INITIALIZATION,
                                TENANT_LICENSE_KEY_ATTR, PROFILE_LOG_PATH,
                                JOB_STEP_INITIALIZE_ALGORITHM, RESOURCE_TYPE_VM,
-                               RESOURCE_TYPE_ATTR)
+                               CUSTOMERS_ATTR)
 from commons.exception import ExecutorException, LicenseForbiddenException
 from commons.log_helper import get_logger
 from commons.profiler import profiler
 from models.algorithm import Algorithm
 from models.job import Job, JobStatusEnum, JobTenantStatusEnum
-from models.license import License
 from models.parent_attributes import LicensesParentMeta
 from models.recommendation_history import RecommendationTypeEnum
 from models.storage import Storage
@@ -24,7 +23,6 @@ from services.defect_dojo_service import DefectDojoService
 from services.environment_service import EnvironmentService
 from services.job_service import JobService
 from services.license_manager_service import LicenseManagerService
-from services.license_service import LicenseService
 from services.meta_service import MetaService
 from services.metrics_service import MetricsService, \
     INSUFFICIENT_DATA_ERROR_TEMPLATE
@@ -46,7 +44,8 @@ from services.storage_service import StorageService
 algorithm_service: AlgorithmService = SERVICE_PROVIDER.algorithm_service()
 storage_service: StorageService = SERVICE_PROVIDER.storage_service()
 job_service: JobService = SERVICE_PROVIDER.job_service()
-environment_service: EnvironmentService = SERVICE_PROVIDER.environment_service()
+environment_service: EnvironmentService = (
+    SERVICE_PROVIDER.environment_service())
 os_service: OSService = SERVICE_PROVIDER.os_service()
 metrics_service: MetricsService = SERVICE_PROVIDER.metrics_service()
 schedule_service: ScheduleService = SERVICE_PROVIDER.schedule_service()
@@ -59,7 +58,6 @@ parent_service: RightSizerParentService = SERVICE_PROVIDER.parent_service()
 mocked_data_service: MockedDataService = SERVICE_PROVIDER.mocked_data_service()
 application_service: RightSizerApplicationService = SERVICE_PROVIDER. \
     application_service()
-license_service: LicenseService = SERVICE_PROVIDER.license_service()
 license_manager_service: LicenseManagerService = SERVICE_PROVIDER. \
     license_manager_service()
 recommendation_history_service: RecommendationHistoryService = (
@@ -95,10 +93,13 @@ def set_job_fail_reason(exception: Exception):
 
 
 @profiler(execution_step=f'lm_submit_job')
-def submit_licensed_job(application: Application, tenant_name: str,
-                        license_: License):
+def submit_licensed_job(application: Application, tenant_name: str):
     customer = application.customer_id
-    tenant_license_key = license_.customers.get(customer, {}).get(
+    app_meta = application_service.get_application_meta(
+        application=application
+    )
+    meta_dict = app_meta.as_dict()
+    tenant_license_key = meta_dict.get(CUSTOMERS_ATTR).get(customer, {}).get(
         TENANT_LICENSE_KEY_ATTR)
     algorithm_name = application.meta.algorithm_map[RESOURCE_TYPE_VM]
 
@@ -234,24 +235,42 @@ def process_tenant_instances(metrics_dir, reports_dir,
                 recommendations=past_recommendations
             )
 
-    app_meta = application_service.get_application_meta(
-        application=application)
-
-    group_resources_mapping = {}
-    if app_meta.group_policies:
-        _LOG.debug('Processing application group policies')
-        group_resources_mapping, metric_file_paths = (
-            recommendation_service.divide_by_group_policies(
-                metric_file_paths=metric_file_paths,
-                group_policies=app_meta.group_policies,
-                instance_meta_mapping=instance_meta_mapping
-            ))
+    group_resources_mapping = {} # {$group_id: {"tag/arn": ['resource1']}}
+    if parent_meta.resource_groups:
+        for group_config in parent_meta.resource_groups:
+            group_id = group_config.get('id')
+            native_group_arns = group_config.get('allowed_resource_groups')
+            tags = group_config.get('allowed_tags')
+            if native_group_arns:
+                _LOG.debug(f'Processing resource group based on native '
+                           f'AWS Resource groups:'
+                           f'{native_group_arns}')
+                resources_mapping, ind_metric_file_paths = (
+                    recommendation_service.divide_by_native_resource_groups(
+                        metric_file_paths=metric_file_paths,
+                        instance_meta_mapping=instance_meta_mapping,
+                        allowed_resource_group_arns=native_group_arns,
+                    ))
+            else:
+                _LOG.debug(f'Processing parent tag-based group policies: '
+                           f'{tags}')
+                resources_mapping, ind_metric_file_paths = (
+                    recommendation_service.divide_by_tag_keys(
+                        metric_file_paths=metric_file_paths,
+                        instance_meta_mapping=instance_meta_mapping,
+                        allowed_tag_keys=tags,
+                    ))
+            if resources_mapping:
+                group_resources_mapping[group_id] = resources_mapping
+                metric_file_paths = list(
+                    set(metric_file_paths) - set(ind_metric_file_paths)
+                )
 
     if group_resources_mapping:
         _LOG.debug(f'Group resources: {group_resources_mapping}')
         for group_id, group_resources in group_resources_mapping.items():
-            group = application_service.get_group_policy(
-                meta=app_meta,
+            group = parent_service.get_resource_group(
+                meta=parent_meta,
                 group_id=group_id
             )
             if not group:
@@ -260,12 +279,12 @@ def process_tenant_instances(metrics_dir, reports_dir,
                              f'as individual resources')
                 metric_file_paths.extend(group_resources)
             _LOG.debug(f'Processing group {group_id} resources')
-            for tag_value, tag_resources in group_resources.items():
-                _LOG.debug(f'Processing group tag {tag_value}')
+            for group_key, resources in group_resources.items():
+                _LOG.debug(f'Processing group {group_id}:{group_key}')
                 recommendation_service.process_group_resources(
-                    group_id=tag_value,
+                    group_id=f'{group_id}:{group_key}',
                     group_policy=group,
-                    metric_file_paths=tag_resources,
+                    metric_file_paths=resources,
                     algorithm=algorithm,
                     reports_dir=reports_dir,
                     instance_meta_mapping=instance_meta_mapping
@@ -381,8 +400,10 @@ def process_tenant_instances(metrics_dir, reports_dir,
     )
 
 
-def get_dojo_tenant_config(customer_name: str,
-        tenant_name:str) -> Tuple[Optional[Application], Optional[Parent]]:
+def get_dojo_tenant_config(
+        customer_name: str,
+        tenant_name: str
+) -> Tuple[Optional[Application], Optional[Parent]]:
     _LOG.debug(f'Describing Dojo parent for tenant {tenant_name}')
     dojo_parent = parent_service.get_linked_parent(
         tenant_name=tenant_name,
@@ -533,10 +554,6 @@ def main():
     tenant_meta_map = parent_service.resolve_tenant_parent_meta_map(
         parents=parents)
 
-    _LOG.debug(f'Describing License \'{license_key}\'')
-    license_: License = license_service.get_license(license_id=license_key)
-
-
     for tenant in scan_tenants:
         try:
             _LOG.info(f'Processing tenant {tenant}')
@@ -544,11 +561,10 @@ def main():
             _LOG.debug(f'Submitting licensed job for tenant {tenant}')
             licensed_job_data = submit_licensed_job(
                 application=licensed_application,
-                license_=license_,
                 tenant_name=tenant)
             for algorithm in algorithm_map.values():
                 _LOG.debug(f'Syncing licensed algorithm from license '
-                           f'{license_.license_key}')
+                           f'{license_key}')
                 algorithm_service.update_from_licensed_job(
                     algorithm=algorithm,
                     licensed_job=licensed_job_data

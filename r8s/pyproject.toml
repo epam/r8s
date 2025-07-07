@@ -14,7 +14,7 @@ dependencies = [
     "prettytable==3.9.0",
     "python-dateutil==2.8.2",
     "modular-cli-sdk[hvac]==2.0.0",
-    "requests==2.32.3"
+    "requests>=2.31.0,<3.0.0"
 ]
 
 [project.scripts]

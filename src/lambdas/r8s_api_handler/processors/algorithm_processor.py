@@ -4,10 +4,9 @@ from typing import Type
 from modular_sdk.services.customer_service import CustomerService
 from mongoengine import ValidationError
 
-from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
+from commons import RESPONSE_BAD_REQUEST_CODE, build_response, \
+    RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
     validate_params, RESPONSE_FORBIDDEN_CODE
-from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import POST_METHOD, ID_ATTR, NAME_ATTR, \
     GET_METHOD, PATCH_METHOD, DELETE_METHOD, \
     REQUIRED_DATA_ATTRS_ATTR, METRIC_ATTRS_ATTR, TIMESTAMP_ATTR, \
@@ -17,7 +16,7 @@ from commons.constants import POST_METHOD, ID_ATTR, NAME_ATTR, \
     LINE_TERMINATOR_ATTR, QUOTE_CHAR_ATTR, QUOTING_ATTR, ESCAPE_CHAR_ATTR, \
     DOUBLE_QUOTE_ATTR, MAX_CLUSTERS_ATTR, WCSS_KMEANS_INIT_ATTR, \
     WCSS_KMEANS_MAX_ITER_ATTR, KNEE_INTERP_METHOD_ATTR, \
-    WCSS_KMEANS_N_INIT_ATTR, KNEE_POLYMONIAL_DEGREE_ATTR, \
+    WCSS_KMEANS_N_INIT_ATTR, KNEE_POLYNOMIAL_DEGREE_ATTR, \
     CLUSTERING_SETTINGS_ATTRS, RECORD_STEP_MINUTES_ATTR, MIN_ALLOWED_DAYS_ATTR, \
     MAX_DAYS_ATTR, MIN_ALLOWED_DAYS_SCHEDULE_ATTR, IGNORE_SAVINGS_ATTR, \
     MAX_RECOMMENDED_SHAPES_ATTR, SHAPE_COMPATIBILITY_RULE_ATTR, \
@@ -48,17 +47,6 @@ class AlgorithmProcessor(AbstractCommandProcessor):
             PATCH_METHOD: self.patch,
             DELETE_METHOD: self.delete,
         }
-
-    def process(self, event) -> dict:
-        method = event.get(PARAM_HTTP_METHOD)
-        command_handler = self.method_to_handler.get(method)
-        if not command_handler:
-            message = f'Unable to handle command {method} in ' \
-                      f'algorithm processor'
-            _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
-                       f'process error: {message}')
-            raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
-        return command_handler(event=event)
 
     def get(self, event):
         _LOG.debug(f'Describe algorithm event: {event}')
@@ -93,12 +81,12 @@ class AlgorithmProcessor(AbstractCommandProcessor):
 
         _LOG.debug(f'Got {len(algorithms)} algorithms to describe.'
                    f' Converting to dto')
-        algs_gto = [algorithm.get_dto() for algorithm in algorithms]
+        algorithms_gto = [algorithm.get_dto() for algorithm in algorithms]
 
-        _LOG.debug(f'Response: {algs_gto}')
+        _LOG.debug(f'Response: {algorithms_gto}')
         return build_response(
             code=RESPONSE_OK_CODE,
-            content=algs_gto
+            content=algorithms_gto
         )
 
     def post(self, event):
@@ -471,7 +459,7 @@ class AlgorithmProcessor(AbstractCommandProcessor):
             WCSS_KMEANS_MAX_ITER_ATTR: int,
             WCSS_KMEANS_N_INIT_ATTR: int,
             KNEE_INTERP_METHOD_ATTR: str,
-            KNEE_POLYMONIAL_DEGREE_ATTR: int
+            KNEE_POLYNOMIAL_DEGREE_ATTR: int
         }
         errors = self._validate_dict_value_types(
             d=clustering_settings,

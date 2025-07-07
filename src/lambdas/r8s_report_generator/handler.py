@@ -103,8 +103,8 @@ class ReportGenerator(AbstractLambda):
                 report = self.generate_report(
                     customer=customer, tenant=tenant,
                     processing_days=processing_days,
-                    priority_saving_threshold= \
-                        priority_saving_threshold)
+                    priority_saving_threshold=priority_saving_threshold
+                )
 
                 _LOG.debug('Preparing request for sending to maestro')
                 formatted_report = self.prepare_request(report=report)
@@ -275,9 +275,8 @@ class ReportGenerator(AbstractLambda):
             if instance_id not in resource_mapping:
                 resource_job_id_mapping[instance_id] = recommendation.job_id
                 resource_mapping[instance_id] = {}
-            if recommendation_type not in resource_mapping[instance_id] \
-                    and recommendation.job_id == resource_job_id_mapping.get(
-                instance_id):
+            if (recommendation_type not in resource_mapping[instance_id] and
+                    recommendation.job_id == resource_job_id_mapping.get(instance_id)):
                 resource_mapping[instance_id][recommendation_type] = \
                     recommendation
                 result.append(recommendation)
@@ -423,7 +422,8 @@ class ReportGenerator(AbstractLambda):
         if recommendation_type == RecommendationTypeEnum.ACTION_SHUTDOWN.value:
             return self._format_shutdown_recommendation(
                 recommendation=recommendation)
-        elif recommendation_type == RecommendationTypeEnum.ACTION_SCHEDULE.value:
+        elif (recommendation_type ==
+              RecommendationTypeEnum.ACTION_SCHEDULE.value):
             return self._format_schedule_recommendation(
                 recommendation=recommendation)
         elif recommendation_type in resize_actions:
@@ -555,7 +555,8 @@ class ReportGenerator(AbstractLambda):
             return UTC_TIMEZONE_NAME
         application_id = job.application_id
         if not application_id:
-            _LOG.error(f'Job \'{job_id}\' does not have application_id specified.')
+            _LOG.error(
+                f'Job \'{job_id}\' does not have application_id specified.')
             return UTC_TIMEZONE_NAME
         application = self.application_service.get_application_by_id(
             application_id=application_id)

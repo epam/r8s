@@ -7,10 +7,9 @@ from modular_sdk.models.parent import Parent
 from modular_sdk.services.customer_service import CustomerService
 from modular_sdk.services.tenant_service import TenantService
 
-from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
+from commons import RESPONSE_BAD_REQUEST_CODE, build_response, \
+    RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
     validate_params
-from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import GET_METHOD, POST_METHOD, DELETE_METHOD, \
     PARENT_ID_ATTR, APPLICATION_ID_ATTR, DESCRIPTION_ATTR, \
     CLOUD_ALL, SCOPE_ATTR, TENANT_ATTR, FORCE_ATTR
@@ -19,7 +18,6 @@ from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
 from services.algorithm_service import AlgorithmService
 from services.license_manager_service import LicenseManagerService
-from services.license_service import LicenseService
 from services.rbac.access_control_service import PARAM_USER_SUB
 from services.rightsizer_application_service import \
     RightSizerApplicationService
@@ -36,14 +34,12 @@ class ParentProcessor(AbstractCommandProcessor):
                  application_service: RightSizerApplicationService,
                  parent_service: RightSizerParentService,
                  tenant_service: TenantService,
-                 license_service: LicenseService,
                  license_manager_service: LicenseManagerService):
         self.algorithm_service = algorithm_service
         self.customer_service = customer_service
         self.application_service = application_service
         self.parent_service = parent_service
         self.tenant_service = tenant_service
-        self.license_service = license_service
         self.license_manager_service = license_manager_service
 
         self.method_to_handler = {
@@ -51,17 +47,6 @@ class ParentProcessor(AbstractCommandProcessor):
             POST_METHOD: self.post,
             DELETE_METHOD: self.delete,
         }
-
-    def process(self, event) -> dict:
-        method = event.get(PARAM_HTTP_METHOD)
-        command_handler = self.method_to_handler.get(method)
-        if not command_handler:
-            message = f'Unable to handle command {method} in ' \
-                      f'job definition processor'
-            _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
-                       f'process error: {message}')
-            raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
-        return command_handler(event=event)
 
     def get(self, event):
         _LOG.debug(f'Describe parent licenses event: {event}')

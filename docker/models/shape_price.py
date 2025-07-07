@@ -13,6 +13,8 @@ class OSEnum(ListEnum):
 
 
 class ShapePrice(BaseModel):
+    dto_skip_attrs = ['_id']
+
     customer = StringField(null=False, default=DEFAULT_CUSTOMER)
     cloud = EnumField(CloudEnum)
     name = StringField(null=True)

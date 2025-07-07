@@ -1,4 +1,4 @@
-from mongoengine import DoesNotExist, ValidationError
+from mongoengine import DoesNotExist, ValidationError, NotUniqueError
 
 from commons.constants import CUSTOMER_ATTR, CLOUD_ATTR, NAME_ATTR, \
     REGION_ATTR, OS_ATTR
@@ -25,7 +25,8 @@ class ShapePriceService:
             return ShapePrice.objects(**query)
         return ShapePrice.objects.all()
 
-    def get(self, customer, name, region, os=None, use_default_if_missing=True):
+    def get(self, customer, name, region, os=None,
+            use_default_if_missing=True):
         if not os:
             os = OSEnum.OS_LINUX.value
         shape_price = self._get(customer=customer, name=name,
@@ -51,6 +52,19 @@ class ShapePriceService:
     @staticmethod
     def save(shape_price: ShapePrice):
         shape_price.save()
+
+    @staticmethod
+    def save_force(shape_price: ShapePrice):
+        try:
+            shape_price.save()
+        except (NotUniqueError, ValidationError):
+            old_price = ShapePrice.objects.get(
+                name=shape_price.name,
+                customer=shape_price.customer,
+                region=shape_price.region,
+                os=shape_price.os)
+            old_price.delete()
+            shape_price.save()
 
     @staticmethod
     def count(customer, cloud, count_default=True):

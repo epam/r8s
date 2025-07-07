@@ -1,7 +1,8 @@
 import click
 
 from r8scli.group import ViewCommand, cli_response
-from r8scli.service.constants import AVAILABLE_CLOUDS, AVAILABLE_OS
+from r8scli.service.constants import (AVAILABLE_CLOUDS, AVAILABLE_OS,
+                                      OS_LINUX, CLOUD_AWS)
 
 
 @click.group(name='price')
@@ -69,7 +70,6 @@ def add(name, cloud, region, os, on_demand_price, customer_id):
 
 
 @price.command(cls=ViewCommand, name='update')
-
 @click.option('--name', '-n', type=str, required=True,
               help='Shape name.')
 @click.option('--cloud', '-c', required=True,
@@ -123,6 +123,27 @@ def delete(name, cloud, region, os, customer_id):
         customer=customer_id,
         cloud=cloud,
         name=name,
+        region=region,
+        os=os
+    )
+
+@price.command(cls=ViewCommand, name='sync')
+@click.option('--cloud', '-c', default=CLOUD_AWS,
+              type=click.Choice(AVAILABLE_CLOUDS),
+              help='Price cloud.')
+@click.option('--region', '-r', type=str, required=True,
+              help='Shape region.')
+@click.option('--os', '-os', default=OS_LINUX,
+              type=click.Choice(AVAILABLE_OS),
+              help='Shape os.')
+@cli_response()
+def sync(cloud, region, os):
+    """
+    Initiates shape prices sync.
+    """
+    from r8scli.service.initializer import init_configuration
+    return init_configuration().shape_price_sync(
+        cloud=cloud,
         region=region,
         os=os
     )

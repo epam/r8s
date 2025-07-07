@@ -20,7 +20,8 @@ os.environ['r8s_mongodb_connection_uri'] = "mongomock://localhost/testdb"
 class BaseExecutorTest(TestCase, ABC):
     @patch.dict(os.environ,
                 {'AWS_REGION': 'eu-central-1',
-                 'r8s_mongodb_connection_uri': "mongomock://localhost/testdb"})
+                 'r8s_mongodb_connection_uri': "mongodb://localhost/testdb",
+                 "mock": "true"})
     def setUp(self) -> None:
         self.df = None
         self.instance_id = None

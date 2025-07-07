@@ -38,7 +38,7 @@ class ResizeService:
                 sort_option == ShapeSorting.SORT_BY_PERFORMANCE:
             return shapes
         if sort_option == ShapeSorting.SORT_BY_PRICE:
-            # in order: from lowest price to highest, then without price
+            # in order: from the lowest price to highest, then without price
             return sorted(shapes, key=lambda shape: shape.get('price', inf))
         return shapes
 
@@ -57,9 +57,9 @@ class ResizeService:
             if shape_rules:
                 prioritised = self.customer_preferences_service. \
                     process_priority_filters(
-                    instances_data=sizes,
-                    shape_rules=shape_rules
-                )
+                        instances_data=sizes,
+                        shape_rules=shape_rules
+                    )
         if resize_action == ACTION_SPLIT:  # if its split action,
             # allow to use same shape
             same_series = self.get_same_series(
@@ -85,9 +85,11 @@ class ResizeService:
 
         other_shapes = []
         if not forbid_change_series and not forbid_change_family:
+            exclude_shapes = same_series_shape_names + same_family_shape_names
             other_shapes = self._get_other_shapes(
                 sizes=sizes,
-                exclude_shapes=same_series_shape_names + same_family_shape_names)
+                exclude_shapes=exclude_shapes
+            )
 
         return prioritised, same_series, same_family, other_shapes
 

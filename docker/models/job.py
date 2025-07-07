@@ -34,8 +34,8 @@ class Job(BaseModel):
     submitted_at = DateTimeField(null=True)
     status = EnumField(JobStatusEnum,
                        default=JobStatusEnum.JOB_RUNNABLE_STATUS)
-    fail_reason = StringField(null=True)
     tenant_status_map = DictField(null=True)
+    fail_reason = StringField(null=True)
     tenant_fail_reason_map = DictField(null=True)
 
     def get_dto(self):

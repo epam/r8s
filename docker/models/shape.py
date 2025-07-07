@@ -1,10 +1,16 @@
 import datetime
 
+from commons.enum import ListEnum
 from mongoengine import (StringField, FloatField, EnumField, DateTimeField,
                          ListField)
 
-from commons.enum import ListEnum
-from models.base_model import BaseModel, CloudEnum
+from models.base_model import BaseModel
+
+
+class CloudEnum(ListEnum):
+    CLOUD_AWS = 'AWS'
+    CLOUD_AZURE = 'AZURE'
+    CLOUD_GOOGLE = 'GOOGLE'
 
 
 class ResourceTypeEnum(ListEnum):

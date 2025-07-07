@@ -63,12 +63,6 @@ ENDPOINT_PERMISSION_MAPPING = {
         PATCH_METHOD: 'r8s:application:update_application',
         DELETE_METHOD: 'r8s:application:remove_application',
     },
-    '/applications/policies/': {
-        GET_METHOD: 'r8s:application:describe_group_policy',
-        POST_METHOD: 'r8s:application:create_group_policy',
-        PATCH_METHOD: 'r8s:application:update_group_policy',
-        DELETE_METHOD: 'r8s:application:remove_group_policy',
-    },
     '/applications/licenses/': {
         GET_METHOD: 'r8s:application:describe_application',
         POST_METHOD: 'r8s:application:create_application',
@@ -98,6 +92,12 @@ ENDPOINT_PERMISSION_MAPPING = {
         POST_METHOD: 'r8s:parent:create_shape_rule',
         PATCH_METHOD: 'r8s:parent:update_shape_rule',
         DELETE_METHOD: 'r8s:parent:remove_shape_rule',
+    },
+    '/parents/resource-groups/': {
+        GET_METHOD: 'r8s:parent:describe_group_config',
+        POST_METHOD: 'r8s:parent:add_group_config',
+        PATCH_METHOD: 'r8s:parent:update_group_config',
+        DELETE_METHOD: 'r8s:parent:delete_group_config'
     },
     '/parents/shape-rules/dry-run/': {
         GET_METHOD: 'r8s:parent:dry_run_shape_rule'

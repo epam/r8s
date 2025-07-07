@@ -1,8 +1,8 @@
+import itertools
 import json
 import os
 from datetime import datetime, timedelta
 from typing import Union, List, Dict
-import itertools
 
 import numpy as np
 import pandas as pd
@@ -14,7 +14,7 @@ from commons.constants import STATUS_ERROR, STATUS_OK, OK_MESSAGE, \
     GROUP_POLICY_AUTO_SCALING, TYPE_ATTR, JOB_STEP_PROCESS_METRICS, \
     THRESHOLDS_ATTR, MIN_ATTR, MAX_ATTR, DESIRED_ATTR, SCALE_STEP_ATTR, \
     ACTION_SCALE_DOWN, ACTION_SCALE_UP, SCALE_STEP_AUTO_DETECT, \
-    COOLDOWN_DAYS_ATTR, ACTION_ERROR
+    COOLDOWN_DAYS_ATTR, ACTION_ERROR, META_KEY_RESOURCE_GROUPS
 from commons.exception import ExecutorException, ProcessingPostponedException
 from commons.log_helper import get_logger
 from commons.profiler import profiler
@@ -550,6 +550,80 @@ class RecommendationService:
                     break
             else:
                 individual_resources.append(metric_file_path)
+        return group_resources_mapping, individual_resources
+
+    def divide_by_tag_keys(self, metric_file_paths: List[str],
+                           allowed_tag_keys: List[str],
+                           instance_meta_mapping: dict):
+        group_resources_mapping = {}
+        individual_resources = []
+
+        for metric_file_path in metric_file_paths:
+            resource_id = self.get_instance_id(
+                metric_file_path=metric_file_path)
+            instance_meta = instance_meta_mapping.get(resource_id, {})
+            instance_tags = self.meta_service.parse_tags(
+                instance_meta=instance_meta)
+
+            if not any(tag_key in allowed_tag_keys for tag_key in
+                       instance_tags.keys()):
+                individual_resources.append(metric_file_path)
+                continue
+            for tag_key in allowed_tag_keys:
+                if tag_key not in instance_tags:
+                    continue
+                tag_value = instance_tags[tag_key]
+
+                group_id = f'{tag_key}:{tag_value}'
+                if group_id not in group_resources_mapping:
+                    group_resources_mapping[group_id] = [metric_file_path]
+                else:
+                    group_resources_mapping[group_id].append(metric_file_path)
+        return group_resources_mapping, individual_resources
+
+    def divide_by_native_resource_groups(
+            self, metric_file_paths: List[str],
+            instance_meta_mapping: dict,
+            allowed_resource_group_arns: List[str]):
+        _LOG.debug(f'Dividing resources by native resource group arns: '
+                   f'{allowed_resource_group_arns}')
+        group_resources_mapping = {}
+        individual_resources = []
+
+        for metric_file_path in metric_file_paths:
+            resource_id = self.get_instance_id(
+                metric_file_path=metric_file_path)
+
+            instance_meta = instance_meta_mapping.get(resource_id)
+            _LOG.debug(
+                f'Processing instance {resource_id} with meta: {instance_meta}')
+            if not instance_meta:
+                _LOG.debug(f'Instance {resource_id} meta is empty, skipping')
+                individual_resources.append(metric_file_path)
+                continue
+            related_group_arns = instance_meta.get(META_KEY_RESOURCE_GROUPS)
+            if not related_group_arns:
+                _LOG.debug(f'Instance {resource_id} meta does not have '
+                           f'resource group relation, skipping')
+                individual_resources.append(metric_file_path)
+                continue
+            related_group_arns = [arn for arn in related_group_arns
+                                  if arn in allowed_resource_group_arns]
+            if not related_group_arns:
+                _LOG.debug(f'Instance {resource_id} meta does not have '
+                           f'resource group relation with allowed '
+                           f'resource groups, skipping')
+                individual_resources.append(metric_file_path)
+                continue
+            for group_arn in related_group_arns:
+                _LOG.debug(f'Instance {resource_id} '
+                           f'is a part of group: {group_arn}')
+                if group_arn not in group_resources_mapping:
+                    group_resources_mapping[group_arn] = [metric_file_path]
+                else:
+                    group_resources_mapping[group_arn].append(metric_file_path)
+        _LOG.debug(f'Group resources: {group_resources_mapping}.'
+                   f'Individual resources: {individual_resources}')
         return group_resources_mapping, individual_resources
 
     def dump_error_report(self, reports_dir, metric_file_path,

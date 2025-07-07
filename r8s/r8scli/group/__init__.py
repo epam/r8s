@@ -2,6 +2,7 @@ import json
 import os
 from functools import wraps
 from pathlib import Path
+from typing import Any
 
 import click
 from prettytable import PrettyTable
@@ -67,7 +68,7 @@ class ViewCommand(click.core.Command):
             raise R8sInternalException(str(e))
 
 
-def cli_response(id_attribute=None, secured_params=None, reversed=False):
+def cli_response(reverse=False):
     def internal(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -86,7 +87,7 @@ def cli_response(id_attribute=None, secured_params=None, reversed=False):
                 view_format = TABLE_VIEW
             pretty_response = ResponseFormatter(function_result=response,
                                                 view_format=view_format). \
-                prettify_response(reversed=reversed)
+                prettify_response(reverse=reverse)
             if modular_mode:
                 return pretty_response
             else:
@@ -110,8 +111,8 @@ class ResponseFormatter:
     @staticmethod
     def _prettify_warnings(warnings: list):
         return f'{os.linesep}WARNINGS:{os.linesep}' + \
-               f'{os.linesep}'.join([str(i + 1) + '. ' + warnings[i]
-                                     for i in range(len(warnings))])
+            f'{os.linesep}'.join([str(i + 1) + '. ' + warnings[i]
+                                  for i in range(len(warnings))])
 
     @staticmethod
     def is_response_success(response_meta):
@@ -124,8 +125,8 @@ class ResponseFormatter:
     def unpack_success_result_values(response_meta):
         success_code = response_meta.status_code
         response_body = json.loads(response_meta.text)
-        message = response_body.get(R8S_MESSAGE_LOW) or \
-                  response_body.get(R8S_MESSAGE)
+        message = response_body.get(R8S_MESSAGE_LOW) or response_body.get(
+            R8S_MESSAGE)
         items = response_body.get(R8S_ITEMS)
         warnings = response_body.get(R8S_WARNINGS_LOW)
         return success_code, warnings, message, items
@@ -138,7 +139,7 @@ class ResponseFormatter:
         error_type = HTTP_CODE_EXCEPTION_MAPPING[error_code].__name__
         return error_type, error_code, error_message
 
-    def process_cli_view(self, status, response_meta, reversed=False):
+    def process_cli_view(self, status, response_meta, reverse=False):
         if status == ERROR_STATUS:
             error_type, error_code, message = self.unpack_error_result_values(
                 response_meta=response_meta)
@@ -151,13 +152,13 @@ class ResponseFormatter:
             if items:
                 return self.process_table_view(status=status,
                                                response_meta=response_meta,
-                                               reversed=reversed)
+                                               reverse=reverse)
             result_message = f'Response:{os.linesep}{message}'
             if warnings:
                 result_message += self._prettify_warnings(warnings)
             return result_message
 
-    def process_json_view(self, status, response_meta, reversed=False):
+    def process_json_view(self, status, response_meta, reverse=False):
         if status == ERROR_STATUS:
             error_type, error_code, message = self.unpack_error_result_values(
                 response_meta=response_meta)
@@ -171,7 +172,7 @@ class ResponseFormatter:
             success_code, warnings, message, items = \
                 self.unpack_success_result_values(response_meta=response_meta)
             if items:
-                if reversed:
+                if reverse:
                     items = items[::-1]
                 return json.dumps({
                     R8S_STATUS: status,
@@ -187,7 +188,7 @@ class ResponseFormatter:
                 R8S_WARNINGS: warnings
             }, indent=4)
 
-    def process_table_view(self, status, response_meta, reversed=False):
+    def process_table_view(self, status, response_meta, reverse=False):
         response = PrettyTable()
         if status == ERROR_STATUS:
             response.field_names = [R8S_STATUS,
@@ -218,7 +219,7 @@ class ResponseFormatter:
                 all_values = {}
                 uniq_table_headers = []
                 width_table_columns = {}
-                if reversed:
+                if reverse:
                     items = items[::-1]
                 for each_item in items:
                     if not isinstance(each_item, dict):
@@ -247,7 +248,7 @@ class ResponseFormatter:
                             input(CONFIRMATION_MESSAGE).lower().strip() \
                             in POSITIVE_ANSWERS:
                         return self.process_json_view(
-                            status, response_meta, reversed)
+                            status, response_meta, reverse)
                 except Exception:
                     pass
                 last_string_index = 0
@@ -271,23 +272,22 @@ class ResponseFormatter:
 
         return response
 
-    def prettify_response(self, reversed=None):
+    def prettify_response(self, reverse=None):
         status = SUCCESS_STATUS if self.is_response_success(
             response_meta=self.function_result) else ERROR_STATUS
         view_processor = self.format_to_process_method[self.view_format]
         prettified_response = view_processor(
             status=status,
             response_meta=self.function_result,
-            reversed=reversed)
+            reverse=reverse)
         return prettified_response
 
 
-
-def cast_to_list(input):
-    if type(input) == tuple:
-        list_item = list(input)
-    elif type(input) == str:
-        list_item = [input]
+def cast_to_list(parameter: Any):
+    if isinstance(parameter, tuple):
+        list_item = list(parameter)
+    elif isinstance(parameter, str):
+        list_item = [parameter]
     else:
-        list_item = input
+        list_item = parameter
     return list_item

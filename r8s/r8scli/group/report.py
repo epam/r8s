@@ -21,7 +21,7 @@ def report():
               help='Region to filter result instances.')
 @click.option('--instance_id', '-iid', type=str, required=False,
               help='Get result for specific instance.')
-@click.option('--detailed', '-d', is_flag=True,  required=False, default=False,
+@click.option('--detailed', '-d', is_flag=True, required=False, default=False,
               help='Get full content of recommendations.')
 @cli_response()
 def general(job_id, customer_id, cloud, tenant, region, instance_id, detailed):

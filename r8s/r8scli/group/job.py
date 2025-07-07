@@ -1,7 +1,6 @@
 import click
 
 from r8scli.group import cli_response, ViewCommand, cast_to_list
-from r8scli.service.constants import AVAILABLE_CLOUDS
 
 
 @click.group(name='job')
@@ -16,7 +15,7 @@ def job():
               help='Name of the job to describe.')
 @click.option('--limit', '-l', type=int,
               help='Limit maximum amount of jobs in the response.')
-@cli_response(reversed=True)
+@cli_response(reverse=True)
 def describe(job_id=None, job_name=None, limit=None):
     """
     Describes a R8s job.

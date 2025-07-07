@@ -66,6 +66,11 @@ except mongoengine.ConnectionFailure:
             reason="Improperly Configured. Please contact the support team"
         )
     if connection_uri:
-        mongoengine.connect(host=connection_uri)
+        if os.environ.get('mock') == 'true':
+            import mongomock
+            mongoengine.connect(host=connection_uri,
+                                mongo_client_class=mongomock.MongoClient)
+        else:
+            mongoengine.connect(host=connection_uri)
     if connection_kwargs:
         mongoengine.connect(**connection_kwargs)

@@ -5,13 +5,12 @@ helps fast and be safe from importing not existing packages
 import logging
 import logging.config
 import multiprocessing
-import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional
-from dotenv import load_dotenv
 
 from bottle import Bottle
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -27,7 +26,7 @@ DEFAULT_PORT = 8000
 DEFAULT_NUMBER_OF_WORKERS = (multiprocessing.cpu_count() * 2) + 1
 
 
-# DEFAULT_ON_PREM_API_LINK = f'http://{DEFAULT_HOST}:{str(DEFAULT_PORT)}/caas'
+# DEFAULT_ON_PREM_API_LINK = f'http://{DEFAULT_HOST}:{str(DEFAULT_PORT)}/r8s'
 # DEFAULT_API_GATEWAY_NAME = 'r8s-api'
 
 # API_GATEWAY_LINK = 'https://{id}.execute-api.{region}.amazonaws.com/{stage}'

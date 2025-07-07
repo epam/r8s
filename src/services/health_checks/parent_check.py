@@ -1,8 +1,8 @@
 from typing import Optional, Union, List
 
+from modular_sdk.commons.constants import ApplicationType
 from modular_sdk.models.parent import Parent
 from modular_sdk.services.tenant_service import TenantService
-from modular_sdk.commons.constants import ParentType, ApplicationType
 
 from commons.constants import ALLOWED_RULE_ACTIONS, \
     ALLOWED_RULE_CONDITIONS, ALLOWED_SHAPE_FIELDS, CHECK_TYPE_PARENT

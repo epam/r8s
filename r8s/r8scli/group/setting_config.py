@@ -1,4 +1,5 @@
 import click
+
 from r8scli.group import cli_response, ViewCommand
 from r8scli.service.local_response_processor import LocalCommandResponse
 

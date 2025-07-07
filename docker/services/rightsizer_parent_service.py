@@ -10,7 +10,8 @@ from modular_sdk.services.parent_service import ParentService
 from modular_sdk.services.tenant_service import TenantService
 from pynamodb.attributes import MapAttribute
 
-from commons.constants import MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE
+from commons.constants import MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE, \
+    ID_ATTR
 from commons.log_helper import get_logger
 from models.parent_attributes import ShapeRule, LicensesParentMeta
 from services.environment_service import EnvironmentService
@@ -88,3 +89,17 @@ class RightSizerParentService(ParentService):
                 tenant_meta_map[parent.tenant_name] = (
                     self.get_parent_meta(parent))
         return tenant_meta_map
+
+    @staticmethod
+    def list_resource_groups(meta: LicensesParentMeta):
+        if not meta.resource_groups:
+            return []
+        return meta.resource_groups
+
+    @staticmethod
+    def get_resource_group(meta: LicensesParentMeta, group_id: str):
+        if not meta.resource_groups:
+            return
+        for group_policy in meta.resource_groups:
+            if group_policy.get(ID_ATTR) == group_id:
+                return group_policy

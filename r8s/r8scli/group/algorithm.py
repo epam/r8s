@@ -34,8 +34,12 @@ DEFAULT_METRIC_ATTRIBUTES = [
     "avg_disk_iops"
 ]
 
-parameter_not_specified = lambda v: bool(v) if isinstance(v, list) \
-    else v is not None
+
+def parameter_not_specified(parameter):
+    if isinstance(parameter, list):
+        return bool(parameter)
+    else:
+        return parameter is not None
 
 
 @click.group(name='algorithm')
@@ -112,7 +116,7 @@ def add(algorithm_name, customer_id, cloud, data_attribute,
               help='Name of the column that will be used as timestamp.')
 @cli_response()
 def update_general_settings(algorithm_name, data_attribute, metric_attribute,
-                         timestamp_attribute):
+                            timestamp_attribute):
     """
     Updates a R8s algorithm general settings.
     """
@@ -121,14 +125,15 @@ def update_general_settings(algorithm_name, data_attribute, metric_attribute,
     data_attribute = cast_to_list(data_attribute)
     metric_attribute = cast_to_list(metric_attribute)
 
-    optional_parameters = (data_attribute, metric_attribute, timestamp_attribute)
+    optional_parameters = (data_attribute, metric_attribute,
+                           timestamp_attribute)
     if not any(parameter_not_specified(param) for param
                in optional_parameters):
         response = {'message': "At least one of the optional "
                                "parameters must be specified"}
         return LocalCommandResponse(body=response)
 
-    return init_configuration().algorithm_pathc_general_settings(
+    return init_configuration().algorithm_patch_general_settings(
         algorithm_name=algorithm_name,
         data_attribute=data_attribute,
         metric_attribute=metric_attribute,
@@ -141,13 +146,13 @@ def update_general_settings(algorithm_name, data_attribute, metric_attribute,
               help='Algorithm name to update.')
 @click.option('--delimiter', '-d', type=str, required=False,
               help='A one-character string used to separate fields. '
-                   'Max lengh: 2 chars')
+                   'Max length: 2 chars')
 @click.option('--skipinitialspace', '-sis', type=bool, required=False,
               help='When True, spaces immediately following the delimiter '
                    'are ignored.')
 @click.option('--lineterminator', '-ln', type=str, required=False,
               help='The string used to terminate lines. Defaults to "\r\n". '
-                   'Max lengh: 3 chars')
+                   'Max length: 3 chars')
 @click.option('--quotechar', '-qch', type=str, required=False,
               help='A one-character string used to quote '
                    'fields containing special characters')
@@ -304,7 +309,7 @@ def update_recommendation_settings(algorithm_name, record_step_minutes,
                                    shape_sorting, use_past_recommendations,
                                    use_instance_tags, analysis_price,
                                    ignore_action,
-                                   target_timezone_name,discard_initial_zeros,
+                                   target_timezone_name, discard_initial_zeros,
                                    forbid_change_series, forbid_change_family):
     """
     Updates a R8s algorithm recommendation settings.

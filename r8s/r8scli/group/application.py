@@ -2,7 +2,6 @@ import click
 
 from r8scli.group import cli_response, ViewCommand
 from r8scli.group.application_licenses import licenses
-from r8scli.group.application_policies import policies
 from r8scli.group.application_dojo import dojo
 from r8scli.service.constants import ALLOWED_PROTOCOLS, \
     PROTOCOL_HTTPS
@@ -130,5 +129,4 @@ def delete(application_id, force):
 
 
 application.add_command(licenses)
-application.add_command(policies)
 application.add_command(dojo)

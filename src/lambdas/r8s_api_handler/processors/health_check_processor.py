@@ -1,8 +1,6 @@
 from modular_sdk.services.tenant_service import TenantService
 
-from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    build_response, RESPONSE_OK_CODE
-from commons.abstract_lambda import PARAM_HTTP_METHOD
+from commons import RESPONSE_BAD_REQUEST_CODE, build_response, RESPONSE_OK_CODE
 from commons.constants import TYPES_ATTR, CHECK_TYPES, \
     CHECK_TYPE_APPLICATION, CHECK_TYPE_PARENT, CHECK_TYPE_STORAGE, \
     CHECK_TYPE_SHAPE, CHECK_TYPE_SHAPE_UPDATE_DATE, \
@@ -75,17 +73,6 @@ class HealthCheckProcessor(AbstractCommandProcessor):
             CHECK_TYPE_OPERATION_MODE: self._init_operation_mode_handler,
             CHECK_TYPE_SHAPE_UPDATE_DATE: self._init_shape_update_date_handler
         }
-
-    def process(self, event) -> dict:
-        method = event.get(PARAM_HTTP_METHOD)
-        command_handler = self.method_to_handler.get(method)
-        if not command_handler:
-            message = f'Unable to handle command {method} in ' \
-                      f'job processor'
-            _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
-                       f'process error: {message}')
-            raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
-        return command_handler(event=event)
 
     def post(self, event):
         _LOG.debug(f'Health Check event: {event}')

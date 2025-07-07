@@ -1,9 +1,9 @@
 import datetime
 
+from commons.enum import ListEnum
 from mongoengine import StringField, DateTimeField, FloatField, \
     ListField, DictField, EnumField
 
-from commons.enum import ListEnum
 from models.base_model import BaseModel
 
 RESOURCE_TYPE_INSTANCE = 'INSTANCE'
@@ -41,6 +41,25 @@ class RecommendationTypeEnum(ListEnum):
     ACTION_CHANGE_SHAPE = 'CHANGE_SHAPE'
     ACTION_SPLIT = 'SPLIT'
     ACTION_EMPTY = 'NO_ACTION'
+
+    @classmethod
+    def get_allowed_feedback_types(cls, recommendation_type):
+        options = [FeedbackStatusEnum.APPLIED,
+                   FeedbackStatusEnum.DONT_RECOMMEND,
+                   FeedbackStatusEnum.NO_ANSWER,
+                   FeedbackStatusEnum.WRONG]
+        if recommendation_type == cls.ACTION_SCHEDULE.value:
+            options.extend([FeedbackStatusEnum.TOO_SHORT,
+                            FeedbackStatusEnum.TOO_LONG])
+        resize_actions = (cls.ACTION_SPLIT.value,
+                          cls.ACTION_SCALE_UP.value,
+                          cls.ACTION_SCALE_DOWN.value,
+                          cls.ACTION_CHANGE_SHAPE.value)
+        if recommendation_type in resize_actions:
+            options.extend([FeedbackStatusEnum.TOO_LARGE,
+                            FeedbackStatusEnum.TOO_SMALL])
+
+        return [option.value for option in options]
 
     @classmethod
     def resize(cls):
@@ -85,3 +104,17 @@ class RecommendationHistory(BaseModel):
         'auto_create_index': True,
         'auto_create_index_on_save': False,
     }
+
+    def get_dto(self):
+        recommendation_dto = super(RecommendationHistory, self).get_dto()
+
+        dt_attributes = ('added_at', 'feedback_dt', 'last_metric_capture_date')
+
+        for attribute_name in dt_attributes:
+            attribute_value = recommendation_dto.get(attribute_name)
+
+            if isinstance(attribute_value, datetime.datetime):
+                recommendation_dto[attribute_name] = (
+                    attribute_value.isoformat())
+
+        return recommendation_dto

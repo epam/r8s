@@ -40,7 +40,6 @@ class ServiceProvider:
         # clients
         __s3_conn = None
         __ssm_conn = None
-        __modular_ssm_conn = None
         __license_manager_conn = None
         __standalone_key_management = None
 
@@ -78,7 +77,6 @@ class ServiceProvider:
         __token_service = None
         __license_manager_service = None
         __key_management_service = None
-        __license_service = None
 
         def __str__(self):
             return id(self)
@@ -99,19 +97,6 @@ class ServiceProvider:
                 else:
                     self.__ssm_conn = SSMClient(environment_service=_env)
             return self.__ssm_conn
-
-        def modular_ssm(self):
-            if not self.__modular_ssm_conn:
-                from services.clients.ssm import SSMClient, VaultSSMClient
-                _env = self.environment_service()
-                mode = _env.modular_secrets_service_mode()
-                if mode == DOCKER_SERVICE_MODE:
-                    self.__modular_ssm_conn = VaultSSMClient(
-                        environment_service=_env)
-                else:
-                    self.__modular_ssm_conn = SSMClient(
-                        environment_service=_env)
-            return self.__modular_ssm_conn
 
         def license_manager_client(self):
             if not self.__license_manager_conn:
@@ -144,8 +129,11 @@ class ServiceProvider:
 
         def modular_ssm_service(self):
             if not self.__modular_ssm_service:
+                from modular_sdk.modular import Modular
+                client = Modular().assume_role_ssm_service()
                 self.__modular_ssm_service = SSMService(
-                    client=self.modular_ssm())
+                    client=client
+                )
             return self.__modular_ssm_service
 
         def algorithm_service(self):
@@ -335,15 +323,6 @@ class ServiceProvider:
                     key_management_client=self.standalone_key_management()
                 )
             return self.__key_management_service
-
-        def license_service(self):
-            if not self.__license_service:
-                from services.license_service import \
-                    LicenseService
-                self.__license_service = LicenseService(
-                    settings_service=self.settings_service()
-                )
-            return self.__license_service
 
     instance = None
 

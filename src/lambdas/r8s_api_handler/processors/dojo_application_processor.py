@@ -2,15 +2,14 @@ from modular_sdk.commons import ModularException
 from modular_sdk.commons.constants import ApplicationType
 from modular_sdk.services.customer_service import CustomerService
 
-from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
-    build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
+from commons import RESPONSE_BAD_REQUEST_CODE, build_response, \
+    RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
     validate_params, RESPONSE_FORBIDDEN_CODE, \
     secure_event
-from commons.abstract_lambda import PARAM_HTTP_METHOD
-from commons.constants import POST_METHOD, GET_METHOD, DELETE_METHOD, \
-    CUSTOMER_ATTR, \
-    DESCRIPTION_ATTR, PORT_ATTR, PROTOCOL_ATTR, HOST_ATTR, APPLICATION_ID_ATTR, \
-    FORCE_ATTR, STAGE_ATTR, API_KEY_ATTR
+from commons.constants import (POST_METHOD, GET_METHOD, DELETE_METHOD,
+                               CUSTOMER_ATTR, DESCRIPTION_ATTR, PORT_ATTR,
+                               PROTOCOL_ATTR, APPLICATION_ID_ATTR, HOST_ATTR,
+                               FORCE_ATTR, STAGE_ATTR, API_KEY_ATTR)
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -35,17 +34,6 @@ class DojoApplicationProcessor(AbstractCommandProcessor):
             POST_METHOD: self.post,
             DELETE_METHOD: self.delete,
         }
-
-    def process(self, event) -> dict:
-        method = event.get(PARAM_HTTP_METHOD)
-        command_handler = self.method_to_handler.get(method)
-        if not command_handler:
-            message = f'Unable to handle command {method} in ' \
-                      f'dojo application processor'
-            _LOG.error(f'status code: {RESPONSE_BAD_REQUEST_CODE}, '
-                       f'process error: {message}')
-            raise_error_response(message, RESPONSE_BAD_REQUEST_CODE)
-        return command_handler(event=event)
 
     def get(self, event):
         _LOG.debug(f'Describe dojo application event: {event}')
