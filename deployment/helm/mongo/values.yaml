@@ -1,3 +1,6 @@
+memoryLimit: 512Mi
+memoryRequest: 128Mi
+
 service:
   type: ClusterIP
   port: 27017
@@ -5,7 +8,7 @@ service:
 
 image:
   repository: mongo
-  tag: 5.0.28
+  tag: 5.0.32
   pullPolicy: IfNotPresent
 
 
@@ -17,6 +20,6 @@ persistence:
 
 replicas: 1
 strategy:
-  type: RollingUpdate
+  type: Recreate
   maxUnavailable: 0
   maxSurge: 100%
