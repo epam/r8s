@@ -13,7 +13,7 @@ dependencies = [
     "click==8.3.0",
     "prettytable==3.9.0",
     "python-dateutil==2.9.0.post0",
-    "modular-cli-sdk[hvac]==3.1.0",
+    "modular-cli-sdk[hvac]==3.1.1",
     "requests>=2.31.0,<3.0.0"
 ]
 
