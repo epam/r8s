@@ -5,7 +5,13 @@ from functools import cached_property
 from sys import stdout
 from typing import Dict
 
+try:
+    import modular_sdk.commons.log_helper  # noqa: F401
+except ImportError:
+    pass
+
 LOG_FORMAT = '%(asctime)s - %(levelname)s - %(name)s - %(message)s'
+MODULAR_SDK_LOG_LEVEL_ENV = 'MODULAR_SDK_LOG_LEVEL'
 
 
 class SensitiveFormatter(logging.Formatter):
@@ -61,18 +67,55 @@ _name_to_level = {
     'DEBUG': logging.DEBUG
 }
 
+
+def _get_log_level(env_var: str, default: int = logging.INFO) -> int:
+    """Get log level from environment variable."""
+    level_str = os.environ.get(env_var, '').upper()
+    return _name_to_level.get(level_str, default)
+
+
+# Create shared formatter and handler
+_formatter = SensitiveFormatter(LOG_FORMAT)
+_console_handler = logging.StreamHandler(stream=stdout)
+_console_handler.setFormatter(_formatter)
+
+# Configure main r8s logger
 logger = logging.getLogger(__name__)
 logger.propagate = False
-console_handler = logging.StreamHandler(stream=stdout)
-console_handler.setFormatter(
-    SensitiveFormatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
-)
-logger.addHandler(console_handler)
+logger.addHandler(_console_handler)
 
-log_level = _name_to_level.get(os.environ.get('log_level'))
-if not log_level:
-    log_level = logging.INFO
+log_level = _get_log_level('log_level', logging.INFO)
+logger.setLevel(log_level)
+
 logging.captureWarnings(True)
+
+
+def _get_modular_sdk_log_level() -> int | None:
+    """
+    Get modular_sdk log level if enabled.
+    Returns None if MODULAR_SDK_LOG_LEVEL is not set (disabled).
+    """
+    level_str = os.environ.get(MODULAR_SDK_LOG_LEVEL_ENV)
+    if level_str is None:
+        return None
+    level_str = level_str.upper()
+    if level_str not in _name_to_level:
+        logger.warning(
+            f"Invalid {MODULAR_SDK_LOG_LEVEL_ENV}='{level_str}'. "
+            f"Valid: {', '.join(_name_to_level.keys())}. Defaulting to DEBUG"
+        )
+        return logging.DEBUG
+    return _name_to_level[level_str]
+
+
+# Configure modular_sdk logger if enabled
+_sdk_level = _get_modular_sdk_log_level()
+if _sdk_level is not None:
+    _sdk_logger = logging.getLogger('modular_sdk')
+    _sdk_logger.handlers.clear()
+    _sdk_logger.addHandler(_console_handler)
+    _sdk_logger.setLevel(_sdk_level)
+    _sdk_logger.propagate = False
 
 
 def get_logger(log_name, level=log_level):
