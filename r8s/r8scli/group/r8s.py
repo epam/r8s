@@ -27,29 +27,27 @@ def r8s():
 
 
 @r8s.command(cls=ViewCommand, name='configure')
-@click.option('--api_link', '-api', type=str,
-              required=True,
-              help='Link to the R8s host.')
+@click.option('--api_link', '-api', type=str, required=True,
+              help='Link to the R8s host')
 @cli_response()
 def configure(api_link):
     """
-    Configures r8s tool to work with r8s API.
+    Configures r8s tool to work with r8s API
     """
     context = click.get_current_context()
     return create_configuration(api_link=api_link, context=context)
 
 
 @r8s.command(cls=ViewCommand, name='login')
-@click.option('--username', '-u', type=str,
-              required=True,
-              help='R8s user username.')
+@click.option('--username', '-u', type=str, required=True,
+              help='R8s user username')
 @click.option('--password', '-p', type=str,
               required=True, hide_input=True, prompt=True,
-              help='R8s user password.')
+              help='R8s user password')
 @cli_response()
 def login(username: str, password: str):
     """
-    Authenticates user to work with R8s.
+    Authenticates user to work with R8s
     """
     from r8scli.service.initializer import init_configuration
 
@@ -58,8 +56,10 @@ def login(username: str, password: str):
     if isinstance(response, tuple):
         access_token = response[0]
         refresh_token = response[1]
-        return save_token(access_token=access_token,
-                          refresh_token=refresh_token)
+        return save_token(
+            access_token=access_token,
+            refresh_token=refresh_token,
+        )
     return response
 
 
@@ -67,7 +67,7 @@ def login(username: str, password: str):
 @cli_response()
 def refresh():
     """
-    Refresh r8s access token using stored refresh token.
+    Refresh r8s access token using stored refresh token
     """
     from r8scli.service.initializer import init_configuration
 
@@ -81,28 +81,28 @@ def refresh():
 
 
 @r8s.command(cls=ViewCommand, name='register')
-@click.option('--username', '-u', type=str,
-              required=True,
-              help='R8s user username.')
+@click.option('--username', '-u', type=str, required=True,
+              help='R8s user username')
 @click.option('--password', '-p', type=str,
               required=True, hide_input=True, prompt=True,
-              help='R8s user password.')
-@click.option('--customer_id', '-cid', type=str,
-              required=True,
-              help='R8s user customer.')
-@click.option('--role_name', '-rn', type=str,
-              required=True,
-              help='R8s user role name.')
+              help='R8s user password')
+@click.option('--customer_id', '-cid', type=str, required=True,
+              help='R8s user customer')
+@click.option('--role_name', '-rn', type=str, required=True,
+              help='R8s user role name')
 @cli_response()
 def register(username: str, password: str, customer_id, role_name):
     """
-    Creates user to work with R8s.
+    Creates user to work with R8s
     """
-
     from r8scli.service.initializer import init_configuration
+
     response = init_configuration().register(
-        username=username, password=password,
-        customer=customer_id, role_name=role_name)
+        username=username,
+        password=password,
+        customer=customer_id,
+        role_name=role_name,
+    )
     return response
 
 
@@ -110,7 +110,7 @@ def register(username: str, password: str, customer_id, role_name):
 @cli_response()
 def cleanup():
     """
-    Removes all the configuration data related to the tool.
+    Removes all the configuration data related to the tool
     """
     return clean_up_configuration()
 
@@ -118,11 +118,11 @@ def cleanup():
 @r8s.command(cls=ViewCommand, name='health-check')
 @click.option('--check_type', '-t', multiple=True, required=False,
               type=click.Choice(AVAILABLE_CHECK_TYPES),
-              help='List of check types to execute.')
+              help='List of check types to execute')
 @cli_response()
 def health_check(check_type):
     """
-    Describes a R8s health check status.
+    Describes a R8s health check status
     """
     from r8scli.service.initializer import init_configuration
 

@@ -13,29 +13,28 @@ def client():
 @client.command(cls=ViewCommand, name='describe')
 @click.option('--format', '-f', type=click.Choice([PARAM_PEM]),
               default=PARAM_PEM, show_default=PARAM_PEM,
-              help='Format of the private-key.')
+              help='Format of the private-key')
 @cli_response()
 def describe(format):
     """
-    Describe current License Manager client-key data
+    Describes current License Manager client-key data
     """
     from r8scli.service.initializer import init_configuration
     return init_configuration().lm_client_setting_get(format=format)
 
 
 @client.command(cls=ViewCommand, name='add')
-@click.option('--key_id', '-kid',
-              type=str, required=True,
-              help='Key-id granted by the License Manager.')
+@click.option('--key_id', '-kid', type=str, required=True,
+              help='Key-id granted by the License Manager')
 @click.option('--algorithm', '-alg', type=str,
-              help='Algorithm granted by the License Manager.', required=True)
+              help='Algorithm granted by the License Manager', required=True)
 @click.option('--private_key', '-prk', type=str, required=True,
-              help='Private-key granted by the License Manager.')
+              help='Private-key granted by the License Manager')
 @click.option('--format', '-f', type=click.Choice([PARAM_PEM]),
               default=PARAM_PEM, show_default=PARAM_PEM,
-              help='Format of the private-key.')
+              help='Format of the private-key')
 @click.option('--b64encoded', '-b64', is_flag=True, default=False,
-              help='Specify whether the private is b64encoded.')
+              help='Specify whether the private is b64encoded')
 @cli_response()
 def add(key_id, algorithm, private_key, format, b64encoded):
     """
@@ -52,9 +51,8 @@ def add(key_id, algorithm, private_key, format, b64encoded):
 
 
 @client.command(cls=ViewCommand, name='delete')
-@click.option('--key_id', '-kid',
-              type=str, required=True,
-              help='Key-id granted by the License Manager.')
+@click.option('--key_id', '-kid', type=str, required=True,
+              help='Key-id granted by the License Manager')
 @cli_response()
 def delete(key_id: str):
     """
@@ -62,7 +60,7 @@ def delete(key_id: str):
     """
     from r8scli.service.initializer import init_configuration
     return init_configuration().lm_client_setting_delete(
-        key_id=key_id
+        key_id=key_id,
     )
 
 
