@@ -10,44 +10,47 @@ def job():
 
 @job.command(cls=ViewCommand, name='describe')
 @click.option('--job_id', '-id', type=str,
-              help='Id of the job to describe.')
+              help='Id of the job to describe')
 @click.option('--job_name', '-name', type=str,
-              help='Name of the job to describe.')
+              help='Name of the job to describe')
 @click.option('--limit', '-l', type=int,
-              help='Limit maximum amount of jobs in the response.')
+              help='Limit maximum amount of jobs in the response')
 @cli_response(reverse=True)
 def describe(job_id=None, job_name=None, limit=None):
     """
-    Describes a R8s job.
+    Describes a R8s job
     """
     from r8scli.service.initializer import init_configuration
     return init_configuration().job_get(
-        job_id=job_id, job_name=job_name, limit=limit)
+        job_id=job_id,
+        job_name=job_name,
+        limit=limit,
+    )
 
 
 @job.command(cls=ViewCommand, name='submit')
 @click.option('--application_id', '-aid', type=str, required=False,
-              help='Maestro RIGHTSIZER_LICENSES application id.')
+              help='Maestro RIGHTSIZER_LICENSES application id')
 @click.option('--parent_id', '-pid', type=str, required=False,
               help='Maestro RIGHTSIZER_LICENSES parent id. If not specified, '
                    'all available linked parents will be used')
 @click.option('--scan_tenants', '-t', multiple=True, required=False,
-              help='List of tenants to scan.')
+              help='List of tenants to scan')
 @click.option('--scan_from_date', '-sfd', type=str, required=False,
               help='Processing start date. Format: "%Y-%m-%d" '
                    'Example: 2023-06-20. If not set, '
-                   'all available metrics will be used.')
+                   'all available metrics will be used')
 @click.option('--scan_to_date', '-std', type=str, required=False,
               help='Processing end date. Format: "%Y-%m-%d" '
                    'Example: 2023-06-20. If not set, scan will be '
-                   'limited by tomorrow\'s date.')
+                   'limited by tomorrow\'s date')
 @click.option('--force_rescan', '-fr', is_flag=True,
-              help='To rescan instances without recent metric updates.')
+              help='To rescan instances without recent metric updates')
 @cli_response()
 def submit(application_id, parent_id, scan_tenants,
            scan_from_date, scan_to_date, force_rescan):
     """
-    Submits a R8s job.
+    Submits a R8s job
     """
     from r8scli.service.initializer import init_configuration
 
@@ -65,11 +68,11 @@ def submit(application_id, parent_id, scan_tenants,
 
 @job.command(cls=ViewCommand, name='terminate')
 @click.option('--job_id', '-id', type=str, required=True,
-              help='Job id.')
+              help='Job id')
 @cli_response()
 def terminate(job_id):
     """
-    Terminates a R8s batch job.
+    Terminates a R8s batch job
     """
     from r8scli.service.initializer import init_configuration
     return init_configuration().job_delete(job_id=job_id)

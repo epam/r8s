@@ -33,15 +33,15 @@ Options:
 Commands:
   algorithm       Manages Algorithm Entity
   application     Manages RIGHTSIZER Application Entity
-  cleanup         Removes all the configuration data related to the tool.
-  configure       Configures r8s tool to work with r8s API.
-  health-check    Describes a R8s health check status.
+  cleanup         Removes all the configuration data related to the tool
+  configure       Configures r8s tool to work with r8s API
+  health-check    Describes a R8s health check status
   job             Manages job Entity
-  login           Authenticates user to work with R8s.
+  login           Authenticates user to work with R8s
   parent          Manages RIGHTSIZER Parent Entity
   policy          Manages Policy Entity
   recommendation  Manages Recommendation Entity
-  register        Creates user to work with R8s.
+  register        Creates user to work with R8s
   report          Manages reports
   role            Manages Role Entity
   shape           Manages Shape Entity
