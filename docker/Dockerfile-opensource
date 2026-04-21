@@ -1,9 +1,7 @@
-FROM python:3.10-slim
+FROM python:3.10-slim AS builder
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-WORKDIR /r8s
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
@@ -11,25 +9,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-COPY src/requirements.txt src/requirements.txt
-COPY docker/requirements.txt docker/requirements.txt
-COPY src/exported_module/requirements.txt src/exported_module/requirements.txt
+COPY src/requirements.txt /tmp/src-requirements.txt
+COPY docker/requirements.txt /tmp/docker-requirements.txt
+COPY src/exported_module/requirements.txt /tmp/exported-requirements.txt
 
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r src/requirements.txt \
-    && pip install --no-cache-dir -r docker/requirements.txt \
-    && pip install --no-cache-dir -r src/exported_module/requirements.txt
+RUN python -m venv /venv \
+    && /venv/bin/pip install --upgrade pip \
+    && /venv/bin/pip install \
+        -r /tmp/src-requirements.txt \
+        -r /tmp/docker-requirements.txt \
+        -r /tmp/exported-requirements.txt
 
-RUN python3 -m venv /r8s/docker/.executor_venv && \
-    /r8s/docker/.executor_venv/bin/pip install --no-cache-dir -r docker/requirements.txt
+FROM python:3.10-slim AS runtime
 
-COPY src src
-COPY docker docker
-COPY scripts scripts
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    APP_ENV=production \
+    APP_PORT=8000
 
-ENV APP_ENV=production
-ENV APP_PORT=8000
+WORKDIR /r8s/src
+
+COPY --from=builder /venv /venv
+
+COPY src /r8s/src
+COPY docker /r8s/docker
+COPY scripts /r8s/scripts
 
 EXPOSE 8000
 
-CMD sh -c "python src/exported_module/scripts/init.py && python src/exported_module/scripts/init_customer.py -name DEMO && python scripts/populate_aws_shapes_from_file.py && python scripts/populate_demo_config.py && python scripts/populate_demo_metrics.py && python src/main.py"
+CMD ["bash", "-c", "/venv/bin/python exported_module/scripts/init.py && /venv/bin/python ../scripts/populate_aws_shapes.py && /venv/bin/python main.py"]
