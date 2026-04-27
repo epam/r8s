@@ -7,17 +7,7 @@ name = "r8s-mcp"
 description = "Model Context Protocol (MCP) server for Syndicate RightSizer (R8S) APIs"
 readme = "README.md"
 requires-python = ">=3.11"
-license = "LicenseRef-Proprietary"
-keywords = ["mcp", "r8s", "rightsizer", "fastmcp"]
-classifiers = [
-  "Development Status :: 4 - Beta",
-  "Environment :: Console",
-  "Intended Audience :: Developers",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
-  "Topic :: Software Development :: Libraries :: Python Modules",
-]
+
 dependencies = [
   "fastmcp>=3.2.4",
   "mcp>=1.6.0",
