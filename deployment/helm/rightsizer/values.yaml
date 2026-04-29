@@ -9,7 +9,7 @@ service:
 
 image:
   repository: public.ecr.aws/x4s4z8e1/rightsizer
-  tag: awsmp
+  tag: 3.13.2
   pullPolicy: Always
 
 replicas: 1
@@ -47,7 +47,7 @@ modular-api:
   fullnameOverride: modular-api
   disableRateLimiter: "true"
   image:
-    tag: 4.2.11-rightsizer
+    tag: 4.2.11-rightsizer-3.13.2
 metric-collector:
   enabled: true
   fullnameOverride: metric-collector
