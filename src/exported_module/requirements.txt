@@ -7,3 +7,4 @@ psutil==5.8.0
 modular-sdk @ git+https://github.com/epam/modular-sdk@2904a0d9532817b960ef076a5fe240c7ef50d359
 hvac==2.1.0
 python-dotenv==1.0.1
+PyJWT==2.8.0
