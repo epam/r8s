@@ -7,7 +7,7 @@ from r8s_mcp.services.r8s_client import R8SClient
 
 async def get_recommendations(
         instance_id: str | None = None,
-        recommendation_type: RecommendationType = None,
+        recommendation_type: RecommendationType | None = None,
         job_id: str | None = None,
         customer_id: str | None = None,
 ) -> list[Content]:
