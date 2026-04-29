@@ -38,7 +38,7 @@ _default_mcp_config: Config | None = None
 def get_mcp_config() -> Config:
     """Return the active server :class:`~r8s_mcp.commons.config.Config`."""
     _LOG.info(
-        f'Getting MCP server configuration. Context var id {id(_mcp_config_ctx)}')
+        f'Getting MCP server configuration.')
     c = _mcp_config_ctx.get()
     if c is not None:
         return c
@@ -51,8 +51,7 @@ def get_mcp_config() -> Config:
 
 def set_mcp_config(config: Config) -> Token[Config | None]:
     """Bind *config* for the current context (used at server startup)."""
-    _LOG.info(f'Setting MCP server configuration. Context var id {id(_mcp_config_ctx)}'
-              f', config: {config}')
+    _LOG.info(f'Setting MCP server configuration.')
     return _mcp_config_ctx.set(config)
 
 

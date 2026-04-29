@@ -136,9 +136,9 @@ class R8SClient:
 
         try:
             return await self._make_request(
-                method='POST',
+                method='GET',
                 endpoint=R8SEndpoint.JOBS.value,
-                data=self._sifted(params)
+                params=self._sifted(params),
             )
 
         except httpx.HTTPError as e:

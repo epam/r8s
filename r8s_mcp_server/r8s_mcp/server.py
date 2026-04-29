@@ -5,7 +5,7 @@ from fastmcp.tools import FunctionTool
 from fastmcp.tools import Tool as FastMCPTool
 from mcp.server.transport_security import TransportSecuritySettings, \
     TransportSecurityMiddleware
-from starlette.applications import Starlette
+from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
@@ -135,54 +135,40 @@ class McpTransportSecurityHTTPMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
-# -- MCPServer -----------------------------------------------------------------
-
-class MCPServer(FastMCP):
-    """
-    Extended FastMCP with output format middleware support.
-    """
-    def __init__(
-            self,
-            *args,
-            default_output_format: OutputFormat = 'markdown',
-            secret_api_key_hash: str | None = None,
-            transport_security: TransportSecuritySettings | None = None,
-            **kwargs,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.default_output_format = default_output_format
-        self.secret_api_key_hash = secret_api_key_hash
-        self.transport_security = transport_security
-
-    def _add_middlewares(self, app: Starlette) -> Starlette:
-        """Attach all HTTP middlewares in the correct order."""
-        # Middlewares are applied last-added -> first-executed (LIFO).
-        # We want: SecretAPIKey -> McpUsername -> OutputFormat -> handler
-        # So add OutputFormat first, then McpUsername, then SecretAPIKey on top.
-        app.add_middleware(
-            middleware_class=OutputFormatMiddleware,
-            default_format=self.default_output_format,
+def build_http_middlewares(
+        secret_api_key_hash: str | None = None,
+        default_output_format: OutputFormat = 'markdown',
+        transport_security: TransportSecuritySettings | None = None,
+) -> list[Middleware]:
+    """Build ASGI middlewares for FastMCP HTTP transports."""
+    middlewares: list[Middleware] = [
+        Middleware(
+            cls=SecretAPIKeyMiddleware,
+            expected_hash=secret_api_key_hash,
+        ),
+    ]
+    if transport_security is not None:
+        middlewares.insert(
+            0,
+            Middleware(
+                cls=McpTransportSecurityHTTPMiddleware,
+                settings=transport_security,
+            ),
         )
-        app.add_middleware(middleware_class=McpUsernameHeaderMiddleware)
-        app.add_middleware(
-            middleware_class=McpTransportSecurityHTTPMiddleware,
-            settings=self.transport_security,
+    middlewares.append(
+        Middleware(
+            cls=OutputFormatMiddleware,
+            default_format=default_output_format,
         )
-        app.add_middleware(
-            middleware_class=SecretAPIKeyMiddleware,
-            expected_hash=self.secret_api_key_hash,
-        )
-        return app
-
-    def sse_app(self, mount_path: str | None = None) -> Starlette:
-        return self._add_middlewares(super().sse_app(mount_path))
-
-    def streamable_http_app(self) -> Starlette:
-        return self._add_middlewares(super().streamable_http_app())
+    )
+    middlewares.append(
+        Middleware(cls=McpUsernameHeaderMiddleware)
+    )
+    return middlewares
 
 
 def register_tools(
-    mcp_server: MCPServer,
+    mcp_server: FastMCP,
 ) -> None:
     """Register each entry in *tool_mapping* on *mcp_server*.
 
@@ -207,10 +193,7 @@ def create_mcp_server(
         api_base_url: str | None = None,
         username: str | None = None,
         password: str | None = None,
-        allowed_hosts: list[str] | None = None,
-        default_output_format: OutputFormat = 'markdown',
-        secret_api_key_hash: str | None = None,
-) -> MCPServer:
+) -> FastMCP:
     """Create and configure the MCP server."""
 
     config = Config.from_env_and_args(api_base_url, username, password)
@@ -220,32 +203,12 @@ def create_mcp_server(
 
     resource_manager = ResourceManager(config.resource_path)
 
-    # Configure transport security settings
-    transport_security = None
-    if allowed_hosts:
-        # Build allowed hosts patterns with wildcard ports
-        allowed_host_patterns = [f"{h}:*" for h in allowed_hosts]
-        # Also add without port for exact matches
-        allowed_host_patterns.extend(allowed_hosts)
-        _LOG.info(f'Configuring allowed hosts: {allowed_host_patterns}')
-        transport_security = TransportSecuritySettings(
-            enable_dns_rebinding_protection=True,
-            allowed_hosts=allowed_host_patterns,
-            allowed_origins=(
-                    [f"http://{h}:*" for h in allowed_hosts]
-                    + [f"https://{h}:*" for h in allowed_hosts]
-            ),
-        )
-
-    mcp = MCPServer(
+    mcp = FastMCP(
         name=APP_NAME,
         instructions=(
             "Manage and interact with Syndicate RightSizer (R8S) through API. "
             "Before answering any user question about R8S, review the documentation"
-        ),
-        default_output_format=default_output_format,
-        secret_api_key_hash=secret_api_key_hash,
-        transport_security=transport_security,
+        )
     )
 
     register_tools(mcp)
@@ -269,6 +232,23 @@ def main(
     """Run the MCP server."""
     try:
 
+        # Configure transport security settings
+        transport_security = None
+        if allowed_hosts:
+            # Build allowed hosts patterns with wildcard ports
+            allowed_host_patterns = [f"{h}:*" for h in allowed_hosts]
+            # Also add without port for exact matches
+            allowed_host_patterns.extend(allowed_hosts)
+            _LOG.info(f'Configuring allowed hosts: {allowed_host_patterns}')
+            transport_security = TransportSecuritySettings(
+                enable_dns_rebinding_protection=True,
+                allowed_hosts=allowed_host_patterns,
+                allowed_origins=(
+                        [f"http://{h}:*" for h in allowed_hosts]
+                        + [f"https://{h}:*" for h in allowed_hosts]
+                ),
+            )
+
         # -- resolve API-key hash ----------------------------------------------
         secret_api_key_hash = load_expected_hash()
 
@@ -285,9 +265,6 @@ def main(
             api_base_url=api_base_url,
             username=username,
             password=password,
-            allowed_hosts=allowed_hosts,
-            default_output_format=default_output_format,
-            secret_api_key_hash=secret_api_key_hash,
         )
 
         if transport == 'stdio':
@@ -303,6 +280,12 @@ def main(
             port=port,
             transport=transport,
             stateless_http=True,
+            middleware=build_http_middlewares(
+                secret_api_key_hash=secret_api_key_hash,
+                default_output_format=default_output_format,
+                transport_security=transport_security,
+            ),
+            show_banner=False,
         )
 
     except ConnectionError as e:
