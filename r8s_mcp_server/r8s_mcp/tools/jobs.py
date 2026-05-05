@@ -27,7 +27,7 @@ async def submit_job(
         scan_tenants: list[str] | None = None,
         scan_from_date: str | None = None,
         scan_to_date: str | None = None,
-        force_rescan: bool | None = None,
+        force_rescan: bool = True,
 ) -> list[Content]:
     """
     Submit a new job to the Syndicate RightSizer

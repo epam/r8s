@@ -2,6 +2,8 @@ import asyncio
 import httpx
 from typing import Any, Dict, Optional
 
+from httpx import ConnectError
+
 from r8s_mcp.commons.constants import PARAM_TYPES, R8SEndpoint, PARAM_ID, \
     PARAM_NAME, \
     PARAM_LIMIT, PARAM_APPLICATION_ID, PARAM_PARENT_ID, PARAM_TENANTS, \
@@ -142,6 +144,10 @@ class R8SClient:
             )
 
         except httpx.HTTPError as e:
+            if isinstance(e, (ConnectError, ConnectionError)):
+                _LOG.error(f'Failed to connect to R8S API: {e}')
+                return {'error': 'Connection failed'}
+
             if e.response.status_code == 503:
                 _LOG.error('R8S API is unavailable')
                 return e.response.json()
