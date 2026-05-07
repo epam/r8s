@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
-import os
 
 from r8s_mcp.commons.constants import MCPEnv
 
