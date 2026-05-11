@@ -21,11 +21,11 @@ R8S reviews existing virtual instances and produces the following types of recom
 
 ## Tool Usage Map
 
-| User Intent | Primary Tool(s) |
-|-------------|-----------------|
-| Start a new scan / trigger analysis | `submit_job` |
-| Check scan history, status, or progress | `get_jobs` |
-| View optimization recommendations | `get_recommendations` |
+| User Intent                             | Primary Tool(s)       |
+|-----------------------------------------|-----------------------|
+| Start a new scan / trigger analysis     | `submit_job`          |
+| Check scan history, status, or progress | `get_jobs`            |
+| View optimization recommendations       | `get_recommendations` |
 
 ## Usage Guidelines
 - Always prefer the **most specific tool** for the user's request.
