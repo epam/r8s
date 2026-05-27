@@ -70,6 +70,8 @@ PARAM_SERVICE = 'service'
 PARAM_BUCKET_NAME = 'bucket_name'
 PARAM_PREFIX = 'prefix'
 PARAM_ROLE = 'role'
+PARAM_ROLES = 'roles'
+PARAM_EFFECT = 'effect'
 
 PARAM_ACCESS = 'access'
 PARAM_DATASOURCE = 'data_source'

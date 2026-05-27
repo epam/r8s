@@ -11,13 +11,16 @@ def policy():
 @policy.command(cls=ViewCommand, name='describe')
 @click.option('--policy_name', '-name', type=str,
               help='Policy name to describe')
+@click.option('--customer', '-c', type=str, default=None,
+              help='Customer to describe policies for. Defaults to user\'s own customer.')
 @cli_response()
-def describe(policy_name=None):
+def describe(policy_name=None, customer=None):
     """
     Describes a R8s policies
     """
     from r8scli.service.initializer import init_configuration
-    return init_configuration().policy_get(policy_name=policy_name)
+    return init_configuration().policy_get(policy_name=policy_name,
+                                           customer=customer)
 
 
 @policy.command(cls=ViewCommand, name='add')
@@ -30,8 +33,16 @@ def describe(policy_name=None):
 @click.option('--path_to_permissions', '-path', required=False,
               help='Path to .json file that contains list of permissions to '
                    'attach to the policy')
+@click.option('--effect', '-e', type=click.Choice(['allow', 'deny']),
+              default='allow', show_default=True,
+              help='Policy effect: allow or deny.')
+@click.option('--tenant', '-t', multiple=True,
+              help='Tenant this policy applies to. Can be specified multiple times.')
+@click.option('--customer', '-c', type=str, default=None,
+              help='Customer to create the policy for. Defaults to user\'s own customer.')
 @cli_response()
-def add(policy_name, permission, permissions_admin, path_to_permissions):
+def add(policy_name, permission, permissions_admin, path_to_permissions,
+        effect, tenant, customer):
     """
     Creates a R8s policy
     """
@@ -41,7 +52,10 @@ def add(policy_name, permission, permissions_admin, path_to_permissions):
         policy_name=policy_name,
         permissions=permissions,
         permissions_admin=permissions_admin,
-        path_to_permissions=path_to_permissions
+        path_to_permissions=path_to_permissions,
+        effect=effect,
+        tenants=list(tenant),
+        customer=customer
     )
 
 
@@ -52,8 +66,10 @@ def add(policy_name, permission, permissions_admin, path_to_permissions):
               help='Names of permissions to attach to the policy')
 @click.option('--detach_permission', '-d', multiple=True, required=False,
               help='Names of permissions to detach from the policy')
+@click.option('--customer', '-c', type=str, default=None,
+              help='Customer whose policy to update. Defaults to user\'s own customer.')
 @cli_response()
-def update(policy_name, attach_permission, detach_permission):
+def update(policy_name, attach_permission, detach_permission, customer):
     """
     Updates list of permissions attached to the policy
     """
@@ -69,18 +85,19 @@ def update(policy_name, attach_permission, detach_permission):
         policy_name=policy_name,
         attach_permissions=attach_permissions,
         detach_permissions=detach_permissions,
-    )
+        customer=customer)
 
 
 @policy.command(cls=ViewCommand, name='delete')
 @click.option('--policy_name', '-name', type=str, required=True,
               help='Policy name to delete')
+@click.option('--customer', '-c', type=str, default=None,
+              help='Customer whose policy to delete. Defaults to user\'s own customer.')
 @cli_response()
-def delete(policy_name):
+def delete(policy_name, customer):
     """
     Deletes r8s policy
     """
     from r8scli.service.initializer import init_configuration
-    if policy_name:
-        policy_name = policy_name.lower()
-    return init_configuration().policy_delete(policy_name=policy_name.lower())
+    return init_configuration().policy_delete(policy_name=policy_name,
+                                              customer=customer)

@@ -12,6 +12,7 @@ _LOG = get_logger('cognitoclient')
 CUSTOM_ROLE_ATTR = 'custom:r8s_role'
 CUSTOM_CUSTOMER_ATTR = 'custom:customer'
 CUSTOM_LATEST_LOGIN_ATTR = 'custom:latest_login'
+CUSTOM_TENANTS_ATTR = 'custom:tenants'
 SUB_ATTR = 'sub'
 
 PARAM_USER_POOLS = 'UserPools'
@@ -74,8 +75,9 @@ class CognitoClient(BaseAuthClient):
         self.client.respond_to_auth_challenge(ClientId=client_id,
                                               ChallengeName=challenge_name)
 
-    def sign_up(self, username, password, customer, role, tenants=None):
+    def sign_up(self, username, password, customer, roles, tenants=None):
         client_id = self.__get_client_id()
+        roles_value = ','.join(roles) if isinstance(roles, list) else (roles or '')
         custom_attr = [{
             'Name': 'name',
             'Value': username
@@ -84,8 +86,13 @@ class CognitoClient(BaseAuthClient):
             'Value': customer
         }, {
             'Name': CUSTOM_ROLE_ATTR,
-            'Value': role
+            'Value': roles_value
         }]
+        if tenants:
+            custom_attr.append({
+                'Name': CUSTOM_TENANTS_ATTR,
+                'Value': ','.join(tenants)
+            })
         validation_data = [
             {
                 'Name': 'name',
@@ -152,18 +159,21 @@ class CognitoClient(BaseAuthClient):
             if attr['Name'] == attr_name:
                 return attr['Value']
 
-    def get_user_role(self, username):
-        return self._get_user_attr(username, CUSTOM_ROLE_ATTR)
+    def get_user_roles(self, username) -> list:
+        raw = self._get_user_attr(username, CUSTOM_ROLE_ATTR)
+        if not raw:
+            return []
+        return [r.strip() for r in raw.split(',') if r.strip()]
 
     def get_user_id(self, username):
         return self._get_user_attr(username, SUB_ATTR)
 
-    def update_role(self, username, role):
+    def update_roles(self, username, roles: list):
         user_pool_id = self.__get_user_pool_id()
         role_attribute = [
             {
                 'Name': CUSTOM_ROLE_ATTR,
-                'Value': role
+                'Value': ','.join(roles)
             }
         ]
         self.client.admin_update_user_attributes(UserPoolId=user_pool_id,
@@ -238,6 +248,12 @@ class CognitoClient(BaseAuthClient):
 
     def get_user_customer(self, username):
         return self._get_user_attr(username, CUSTOM_CUSTOMER_ATTR)
+
+    def get_user_tenants(self, username: str) -> list:
+        raw = self._get_user_attr(username, CUSTOM_TENANTS_ATTR)
+        if not raw:
+            return []
+        return [t.strip() for t in raw.split(',') if t.strip()]
 
     def delete_user(self, username):
         return self.client.admin_delete_user(

@@ -65,13 +65,14 @@ class AdapterClient:
         SYSTEM_LOG.debug(f'API response info: {response}')
         return response
 
-    def register(self, username, password, customer, role_name):
+    def register(self, username, password, customer, role_names, tenants=None):
         request = {
             PARAM_USERNAME: username,
             PARAM_PASSWORD: password,
             PARAM_CUSTOMER: customer,
-            PARAM_ROLE: role_name
+            PARAM_ROLES: role_names
         }
+        request[PARAM_TENANTS] = tenants or []
         response = self.__make_request(
             resource=API_SIGNUP,
             method=HTTP_POST,
@@ -153,15 +154,18 @@ class AdapterClient:
                                  "Please check your configuration."},
                 code=400)
 
-    def policy_get(self, policy_name):
+    def policy_get(self, policy_name, customer=None):
         request = {}
         if policy_name:
             request[PARAM_NAME] = policy_name
+        if customer:
+            request[PARAM_CUSTOMER] = customer
         return self.__make_request(resource=API_POLICY, method=HTTP_GET,
                                    payload=request)
 
-    def policy_post(self, policy_name, permissions,
-                    permissions_admin, path_to_permissions):
+    def policy_post(self, policy_name, permissions, permissions_admin,
+                    path_to_permissions, effect=None, tenants=None,
+                    customer=None):
         request = {PARAM_NAME: policy_name}
         if permissions:
             request[PARAM_PERMISSIONS] = permissions
@@ -175,6 +179,12 @@ class AdapterClient:
                 request[PARAM_PERMISSIONS].extend(content)
             else:
                 request[PARAM_PERMISSIONS] = content
+        if effect:
+            request[PARAM_EFFECT] = effect
+        if tenants:
+            request[PARAM_TENANTS] = tenants
+        if customer:
+            request[PARAM_CUSTOMER] = customer
         return self.__make_request(resource=API_POLICY, method=HTTP_POST,
                                    payload=request)
 
@@ -196,38 +206,46 @@ class AdapterClient:
         return content
 
     def policy_patch(self, policy_name, attach_permissions,
-                     detach_permissions):
+                     detach_permissions, customer=None):
         request = {PARAM_NAME: policy_name}
         if attach_permissions:
             request[PERMISSIONS_TO_ATTACH] = attach_permissions
         if detach_permissions:
             request[PERMISSIONS_TO_DETACH] = detach_permissions
+        if customer:
+            request[PARAM_CUSTOMER] = customer
         return self.__make_request(resource=API_POLICY, method=HTTP_PATCH,
                                    payload=request)
 
-    def policy_delete(self, policy_name):
+    def policy_delete(self, policy_name, customer=None):
         request = {PARAM_NAME: policy_name}
+        if customer:
+            request[PARAM_CUSTOMER] = customer
         return self.__make_request(resource=API_POLICY, method=HTTP_DELETE,
                                    payload=request)
 
-    def role_get(self, role_name):
+    def role_get(self, role_name, customer=None):
         request = {}
         if role_name:
             request[PARAM_NAME] = role_name
+        if customer:
+            request[PARAM_CUSTOMER] = customer
         return self.__make_request(resource=API_ROLE, method=HTTP_GET,
                                    payload=request)
 
-    def role_post(self, role_name, expiration, policies):
+    def role_post(self, role_name, expiration, policies, customer=None):
         request = {PARAM_NAME: role_name,
                    PARAM_POLICIES: policies}
         if expiration:
             request[PARAM_EXPIRATION] = expiration
+        if customer:
+            request[PARAM_CUSTOMER] = customer
         return self.__make_request(resource=API_ROLE, method=HTTP_POST,
                                    payload=request)
 
     def role_patch(self, role_name, expiration,
-                   attach_policies,
-                   detach_policies):
+                   attach_policies, detach_policies,
+                   customer=None):
         request = {PARAM_NAME: role_name}
         if expiration:
             request[PARAM_EXPIRATION] = expiration
@@ -235,12 +253,16 @@ class AdapterClient:
             request[POLICIES_TO_ATTACH] = attach_policies
         if detach_policies:
             request[POLICIES_TO_DETACH] = detach_policies
+        if customer:
+            request[PARAM_CUSTOMER] = customer
         request = {k: v for k, v in request.items() if v}
         return self.__make_request(resource=API_ROLE, method=HTTP_PATCH,
                                    payload=request)
 
-    def role_delete(self, role_name):
+    def role_delete(self, role_name, customer=None):
         request = {PARAM_NAME: role_name}
+        if customer:
+            request[PARAM_CUSTOMER] = customer
         return self.__make_request(resource=API_ROLE, method=HTTP_DELETE,
                                    payload=request)
 

@@ -1,6 +1,6 @@
 from commons import RESPONSE_BAD_REQUEST_CODE, build_response, RESPONSE_OK_CODE
 from commons.constants import POST_METHOD, USERNAME_ATTR, PASSWORD_ATTR, \
-    ROLE_ATTR, CUSTOMER_ATTR
+    ROLES_ATTR, CUSTOMER_ATTR, TENANTS_ATTR
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -22,26 +22,32 @@ class SignUpProcessor(AbstractCommandProcessor):
     def post(self, event):
         username = event.get(USERNAME_ATTR)
         password = event.get(PASSWORD_ATTR)
-        role = event.get(ROLE_ATTR)
+        roles = event.get(ROLES_ATTR)
         customer = event.get(CUSTOMER_ATTR)
-        _LOG.debug(f'Sign up event: Customer: {customer}, role: {role}, '
+        tenants = event.get(TENANTS_ATTR) or []
+        _LOG.debug(f'Sign up event: Customer: {customer}, roles: {roles}, '
                    f'username: {username}')
-        if not all([username, password, customer, role]):
+        if not all([username, password, customer, roles]):
             _LOG.error('You must specify all required parameters: username, '
-                       'password, customer, role.')
+                       'password, customer, roles.')
             raise build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
                 content='You must specify all required parameters: username, '
-                        'password, customer, role.')
+                        'password, customer, roles.')
 
-        if not self.access_control_service.role_exists(role):
-            _LOG.error(f'Invalid role name: {role}')
+        if not isinstance(roles, list):
+            roles = [roles]
+
+        non_existing = self.access_control_service.get_non_existing_roles(
+            roles=roles)
+        if non_existing:
+            _LOG.error(f'Invalid role names: {non_existing}')
             raise build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Invalid role name: {role}')
-        _LOG.debug(f'Role \'{role}\' exists')
+                content=f'Invalid role names: {", ".join(non_existing)}')
         self.user_service.save(username=username, password=password,
-                               customer=customer, role=role)
+                               customer=customer, roles=roles,
+                               tenants=tenants)
         _LOG.debug(f'Saving user: {username}')
         return build_response(
             code=RESPONSE_OK_CODE,

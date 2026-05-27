@@ -2,7 +2,9 @@ from commons import RESPONSE_BAD_REQUEST_CODE, build_response, RESPONSE_RESOURCE
     validate_params
 from commons.constants import GET_METHOD, POST_METHOD, DELETE_METHOD, \
     PATCH_METHOD, NAME_ATTR, PERMISSIONS_ATTR, \
-    PERMISSIONS_ADMIN_ATTR, PERMISSIONS_TO_ATTACH, PERMISSIONS_TO_DETACH
+    PERMISSIONS_ADMIN_ATTR, PERMISSIONS_TO_ATTACH, PERMISSIONS_TO_DETACH, \
+    CUSTOMER_ATTR, PARAM_USER_TENANT_ACCESS, TENANTS_ATTR, EFFECT_ATTR
+from services.abstract_api_handler_lambda import PARAM_USER_CUSTOMER
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -29,13 +31,16 @@ class PolicyProcessor(AbstractCommandProcessor):
 
     def get(self, event):
         _LOG.debug(f'Get policy event: {event}')
+        user_customer = event.get(PARAM_USER_CUSTOMER)
+        customer = None if user_customer == 'admin' else user_customer
         policy_name = event.get(NAME_ATTR)
         if policy_name:
             _LOG.debug(f'Extracting policy with name \'{policy_name}\'')
-            policies = [self.iam_service.policy_get(policy_name=policy_name)]
+            policies = [self.iam_service.policy_get(
+                policy_name=policy_name, customer=customer)]
         else:
             _LOG.debug(f'Extracting all available policies')
-            policies = self.iam_service.list_policies()
+            policies = self.iam_service.list_policies(customer=customer)
 
         if not policies or policies \
                 and all([policy is None for policy in policies]):
@@ -44,6 +49,22 @@ class PolicyProcessor(AbstractCommandProcessor):
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
                 content='No policies found matching given query.'
             )
+
+        tap = event.get(PARAM_USER_TENANT_ACCESS)
+        if tap and not tap.is_allowed_for_all_tenants():
+            policies = [
+                p for p in policies
+                if p and (
+                    '*' in (p.tenants or [])
+                    or any(tap.is_allowed_for(t) for t in (p.tenants or []))
+                )
+            ]
+            if not policies:
+                _LOG.debug('No policies found matching given query.')
+                return build_response(
+                    code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
+                    content='No policies found matching given query.'
+                )
 
         policies_dto = [policy.get_dto() for policy in policies]
         _LOG.debug(f'Policies to return: {policies_dto}')
@@ -66,9 +87,20 @@ class PolicyProcessor(AbstractCommandProcessor):
                 content=f'One of the attributes \'{required}\' must be '
                         f'specified'
             )
+        user_customer = event.get(PARAM_USER_CUSTOMER)
+        requested_customer = event.get(CUSTOMER_ATTR)
+        if requested_customer and user_customer != 'admin' \
+                and requested_customer != user_customer:
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'You are not allowed to create policies for customer '
+                        f'\'{requested_customer}\'.'
+            )
+        customer = requested_customer or user_customer
         policy_name = event.get(NAME_ATTR)
 
-        if self.access_control_service.policy_exists(name=policy_name):
+        if self.access_control_service.policy_exists(name=policy_name,
+                                                     customer=customer):
             _LOG.debug(f'Policy with name \'{policy_name}\' already exists.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
@@ -91,10 +123,17 @@ class PolicyProcessor(AbstractCommandProcessor):
         elif event.get(PERMISSIONS_ADMIN_ATTR, None):
             permissions = self.access_control_service.get_admin_permissions()
 
+        effect = event.get(EFFECT_ATTR)
+        tenants = event.get(TENANTS_ATTR) or []
+
         policy_data = {
             NAME_ATTR: policy_name,
-            PERMISSIONS_ATTR: permissions
+            PERMISSIONS_ATTR: permissions,
+            CUSTOMER_ATTR: customer,
+            TENANTS_ATTR: tenants,
         }
+        if effect:
+            policy_data[EFFECT_ATTR] = effect
         _LOG.debug(f'Going to create policy with data: {policy_data}')
         policy = self.access_control_service.create_policy(
             policy_data=policy_data)
@@ -113,6 +152,16 @@ class PolicyProcessor(AbstractCommandProcessor):
         _LOG.debug(f'Update policy event: {event}')
         validate_params(event, (NAME_ATTR,))
 
+        user_customer = event.get(PARAM_USER_CUSTOMER)
+        requested_customer = event.get(CUSTOMER_ATTR)
+        if requested_customer and user_customer != 'admin' \
+                and requested_customer != user_customer:
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'You are not allowed to update policies for customer '
+                        f'\'{requested_customer}\'.'
+            )
+        customer = requested_customer or user_customer
         policy_name = event.get(NAME_ATTR)
         permissions = event.get(PERMISSIONS_ATTR)
         to_attach = event.get(PERMISSIONS_TO_ATTACH)
@@ -128,13 +177,15 @@ class PolicyProcessor(AbstractCommandProcessor):
                 content=f'One of the following arguments \'{required}\' must '
                         f'be provided.'
             )
-        if not self.access_control_service.policy_exists(name=policy_name):
+        if not self.access_control_service.policy_exists(name=policy_name,
+                                                         customer=customer):
             _LOG.debug(f'Policy with name \'{policy_name}\' does not exist.')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
                 content=f'Policy with name \'{policy_name}\' does not exist.'
             )
-        policy = self.access_control_service.get_policy(name=policy_name)
+        policy = self.access_control_service.get_policy(name=policy_name,
+                                                        customer=customer)
         if permissions:
             _LOG.debug(f'Going to reset permissions for policy with name '
                        f'\'{policy_name}\'. Permissions: {permissions}')
@@ -196,15 +247,27 @@ class PolicyProcessor(AbstractCommandProcessor):
         _LOG.debug(f'Delete policy event: {event}')
         validate_params(event, (NAME_ATTR,))
 
+        user_customer = event.get(PARAM_USER_CUSTOMER)
+        requested_customer = event.get(CUSTOMER_ATTR)
+        if requested_customer and user_customer != 'admin' \
+                and requested_customer != user_customer:
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'You are not allowed to delete policies for customer '
+                        f'\'{requested_customer}\'.'
+            )
+        customer = requested_customer or user_customer
         policy_name = event.get(NAME_ATTR)
-        if not self.access_control_service.policy_exists(name=policy_name):
+        if not self.access_control_service.policy_exists(name=policy_name,
+                                                         customer=customer):
             _LOG.debug(f'Policy with name \'{policy_name}\' does not exist.')
             return build_response(
                 code=RESPONSE_OK_CODE,
                 content=f'Policy with name \'{policy_name}\' does not exist.'
             )
         _LOG.debug(f'Extracting policy with name \'{policy_name}\'')
-        policy = self.access_control_service.get_policy(name=policy_name)
+        policy = self.access_control_service.get_policy(name=policy_name,
+                                                        customer=customer)
         _LOG.debug(f'Deleting policy')
         self.access_control_service.delete_entity(policy)
         _LOG.debug(f'Policy with name \'{policy_name}\' has been deleted.')
