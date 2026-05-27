@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Optional, Tuple, Union
 
 from modular_sdk.commons import generate_id
 from modular_sdk.commons.constants import RIGHTSIZER_PARENT_TYPE, \
@@ -197,6 +197,44 @@ class RightSizerParentService(ParentService):
         _LOG.debug(f'Tenants will be excluded from scan: '
                    f'{exclude_tenant_names}')
         return list(set(tenant_names) - exclude_tenant_names)
+
+    def resolve_application_id_for_tenants(
+            self, customer_id: str,
+            tenant_names: List[str]) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Resolves the RIGHTSIZER_LICENSES application id by running the parent
+        scope priority chain (DISABLED > SPECIFIC > ALL) for each tenant.
+
+        Returns (application_id, None) when all tenants resolve to the same
+        application, or (None, error_message) when a tenant is DISABLED, has
+        no matching parent, or tenants resolve to different applications.
+        """
+        resolved = {}
+        for name in tenant_names:
+            tenant = self.tenant_service.get(tenant_name=name)
+            if not tenant:
+                return None, f'Tenant \'{name}\' not found'
+            parent = self.get_linked_parent_by_tenant(
+                tenant=tenant,
+                type_=RIGHTSIZER_LICENSES_PARENT_TYPE
+            )
+            if parent is None:
+                return None, (
+                    f'No active {RIGHTSIZER_LICENSES_PARENT_TYPE} parent '
+                    f'found for tenant \'{name}\'. It may be disabled or '
+                    f'not configured.'
+                )
+            resolved[name] = parent.application_id
+
+        app_ids = set(resolved.values())
+        if len(app_ids) > 1:
+            mapping = ', '.join(f'{t}: {a}' for t, a in resolved.items())
+            return None, (
+                f'Tenants resolve to different '
+                f'{RIGHTSIZER_LICENSES_PARENT_TYPE} applications: {mapping}. '
+                f'Please specify application_id explicitly.'
+            )
+        return next(iter(app_ids)), None
 
     def resolve_tenant_names(self, parents: List[Parent], cloud) -> List[str]:
         tenant_names = []
