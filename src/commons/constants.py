@@ -18,6 +18,9 @@ PASSWORD_ATTR = 'password'
 ID_TOKEN_ATTR = 'id_token'
 REFRESH_TOKEN_ATTR = 'refresh_token'
 ROLE_ATTR = 'role'
+ROLES_ATTR = 'roles'
+ROLES_TO_ATTACH = 'roles_to_attach'
+ROLES_TO_DETACH = 'roles_to_detach'
 
 RESOURCE_TYPE_ATTR = 'resource_type'
 ALGORITHM_ATTR = 'algorithm'
@@ -64,6 +67,7 @@ JOB_DEFINITION_ATTR = 'job_definition'
 PARAM_NATIVE_JOB_ID = 'jobId'
 TENANT_ATTR = 'tenant'
 TENANTS_ATTR = 'tenants'
+EFFECT_ATTR = 'effect'
 SCAN_TIMESTAMP_ATTR = 'scan_timestamp'
 SCAN_FROM_DATE_ATTR = 'scan_from_date'
 FORCE_RESCAN_ATTR = 'force_rescan'
@@ -373,3 +377,8 @@ ALLOWED_RESOURCE_GROUPS_ATTR = 'allowed_resource_groups'
 ALLOWED_TAGS_ATTR = 'allowed_tags'
 
 ERROR_NO_APPLICATION_FOUND = 'No application found matching given query.'
+
+TENANT_SCOPED_PERMISSION_GROUPS = frozenset({
+    'r8s:job', 'r8s:parent', 'r8s:report', 'r8s:recommendation', 'r8s:iam',
+})
+PARAM_USER_TENANT_ACCESS = 'user_tenant_access'

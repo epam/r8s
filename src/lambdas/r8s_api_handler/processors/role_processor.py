@@ -1,13 +1,12 @@
 from datetime import datetime
 
-from modular_sdk.services.customer_service import CustomerService
-
 from commons import RESPONSE_BAD_REQUEST_CODE, build_response, \
     RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
     validate_params
 from commons.constants import GET_METHOD, POST_METHOD, PATCH_METHOD, \
     DELETE_METHOD, NAME_ATTR, EXPIRATION_ATTR, POLICIES_ATTR, \
-    POLICIES_TO_ATTACH, POLICIES_TO_DETACH, RESOURCE_ATTR
+    POLICIES_TO_ATTACH, POLICIES_TO_DETACH, CUSTOMER_ATTR
+from services.abstract_api_handler_lambda import PARAM_USER_CUSTOMER
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -21,11 +20,10 @@ _LOG = get_logger('r8s-role-processor')
 class RoleProcessor(AbstractCommandProcessor):
     def __init__(self, user_service: CognitoUserService,
                  access_control_service: AccessControlService,
-                 iam_service: IamService, customer_service: CustomerService):
+                 iam_service: IamService):
         self.user_service = user_service
         self.access_control_service = access_control_service
         self.iam_service = iam_service
-        self.customer_service = customer_service
         self.method_to_handler = {
             GET_METHOD: self.get,
             POST_METHOD: self.post,
@@ -35,13 +33,16 @@ class RoleProcessor(AbstractCommandProcessor):
 
     def get(self, event):
         _LOG.debug(f'Get role event: {event}')
+        user_customer = event.get(PARAM_USER_CUSTOMER)
+        customer = None if user_customer == 'admin' else user_customer
         role_name = event.get(NAME_ATTR)
         if role_name:
             _LOG.debug(f'Extracting role with name \'{role_name}\'')
-            roles = [self.iam_service.role_get(role_name=role_name)]
+            roles = [self.iam_service.role_get(role_name=role_name,
+                                               customer=customer)]
         else:
             _LOG.debug(f'Extracting all available roles')
-            roles = self.iam_service.list_roles()
+            roles = self.iam_service.list_roles(customer=customer)
 
         if not roles:
             _LOG.debug('No roles found matching given query.')
@@ -69,6 +70,16 @@ class RoleProcessor(AbstractCommandProcessor):
                 content=error
             )
 
+        user_customer = event.get(PARAM_USER_CUSTOMER)
+        requested_customer = event.get(CUSTOMER_ATTR)
+        if requested_customer and user_customer != 'admin' \
+                and requested_customer != user_customer:
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'You are not allowed to create roles for customer '
+                        f'\'{requested_customer}\'.'
+            )
+        customer = requested_customer or user_customer
         role_name = event.get(NAME_ATTR)
         policies = event.get(POLICIES_ATTR)
 
@@ -82,7 +93,8 @@ class RoleProcessor(AbstractCommandProcessor):
                         f'strings.'
             )
 
-        if self.access_control_service.role_exists(name=role_name):
+        if self.access_control_service.role_exists(name=role_name,
+                                                   customer=customer):
             _LOG.error(f'Role with name \'{role_name}\' already exists.')
             return build_response(
                 code=RESPONSE_BAD_REQUEST_CODE,
@@ -98,22 +110,12 @@ class RoleProcessor(AbstractCommandProcessor):
             return build_response(code=RESPONSE_BAD_REQUEST_CODE,
                                   content=error_message)
 
-        resource = event.get(RESOURCE_ATTR)
-
-        if resource and not self.customer_service.get(name=resource):
-            _LOG.warning(f'Customer with name \'{resource}\' does not exist.')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'Customer with name \'{resource}\' does not exist.'
-            )
-
         role_data = {
             NAME_ATTR: role_name,
             EXPIRATION_ATTR: expiration,
-            POLICIES_ATTR: policies
+            POLICIES_ATTR: policies,
+            CUSTOMER_ATTR: customer,
         }
-        if resource:
-            role_data[RESOURCE_ATTR]: resource
 
         _LOG.debug(f'Creating role from data: {role_data}')
         role = self.access_control_service.create_role(role_data=role_data)
@@ -132,8 +134,19 @@ class RoleProcessor(AbstractCommandProcessor):
         _LOG.debug(f'Patch role event" {event}')
         validate_params(event, (NAME_ATTR,))
 
+        user_customer = event.get(PARAM_USER_CUSTOMER)
+        requested_customer = event.get(CUSTOMER_ATTR)
+        if requested_customer and user_customer != 'admin' \
+                and requested_customer != user_customer:
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'You are not allowed to update roles for customer '
+                        f'\'{requested_customer}\'.'
+            )
+        customer = requested_customer or user_customer
         role_name = event.get(NAME_ATTR)
-        if not self.access_control_service.role_exists(name=role_name):
+        if not self.access_control_service.role_exists(name=role_name,
+                                                       customer=customer):
             _LOG.error(f'Role with name \'{role_name}\' does not exist.')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
@@ -141,7 +154,8 @@ class RoleProcessor(AbstractCommandProcessor):
             )
 
         _LOG.debug(f'Extracting role with name \'{role_name}\'')
-        role = self.access_control_service.get_role(name=role_name)
+        role = self.access_control_service.get_role(name=role_name,
+                                                    customer=customer)
 
         expiration = event.get(EXPIRATION_ATTR)
         if expiration:
@@ -201,15 +215,27 @@ class RoleProcessor(AbstractCommandProcessor):
         _LOG.debug(f'Delete role event: {event}')
         validate_params(event, (NAME_ATTR,))
 
+        user_customer = event.get(PARAM_USER_CUSTOMER)
+        requested_customer = event.get(CUSTOMER_ATTR)
+        if requested_customer and user_customer != 'admin' \
+                and requested_customer != user_customer:
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'You are not allowed to delete roles for customer '
+                        f'\'{requested_customer}\'.'
+            )
+        customer = requested_customer or user_customer
         role_name = event.get(NAME_ATTR)
-        if not self.access_control_service.role_exists(name=role_name):
+        if not self.access_control_service.role_exists(name=role_name,
+                                                       customer=customer):
             _LOG.debug(f'Role with name \'{role_name}\' does not exist.')
             return build_response(
                 code=RESPONSE_OK_CODE,
                 content=f'Role with name \'{role_name}\' does not exist.'
             )
         _LOG.debug(f'Extracting role with name \'{role_name}\'')
-        role = self.access_control_service.get_role(name=role_name)
+        role = self.access_control_service.get_role(name=role_name,
+                                                    customer=customer)
         _LOG.debug(f'Deleting role')
         self.access_control_service.delete_entity(role)
         _LOG.debug(f'Role with name \'{role_name}\' has been deleted.')

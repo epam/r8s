@@ -4,8 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.14.0] - 2025-09-10
-- Updated the ami-initialize.sh script to migrate the Helm APT repository to Buildkite as per the changes detailed in https://helm.sh/blog/debian-helm-repository-move/
+## [3.14.0] - 2026-05-27
+* Implement tenant-level RBAC permissions:
+  * `Policy` model extended with `effect` (`allow`/`deny`), `tenants` fields
+  * User-level tenant restriction applied on top of policy-level access
+* Users now support multiple roles
+  * Access control aggregates policies from all non-expired roles
+  * `r8s register`: `--role_name` is now repeatable; `--tenant` added as required repeatable parameter
+  * `r8s user update`: added `--roles_to_attach` / `--roles_to_detach` parameters
+* Admin customer (`admin`) improvements:
+  * Admin users can describe/manage entities across all customers
+  * Admin users can specify `--customer` on `r8s role add`, `r8s policy add/update/delete/describe` to target other customers; non-admin users are restricted to their own customer
+  * Removed unconditional allow-all tenant shortcut for admin users — admin access now driven by policy `tenants` field
+* Added cli command for listing tenants: `r8s tenant describe`
+* Updated the ami-initialize.sh script to migrate the Helm APT repository to Buildkite as per the changes detailed in https://helm.sh/blog/debian-helm-repository-move/
 
 ## [3.13.0] - 2025-06-02
 * Extend resource group support:

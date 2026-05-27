@@ -2,7 +2,7 @@ from typing import List
 
 from modular_sdk.commons.constants import AWS_CLOUD, AZURE_CLOUD, GOOGLE_CLOUD, \
     TENANT_PARENT_MAP_RIGHTSIZER_LICENSES_TYPE, RIGHTSIZER_LICENSES_TYPE, \
-    ParentType
+    ParentType, ParentScope
 from modular_sdk.models.parent import Parent
 from modular_sdk.services.customer_service import CustomerService
 from modular_sdk.services.tenant_service import TenantService
@@ -12,7 +12,7 @@ from commons import RESPONSE_BAD_REQUEST_CODE, build_response, \
     validate_params
 from commons.constants import GET_METHOD, POST_METHOD, DELETE_METHOD, \
     PARENT_ID_ATTR, APPLICATION_ID_ATTR, DESCRIPTION_ATTR, \
-    CLOUD_ALL, SCOPE_ATTR, TENANT_ATTR, FORCE_ATTR
+    CLOUD_ALL, SCOPE_ATTR, TENANT_ATTR, FORCE_ATTR, PARAM_USER_TENANT_ACCESS
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -77,6 +77,15 @@ class ParentProcessor(AbstractCommandProcessor):
         if parent_id:
             parents = [parent for parent in parents if
                        parent.parent_id == parent_id]
+
+        tap = event.get(PARAM_USER_TENANT_ACCESS)
+        if tap and not tap.is_allowed_for_all_tenants():
+            parents = [
+                p for p in parents
+                if p.scope == ParentScope.ALL
+                or (p.tenant_name and tap.is_allowed_for(p.tenant_name))
+            ]
+
         if not parents:
             _LOG.error('No Parents found matching given query.')
             return build_response(

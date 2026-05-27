@@ -262,7 +262,6 @@ class R8sApiHandler(AbstractApiHandlerLambda):
             user_service=self.user_service,
             access_control_service=self.access_control_service,
             iam_service=self.iam_service,
-            customer_service=self.customer_service
         )
 
     def _instantiate_algorithm_processor(self):

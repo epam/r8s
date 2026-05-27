@@ -18,7 +18,7 @@ from commons.constants import CLOUD_AWS, TENANTS_ATTR, \
     REMAINING_BALANCE_ATTR, ENV_LM_TOKEN_LIFETIME_MINUTES, LIMIT_ATTR, \
     APPLICATION_ID_ATTR, MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE, \
     APPLICATION_TENANTS_ALL, MAESTRO_RIGHTSIZER_APPLICATION_TYPE, \
-    ENV_FORCE_RESCAN, FORCE_RESCAN_ATTR
+    ENV_FORCE_RESCAN, FORCE_RESCAN_ATTR, PARAM_USER_TENANT_ACCESS
 from commons.constants import POST_METHOD, GET_METHOD, DELETE_METHOD, ID_ATTR, \
     NAME_ATTR, USER_ID_ATTR, PARENT_ID_ATTR, SCAN_FROM_DATE_ATTR, \
     SCAN_TO_DATE_ATTR, TENANT_LICENSE_KEY_ATTR, PARENT_SCOPE_SPECIFIC_TENANT
@@ -244,6 +244,18 @@ class JobProcessor(AbstractCommandProcessor):
                 parents=parents,
                 cloud=app_meta.cloud
             )
+        tap = event.get(PARAM_USER_TENANT_ACCESS)
+        if tap and not tap.is_allowed_for_all_tenants():
+            scan_tenants = [t for t in scan_tenants if tap.is_allowed_for(t)]
+            if not scan_tenants:
+                _LOG.warning(f'User \'{user_id}\' is not allowed to submit '
+                             f'jobs for any of the requested tenants.')
+                return build_response(
+                    code=RESPONSE_FORBIDDEN_CODE,
+                    content='Your role does not allow submitting jobs '
+                            'for the requested tenants.'
+                )
+
         _LOG.debug(f'Setting scan_tenants env to '
                    f'\'{scan_tenants}\'')
         envs['SCAN_TENANTS'] = ','.join(scan_tenants)

@@ -14,7 +14,7 @@ class CognitoUserService:
     def __init__(self, client: BaseAuthClient):
         self.client: BaseAuthClient = client
 
-    def save(self, username, password, customer, role):
+    def save(self, username, password, customer, roles, tenants=None):
         _LOG.debug(f'Validating password for user {username}')
         errors = self.__validate_password(password)
         if errors:
@@ -28,7 +28,8 @@ class CognitoUserService:
 
         _LOG.debug(f'Creating the user with username {username}')
         self.client.sign_up(username=username, password=password,
-                            customer=customer, role=role)
+                            customer=customer, roles=roles,
+                            tenants=tenants)
         _LOG.debug(f'Setting the password for the user {username}')
         self.client.set_password(username=username,
                                  password=password)
@@ -36,8 +37,8 @@ class CognitoUserService:
     def get_user(self, user_id):
         return self.client.get_user(user_id)
 
-    def get_user_role_name(self, user):
-        return self.client.get_user_role(user)
+    def get_user_roles(self, user) -> list:
+        return self.client.get_user_roles(user)
 
     def get_user_id(self, user: str):
         return self.client.get_user_id(user)
@@ -68,8 +69,8 @@ class CognitoUserService:
         return self.client.respond_to_auth_challenge(
             challenge_name=challenge_name)
 
-    def update_role(self, username, role):
-        self.client.update_role(username=username, role=role)
+    def update_roles(self, username, roles: list):
+        self.client.update_roles(username=username, roles=roles)
 
     def is_user_exists(self, username):
         return self.client.is_user_exists(username)
@@ -85,6 +86,9 @@ class CognitoUserService:
 
     def get_user_customer(self, user):
         return self.client.get_user_customer(user)
+
+    def get_user_tenants(self, user) -> list:
+        return self.client.get_user_tenants(user)
 
     def list_users(self, customer=None, attributes_to_get=None):
         users = self.client.list_users(attributes_to_get=attributes_to_get)

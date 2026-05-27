@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta
 from typing import Union
 
-from commons.constants import USER_ID_ATTR, CUSTOMER_ATTR
+from commons.constants import USER_ID_ATTR, CUSTOMER_ATTR, \
+    TENANT_SCOPED_PERMISSION_GROUPS, PARAM_USER_TENANT_ACCESS
 from commons.log_helper import get_logger
 from models.policy import Policy
 from models.role import Role
 from services.rbac.iam_service import IamService
+from services.rbac.tenant_access import PolicyStruct, TenantAccess
 from services.setting_service import SettingsService
 from services.user_service import CognitoUserService
 
@@ -40,8 +42,7 @@ class AccessControlService:
 
         _LOG.debug(f'Checking permissions of user {user_id} '
                    f'on \'{target_permission}\' action')
-        role_name = self.user_service.get_user_role_name(user=user_id)
-        role = self.iam_service.role_get(role_name=role_name)
+        role_names = self.user_service.get_user_roles(user=user_id)
         user_customer = self.user_service.get_user_customer(user=user_id)
         user_sub = self.user_service.get_user_id(user=user_id)
         event[PARAM_USER_CUSTOMER] = user_customer
@@ -54,42 +55,73 @@ class AccessControlService:
                          f'\'{event_customer}\' customer.')
             return False
 
-        if not role:
-            _LOG.debug(f'Specified role with name: {role_name} does not exist')
+        roles = self.iam_service.role_batch_get(keys=role_names,
+                                                customer=user_customer)
+        roles = [r for r in roles
+                 if not AccessControlService.is_role_expired(role=r)]
+        if not roles:
+            _LOG.debug(f'No valid roles found for user \'{user_id}\'')
             return False
-        if AccessControlService.is_role_expired(role=role):
-            _LOG.debug(f'Specified role with name: {role_name}  is expired')
-            return False
-        user_policies = self.iam_service.policy_batch_get(
-            keys=role.policies)
-        user_permissions = []
-        for policy in user_policies:
-            user_permissions.extend(policy.permissions)
 
-        if target_permission in user_permissions:
-            target_user = event.get(PARAM_TARGET_USER)
-            if target_user and not AccessControlService.is_allowed_target_user(
-                    role=role, user_id=user_id, target_user=target_user):
+        all_policy_names = list({p for r in roles for p in r.policies})
+        policies = self.iam_service.policy_batch_get(keys=all_policy_names,
+                                                     customer=user_customer)
+        policy_structs = [PolicyStruct(p) for p in policies]
+
+        for ps in policy_structs:
+            if ps.forbids(target_permission):
+                _LOG.debug(f'Policy \'{ps.name}\' explicitly forbids '
+                           f'\'{target_permission}\'')
                 return False
 
-            _LOG.debug(f'Permission for user \'{user_id}\' on action: '
-                       f'{target_permission} is granted')
-            return True
-        return False
+        is_allowed = any(ps.allows(target_permission) for ps in policy_structs)
+        if not is_allowed:
+            _LOG.debug(f'No policy allows \'{target_permission}\' '
+                       f'for user \'{user_id}\'')
+            return False
 
-    def get_role(self, name: str):
-        return self.iam_service.role_get(role_name=name)
+        target_user = event.get(PARAM_TARGET_USER)
+        if target_user and not AccessControlService.is_allowed_target_user(
+                user_id=user_id, target_user=target_user,
+                user_customer=user_customer):
+            return False
 
-    def get_policy(self, name: str):
-        return self.iam_service.policy_get(policy_name=name)
+        permission_group = target_permission.rsplit(':', 1)[0]
+        if permission_group in TENANT_SCOPED_PERMISSION_GROUPS:
+            ta = TenantAccess()
+            for ps in policy_structs:
+                ta.add(ps)
+            payload = ta.resolve_payload(target_permission)
 
-    def policy_exists(self, name: str) -> bool:
-        # todo
-        return bool(self.get_policy(name=name))
+            user_tenants = self.user_service.get_user_tenants(user=user_id)
+            if user_tenants and user_tenants != ['*']:
+                _LOG.debug(f'Restricting tenant access to user-level '
+                           f'tenants: {user_tenants}')
+                payload = payload.restrict_to(set(user_tenants))
 
-    def role_exists(self, name: str) -> bool:
-        # todo
-        return bool(self.get_role(name=name))
+            if payload.is_denying_all():
+                _LOG.debug(f'All tenant access is denied for '
+                           f'\'{target_permission}\' after policy '
+                           f'resolution')
+                return False
+
+            event[PARAM_USER_TENANT_ACCESS] = payload
+
+        _LOG.debug(f'Permission for user \'{user_id}\' on action: '
+                   f'{target_permission} is granted')
+        return True
+
+    def get_role(self, name: str, customer: str = None):
+        return self.iam_service.role_get(role_name=name, customer=customer)
+
+    def get_policy(self, name: str, customer: str = None):
+        return self.iam_service.policy_get(policy_name=name, customer=customer)
+
+    def policy_exists(self, name: str, customer: str = None) -> bool:
+        return bool(self.get_policy(name=name, customer=customer))
+
+    def role_exists(self, name: str, customer: str = None) -> bool:
+        return bool(self.get_role(name=name, customer=customer))
 
     @staticmethod
     def get_role_dto(role: Role):
@@ -154,14 +186,12 @@ class AccessControlService:
                 nonexistent.append(policy)
         return nonexistent
 
+    def get_non_existing_roles(self, roles: list):
+        return [r for r in roles if not self.role_exists(name=r)]
+
     @staticmethod
-    def is_allowed_target_user(role, user_id, target_user):
-        resource = role.resource
-        if resource and resource == '*':
-            return True
-        if user_id == target_user:
-            return True
-        return False
+    def is_allowed_target_user(user_id, target_user, user_customer):
+        return user_customer == 'admin' or user_id == target_user
 
     def get_admin_permissions(self):
         permission_groups_mapping = self.setting_service.get_iam_permissions()

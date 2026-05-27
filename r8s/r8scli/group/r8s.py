@@ -86,23 +86,26 @@ def refresh():
 @click.option('--password', '-p', type=str,
               required=True, hide_input=True, prompt=True,
               help='R8s user password')
-@click.option('--customer_id', '-cid', type=str, required=True,
+@click.option('--customer_id', '-cid', type=str,
+              required=True,
               help='R8s user customer')
-@click.option('--role_name', '-rn', type=str, required=True,
-              help='R8s user role name')
+@click.option('--role_name', '-rn', type=str,
+              required=True, multiple=True,
+              help='R8s user role name. Can be specified multiple times')
+@click.option('--tenant', '-t', type=str,
+              required=True, multiple=True,
+              help='Tenant the user has access to. Can be specified multiple times')
 @cli_response()
-def register(username: str, password: str, customer_id, role_name):
+def register(username: str, password: str, customer_id, role_name, tenant):
     """
     Creates user to work with R8s
     """
     from r8scli.service.initializer import init_configuration
 
     response = init_configuration().register(
-        username=username,
-        password=password,
-        customer=customer_id,
-        role_name=role_name,
-    )
+        username=username, password=password,
+        customer=customer_id, role_names=list(role_name),
+        tenants=list(tenant))
     return response
 
 
