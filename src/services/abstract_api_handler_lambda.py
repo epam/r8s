@@ -3,6 +3,7 @@ from abc import abstractmethod
 from commons import build_response, ApplicationException, \
     RESPONSE_INTERNAL_SERVER_ERROR, RESPONSE_FORBIDDEN_CODE, secure_event
 from commons import validate_params
+from commons.constants import MCP_USER_NAME_HEADER
 from commons.log_helper import get_logger
 from services import SERVICE_PROVIDER
 from services.rbac.endpoint_to_permission_mapping import \
@@ -55,6 +56,27 @@ class AbstractApiHandlerLambda:
             else:
                 validate_params(event=event,
                                 required_params_list=[PARAM_USER_ID])
+                headers = event.get('headers') or {}
+                mcp_user_name = next(
+                    (v for k, v in headers.items()
+                     if k.lower() == MCP_USER_NAME_HEADER.lower()),
+                    None
+                )
+                if mcp_user_name:
+                    mcp_user_name = mcp_user_name.lower()
+                    _LOG.info(f'MCP user name from header: {mcp_user_name!r}')
+                    user_service = SERVICE_PROVIDER.user_service()
+                    if user_service.is_user_exists(username=mcp_user_name):
+                        _LOG.info(
+                            f'MCP user {mcp_user_name!r} found, '
+                            f'using their permissions'
+                        )
+                        event[PARAM_USER_ID] = mcp_user_name
+                    else:
+                        _LOG.info(
+                            f'MCP user {mcp_user_name!r} not found, '
+                            f'using caller permissions'
+                        )
                 ac_service = SERVICE_PROVIDER.access_control_service()
                 if not ac_service.is_allowed_to_access(
                         event=event,
