@@ -33,6 +33,15 @@ class ReportProcessor(AbstractCommandProcessor):
             'download': self.download_report
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            job_service=SERVICE_PROVIDER.job_service(),
+            report_service=SERVICE_PROVIDER.report_service(),
+            tenant_service=SERVICE_PROVIDER.tenant_service()
+        )
+
     def process(self, event) -> dict:
         method = event.get(PARAM_HTTP_METHOD)
         if not method == GET_METHOD:

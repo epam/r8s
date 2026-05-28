@@ -48,6 +48,14 @@ class AlgorithmProcessor(AbstractCommandProcessor):
             DELETE_METHOD: self.delete,
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            algorithm_service=SERVICE_PROVIDER.algorithm_service(),
+            customer_service=SERVICE_PROVIDER.customer_service()
+        )
+
     def get(self, event):
         _LOG.debug(f'Describe algorithm event: {event}')
 

@@ -15,6 +15,11 @@ class RefreshProcessor(AbstractCommandProcessor):
             POST_METHOD: self.post,
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(user_service=SERVICE_PROVIDER.user_service())
+
     def post(self, event):
         refresh_token = event.get(REFRESH_TOKEN_ATTR)
         _LOG.debug(f'Refresh token event')

@@ -27,6 +27,15 @@ class LicenseSyncProcessor(AbstractCommandProcessor):
             POST_METHOD: self.post,
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            license_manager_service=SERVICE_PROVIDER.license_manager_service(),
+            algorithm_service=SERVICE_PROVIDER.algorithm_service(),
+            application_service=SERVICE_PROVIDER.rightsizer_application_service()
+        )
+
     def post(self, event):
         _LOG.debug(f'Sync license event: {event}')
         validate_params(event, (APPLICATION_ID_ATTR,))

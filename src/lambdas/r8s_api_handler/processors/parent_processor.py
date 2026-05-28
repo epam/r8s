@@ -48,6 +48,18 @@ class ParentProcessor(AbstractCommandProcessor):
             DELETE_METHOD: self.delete,
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            algorithm_service=SERVICE_PROVIDER.algorithm_service(),
+            customer_service=SERVICE_PROVIDER.customer_service(),
+            application_service=SERVICE_PROVIDER.rightsizer_application_service(),
+            parent_service=SERVICE_PROVIDER.rightsizer_parent_service(),
+            tenant_service=SERVICE_PROVIDER.tenant_service(),
+            license_manager_service=SERVICE_PROVIDER.license_manager_service()
+        )
+
     def get(self, event):
         _LOG.debug(f'Describe parent licenses event: {event}')
 

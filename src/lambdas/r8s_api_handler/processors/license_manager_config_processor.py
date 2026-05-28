@@ -22,6 +22,11 @@ class LicenseManagerConfigProcessor(AbstractCommandProcessor):
             DELETE_METHOD: self.delete,
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(settings_service=SERVICE_PROVIDER.settings_service())
+
     def get(self, event):
         _LOG.info(f'{GET_METHOD} License Manager access-config event: {event}')
 

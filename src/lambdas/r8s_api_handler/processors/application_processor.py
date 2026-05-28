@@ -55,6 +55,18 @@ class ApplicationProcessor(AbstractCommandProcessor):
             DELETE_METHOD: self.delete,
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            algorithm_service=SERVICE_PROVIDER.algorithm_service(),
+            storage_service=SERVICE_PROVIDER.storage_service(),
+            customer_service=SERVICE_PROVIDER.customer_service(),
+            application_service=SERVICE_PROVIDER.rightsizer_application_service(),
+            parent_service=SERVICE_PROVIDER.rightsizer_parent_service(),
+            api_gateway_client=SERVICE_PROVIDER.api_gateway_client()
+        )
+
     def get(self, event):
         _LOG.debug(f'Describe application event: {event}')
 
