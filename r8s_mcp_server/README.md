@@ -38,17 +38,17 @@ You can override these with CLI flags `--r8s-api-base-url`, `--username`, and `-
 
 ### Optional
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `R8S_API_TIMEOUT` | `30.0` | HTTP client timeout (seconds). |
-| `R8S_API_MAX_RETRIES` | `3` | Retries for failed requests. |
-| `R8S_MCP_MODE` | `stdio` | Transport: `stdio`, `sse`, or `streamable-http`. |
-| `R8S_MCP_HOST` | `0.0.0.0` | Bind host for HTTP transports. |
-| `R8S_MCP_PORT` | `8080` | Port for HTTP transports. |
-| `R8S_OUTPUT_FORMAT` | `markdown` | Default tool output format when the `X-R8S-Output-Format` header is absent (`markdown`, `json`, `yaml`). |
-| `SRE_OUTPUT_FORMAT` | `markdown` | Alternate env name read by `MCPEnv` for the same setting (see `commons/constants.py`). |
-| `LOG_LEVEL` | `DEBUG` | Logging level. |
-| `R8S_MCP_SECRET_API_KEY_HASH` | unset | If set, SHA-256 hex digest of the shared secret; HTTP requests must send `X-R8S-MCP-SECRET-API-KEY` matching that secret. If unset, this check is disabled. |
+| Variable                      | Default    | Description                                                                                                                                                 |
+|-------------------------------|------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `R8S_API_TIMEOUT`             | `30.0`     | HTTP client timeout (seconds).                                                                                                                              |
+| `R8S_API_MAX_RETRIES`         | `3`        | Retries for failed requests.                                                                                                                                |
+| `R8S_MCP_MODE`                | `stdio`    | Transport: `stdio`, `sse`, or `streamable-http`.                                                                                                            |
+| `R8S_MCP_HOST`                | `0.0.0.0`  | Bind host for HTTP transports.                                                                                                                              |
+| `R8S_MCP_PORT`                | `8080`     | Port for HTTP transports.                                                                                                                                   |
+| `R8S_OUTPUT_FORMAT`           | `markdown` | Default tool output format when the `X-R8S-Output-Format` header is absent (`markdown`, `json`, `yaml`).                                                    |
+| `LOG_LEVEL`                   | `DEBUG`    | Logging level.                                                                                                                                              |
+| `R8S_MCP_SECRET_API_KEY_HASH` | unset      | If set, SHA-256 hex digest of the shared secret; HTTP requests must send `X-R8S-MCP-SECRET-API-KEY` matching that secret. If unset, this check is disabled. |
+| `R8S_DEMO_TENAT_NAMES`        | unset      | A comma-separated list of tenant names marked as demo projects.                                                                                             |
 
 ### Resources path
 
