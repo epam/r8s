@@ -43,33 +43,8 @@ class R8SEndpoint(str, Enum):
     HEALTH_CHECK = '/health-check'
     REFRESH = '/refresh'
     JOBS = '/jobs'
-    RECOMMENDATIONS = 'recommendations'
-
-
-
-    @classmethod
-    def match(cls, resource: str) -> Self | None:
-        """
-        Tries to resolve endpoint from our enum from Api Gateway resource.
-        Enum contains endpoints without stage. Though in general trailing
-        slashes matter and endpoints with and without such slash are
-        considered different we ignore this and consider such paths equal:
-        - /path/to/resource
-        - /path/to/resource/
-        This method does the following:
-        >>> CustodianEndpoint.match('/jobs/{job_id}') == CustodianEndpoint.JOBS_JOB
-        >>> CustodianEndpoint.match('jobs/{job_id}') == CustodianEndpoint.JOBS_JOB
-        >>> CustodianEndpoint.match('jobs/{job_id}/') == CustodianEndpoint.JOBS_JOB
-        :param resource:
-        :return:
-        """
-        raw = resource.strip('/')  # without trailing slashes
-        for case in (raw, f'/{raw}', f'{raw}/', f'/{raw}/'):
-            try:
-                return cls(case)
-            except ValueError:
-                pass
-        return
+    RECOMMENDATIONS = '/recommendations'
+    TENANTS = '/tenants'
 
 
 _SENTINEL = object()
@@ -204,6 +179,8 @@ class MCPEnv(EnvEnum):
     R8S_API_URL = 'R8S_API_URL', ()
     R8S_USERNAME = 'R8S_USERNAME', ()
     R8S_PASSWORD = 'R8S_PASSWORD', ()
+    # Comma-separated tenant names treated as shared demos
+    R8S_DEMO_TENANT_NAMES = 'R8S_DEMO_TENANT_NAMES', ()
     R8S_MCP_RESOURCE_PATH = 'R8S_MCP_RESOURCE_PATH', ()
     R8S_API_TIMEOUT = 'R8S_API_TIMEOUT', (), '30.0'
     R8S_API_MAX_RETRIES = 'R8S_API_MAX_RETRIES', (), '3'

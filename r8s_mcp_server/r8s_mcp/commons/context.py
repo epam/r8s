@@ -20,7 +20,6 @@ OUTPUT_FORMAT_HEADER: Final = 'x-r8s-output-format'
 
 # Optional MCP caller identity, forwarded to R8S API (HTTP transports only)
 MCP_USERNAME_HEADER: Final = 'x-r8s-mcp-user-name'
-MCP_USERNAME_OUTBOUND_HEADER: Final = 'X-R8s-Mcp-User-Name'
 
 _mcp_username_ctx: ContextVar[str | None] = ContextVar(
     'mcp_username', default=None

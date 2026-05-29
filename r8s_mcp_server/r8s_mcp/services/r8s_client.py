@@ -212,3 +212,25 @@ class R8SClient:
                 _LOG.error('R8S API is unavailable')
                 return e.response.json()
             raise
+
+    async def get_tenants(
+            self,
+            name: str | None = None,
+    ) -> Dict[str, Any]:
+        """Retrieve tenants from the R8S API"""
+        params = {
+            PARAM_NAME: name,
+        }
+
+        try:
+            return await self._make_request(
+                method='GET',
+                endpoint=R8SEndpoint.TENANTS.value,
+                params=self._sifted(params)
+            )
+
+        except httpx.HTTPError as e:
+            if e.response.status_code == 503:
+                _LOG.error('R8S API is unavailable')
+                return e.response.json()
+            raise
