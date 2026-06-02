@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `mcp` `>=1.6.0` -> `>=1.26.0`
   - `starlette` `>=0.37.0` -> `>=0.52.1`
   - `pyyaml` `>=6.0.0` -> `>=6.0.3`
+  - `pydantic` `>=2.7.0` -> `>=2.12.5`
   - `pytest` (dev) `>=8.0.0` -> `>=9.0.2`
 - Capped supported Python version to `<3.15` to align with the modular-mcp host.
 
