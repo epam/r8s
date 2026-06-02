@@ -2,8 +2,6 @@ import asyncio
 import httpx
 from typing import Any, Dict, Optional
 
-from httpx import ConnectError
-
 from r8s_mcp.commons.constants import PARAM_TYPES, R8SEndpoint, PARAM_ID, \
     PARAM_NAME, \
     PARAM_LIMIT, PARAM_APPLICATION_ID, PARAM_PARENT_ID, PARAM_TENANTS, \
@@ -17,6 +15,23 @@ from r8s_mcp.services.auth_manager import AuthManager
 from r8s_mcp.commons.log_helper import get_logger
 
 _LOG = get_logger(__name__)
+
+# Reusable error response builders
+def _connect_error_response(
+        e: httpx.ConnectError,
+        url: str,
+) -> Dict[str, Any]:
+    _LOG.error(f'Failed to connect to R8S API at {url}: {e}')
+    return {
+        'error': f'Cannot connect to R8S API at {url}. Is the service running?'
+    }
+
+
+def _unavailable_response(
+        e: httpx.HTTPStatusError,
+) -> Dict[str, Any]:
+    _LOG.error('R8S API is unavailable')
+    return e.response.json()
 
 
 class R8SClient:
@@ -116,11 +131,11 @@ class R8SClient:
             return await self._make_request(
                 'POST', R8SEndpoint.HEALTH_CHECK.value, data=data,
             )
-
-        except httpx.HTTPError as e:
+        except httpx.ConnectError as e:
+            return _connect_error_response(e, self.config.api_base_url)
+        except httpx.HTTPStatusError as e:
             if e.response.status_code == 503:
-                _LOG.error('R8S API is unavailable')
-                return e.response.json()
+                return _unavailable_response(e)
             raise
 
     async def get_jobs(
@@ -142,15 +157,11 @@ class R8SClient:
                 endpoint=R8SEndpoint.JOBS.value,
                 params=self._sifted(params),
             )
-
-        except httpx.HTTPError as e:
-            if isinstance(e, (ConnectError, ConnectionError)):
-                _LOG.error(f'Failed to connect to R8S API: {e}')
-                return {'error': 'Connection failed'}
-
+        except httpx.ConnectError as e:
+            return _connect_error_response(e, self.config.api_base_url)
+        except httpx.HTTPStatusError as e:
             if e.response.status_code == 503:
-                _LOG.error('R8S API is unavailable')
-                return e.response.json()
+                return _unavailable_response(e)
             raise
 
     async def submit_job(
@@ -178,11 +189,11 @@ class R8SClient:
                 endpoint=R8SEndpoint.JOBS.value,
                 data=self._sifted(params)
             )
-
-        except httpx.HTTPError as e:
+        except httpx.ConnectError as e:
+            return _connect_error_response(e, self.config.api_base_url)
+        except httpx.HTTPStatusError as e:
             if e.response.status_code == 503:
-                _LOG.error('R8S API is unavailable')
-                return e.response.json()
+                return _unavailable_response(e)
             raise
 
     async def get_recommendations(
@@ -206,11 +217,11 @@ class R8SClient:
                 endpoint=R8SEndpoint.RECOMMENDATIONS.value,
                 params=self._sifted(params)
             )
-
-        except httpx.HTTPError as e:
+        except httpx.ConnectError as e:
+            return _connect_error_response(e, self.config.api_base_url)
+        except httpx.HTTPStatusError as e:
             if e.response.status_code == 503:
-                _LOG.error('R8S API is unavailable')
-                return e.response.json()
+                return _unavailable_response(e)
             raise
 
     async def get_tenants(
@@ -228,9 +239,9 @@ class R8SClient:
                 endpoint=R8SEndpoint.TENANTS.value,
                 params=self._sifted(params)
             )
-
-        except httpx.HTTPError as e:
+        except httpx.ConnectError as e:
+            return _connect_error_response(e, self.config.api_base_url)
+        except httpx.HTTPStatusError as e:
             if e.response.status_code == 503:
-                _LOG.error('R8S API is unavailable')
-                return e.response.json()
+                return _unavailable_response(e)
             raise
