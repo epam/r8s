@@ -53,6 +53,8 @@ from lambdas.r8s_api_handler.processors.storage_data_processor import \
     StorageDataProcessor
 from lambdas.r8s_api_handler.processors.storage_processor import \
     StorageProcessor
+from lambdas.r8s_api_handler.processors.tenant_processor import \
+    TenantProcessor
 from lambdas.r8s_api_handler.processors.user_processor import UserProcessor
 from services.abstract_api_handler_lambda import AbstractApiHandlerLambda
 
@@ -89,6 +91,7 @@ class Action(str, Enum):
     LM_SETTING_CONFIG = 'settings-config'
     LM_SETTING_CLIENT = 'settings-client'
     LICENSE_SYNC = 'license-sync'
+    TENANT = 'tenant'
 
 
 PROCESSOR_REGISTRY = {
@@ -121,6 +124,7 @@ PROCESSOR_REGISTRY = {
     Action.LM_SETTING_CONFIG: LicenseManagerConfigProcessor.build,
     Action.LM_SETTING_CLIENT: LicenseManagerClientProcessor.build,
     Action.LICENSE_SYNC: LicenseSyncProcessor.build,
+    Action.TENANT: TenantProcessor.build,
 }
 
 

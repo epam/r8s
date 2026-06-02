@@ -13,6 +13,7 @@ from r8scli.group.role import role
 from r8scli.group.setting import setting
 from r8scli.group.shape import shape
 from r8scli.group.storage import storage
+from r8scli.group.tenant import tenant
 from r8scli.group.user import user
 from r8scli.service.config import (create_configuration,
                                    clean_up_configuration, save_token)
@@ -146,3 +147,4 @@ r8s.add_command(shape)
 r8s.add_command(recommendation)
 r8s.add_command(setting)
 r8s.add_command(license)
+r8s.add_command(tenant)
