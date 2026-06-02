@@ -94,6 +94,9 @@
     ],
     "r8s:report": [
       "initiate_tenant_report"
+    ],
+    "r8s:tenant": [
+      "describe_tenant"
     ]
   }
 }

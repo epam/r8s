@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Removed unconditional allow-all tenant shortcut for admin users — admin access now driven by policy `tenants` field
 * Added cli command for listing tenants: `r8s tenant describe`
 * Updated the ami-initialize.sh script to migrate the Helm APT repository to Buildkite as per the changes detailed in https://helm.sh/blog/debian-helm-repository-move/
+* Added X-R8s-Mcp-User-Name header support to scope API requests to a specific user's permissions, enabling MCP server integrations to act on behalf of r8s users.                   
 
 ## [3.13.0] - 2025-06-02
 * Extend resource group support:

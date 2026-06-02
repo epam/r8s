@@ -28,6 +28,14 @@ class ShapeProcessor(AbstractCommandProcessor):
             DELETE_METHOD: self.delete,
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            shape_service=SERVICE_PROVIDER.shape_service(),
+            shape_price_service=SERVICE_PROVIDER.shape_price_service()
+        )
+
     def get(self, event):
         _LOG.debug(f'Describe shape event: {event}')
 

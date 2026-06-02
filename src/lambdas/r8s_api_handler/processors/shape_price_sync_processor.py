@@ -39,6 +39,15 @@ class ShapePriceSyncProcessor(AbstractCommandProcessor):
             POST_METHOD: self.post
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            shape_price_service=SERVICE_PROVIDER.shape_price_service(),
+            pricing_client=SERVICE_PROVIDER.pricing_client(),
+            settings_service=SERVICE_PROVIDER.settings_service()
+        )
+
     def post(self, event):
         _LOG.debug(f'Update shape price event: {event}')
         validate_params(event, (REGION_ATTR, CLOUD_ATTR))

@@ -348,7 +348,7 @@ initialize_system() {
   fi
 
   echo "Creating rightsizer customer users"
-  syndicate r8s register --username "$RIGHTSIZER_USERNAME" --password "$rightsizer_password" --role_name admin_role --customer_id "$customer_name" --json
+  syndicate r8s register --username "$RIGHTSIZER_USERNAME" --password "$rightsizer_password" --role_name admin_role --customer_id "$customer_name" --tenant "*" --json
 
   echo "Logging in as customer users"
   syndicate admin login --username "$MODULAR_SERVICE_USERNAME" --password "$modular_service_password" --json

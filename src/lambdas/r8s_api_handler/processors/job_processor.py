@@ -73,6 +73,22 @@ class JobProcessor(AbstractCommandProcessor):
             DELETE_METHOD: self.delete,
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            job_service=SERVICE_PROVIDER.job_service(),
+            application_service=SERVICE_PROVIDER.rightsizer_application_service(),
+            environment_service=SERVICE_PROVIDER.environment_service(),
+            customer_service=SERVICE_PROVIDER.customer_service(),
+            tenant_service=SERVICE_PROVIDER.tenant_service(),
+            settings_service=SERVICE_PROVIDER.settings_service(),
+            shape_service=SERVICE_PROVIDER.shape_service(),
+            shape_price_service=SERVICE_PROVIDER.shape_price_service(),
+            parent_service=SERVICE_PROVIDER.rightsizer_parent_service(),
+            license_manager_service=SERVICE_PROVIDER.license_manager_service()
+        )
+
     def get(self, event):
         _LOG.debug(f'Describe job event: {event}')
 

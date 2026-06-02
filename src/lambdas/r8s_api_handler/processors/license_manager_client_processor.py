@@ -37,6 +37,15 @@ class LicenseManagerClientProcessor(AbstractCommandProcessor):
             DELETE_METHOD: self.delete,
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            settings_service=SERVICE_PROVIDER.settings_service(),
+            key_management_service=SERVICE_PROVIDER.key_management_service(),
+            license_manager_service=SERVICE_PROVIDER.license_manager_service()
+        )
+
     def get(self, event: dict):
         _LOG.info(f'{GET_METHOD} License Manager Client-Key event: {event}')
 

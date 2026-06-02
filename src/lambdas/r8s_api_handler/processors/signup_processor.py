@@ -19,6 +19,14 @@ class SignUpProcessor(AbstractCommandProcessor):
             POST_METHOD: self.post,
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            user_service=SERVICE_PROVIDER.user_service(),
+            access_control_service=SERVICE_PROVIDER.access_control_service()
+        )
+
     def post(self, event):
         username = event.get(USERNAME_ATTR)
         password = event.get(PASSWORD_ATTR)

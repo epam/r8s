@@ -24,6 +24,13 @@ class RecommendationHistoryProcessor(AbstractCommandProcessor):
             PATCH_METHOD: self.patch,
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            recommendation_history_service=SERVICE_PROVIDER.recommendation_history_service()
+        )
+
     def get(self, event):
         _LOG.debug(f'Describe recommendation event: {event}')
 

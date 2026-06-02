@@ -29,6 +29,15 @@ class UserProcessor(AbstractCommandProcessor):
             DELETE_METHOD: self.delete,
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            user_service=SERVICE_PROVIDER.user_service(),
+            access_control_service=SERVICE_PROVIDER.access_control_service(),
+            iam_service=SERVICE_PROVIDER.iam_service()
+        )
+
     def get(self, event):
         _LOG.debug(f'Get user event: {event}')
 

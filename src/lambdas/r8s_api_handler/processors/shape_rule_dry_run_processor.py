@@ -32,6 +32,17 @@ class ShapeRuleDryRunProcessor(AbstractCommandProcessor):
             GET_METHOD: self.get
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            application_service=SERVICE_PROVIDER.rightsizer_application_service(),
+            parent_service=SERVICE_PROVIDER.rightsizer_parent_service(),
+            shape_service=SERVICE_PROVIDER.shape_service(),
+            shape_rules_filter_service=SERVICE_PROVIDER.shape_rules_filter_service(),
+            tenant_service=SERVICE_PROVIDER.tenant_service()
+        )
+
     def get(self, event):
         _LOG.debug(f'Dry run shape rule event: {event}')
         validate_params(event, (PARENT_ID_ATTR,))

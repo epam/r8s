@@ -18,6 +18,11 @@ class MailReportProcessor(AbstractCommandProcessor):
             POST_METHOD: self.post,
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(lambda_client=SERVICE_PROVIDER.lambda_client())
+
     def post(self, event):
         validate_params(event, (CUSTOMER_ATTR, TENANTS_ATTR))
 

@@ -1118,6 +1118,13 @@ class AdapterClient:
             resource=API_LM_CLIENT_SETTING, method=HTTP_POST, payload=payload
         )
 
+    def tenant_get(self, tenant_name=None):
+        request = {}
+        if tenant_name:
+            request[PARAM_TENANT] = tenant_name
+        return self.__make_request(
+            resource=API_TENANT, method=HTTP_GET, payload=request)
+
     def lm_client_setting_delete(self, key_id: str):
         return self.__make_request(
             resource=API_LM_CLIENT_SETTING, method=HTTP_DELETE, payload={

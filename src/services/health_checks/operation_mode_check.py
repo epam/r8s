@@ -190,7 +190,7 @@ class OperationModeCheckHandler:
                        f'{[parent.parent_id for parent in application_parents]}')
             parents.extend(application_parents)
             _LOG.debug(f'App Parents: '
-                       f'{[parent.get_json() for parent in application_parents]}')
+                       f'{[self.parent_service.get_dto(parent) for parent in application_parents]}')
         if not applications or not parents:
             _LOG.warning(f'No active parents/applications found')
             result = CheckCollectionResult(
