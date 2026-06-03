@@ -73,12 +73,11 @@ def create_admin_role():
     if not iam_service.role_get('admin_role'):
         _LOG.debug(f'Creating admin role')
         admin_role = Role(name='admin_role',
+                          customer='admin',
                           policies=['admin_policy'],
-                          expiration=datetime.now() + timedelta(days=365),
-                          resource=[]
+                          expiration=datetime.now() + timedelta(days=365)
                           )
         admin_role.save()
-
 
 def create_admin_user():
     from services import SERVICE_PROVIDER
@@ -93,7 +92,7 @@ def create_admin_user():
         username='SYSTEM_ADMIN',
         customer='admin',
         password=password,
-        role='admin_role'
+        roles=['admin_role']
     )
     print(f'r8s login --username SYSTEM_ADMIN --password "{password}"')
 

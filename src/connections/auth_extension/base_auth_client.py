@@ -35,7 +35,7 @@ class BaseAuthClient(ABC):
         ...
 
     @abstractmethod
-    def get_user_role(self, username: str):
+    def get_user_roles(self, username: str) -> list:
         ...
 
     @abstractmethod
@@ -43,7 +43,11 @@ class BaseAuthClient(ABC):
         ...
 
     @abstractmethod
-    def update_role(self, username: str, role: str):
+    def get_user_tenants(self, username: str) -> list:
+        ...
+
+    @abstractmethod
+    def update_roles(self, username: str, roles: list):
         ...
 
     @abstractmethod

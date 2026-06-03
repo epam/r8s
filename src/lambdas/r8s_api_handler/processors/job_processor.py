@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from typing import List
+from typing import List, Optional, Union
 
 from modular_sdk.commons.constants import (RIGHTSIZER_LICENSES_PARENT_TYPE,
                                            ParentScope, ApplicationType)
@@ -18,7 +18,7 @@ from commons.constants import CLOUD_AWS, TENANTS_ATTR, \
     REMAINING_BALANCE_ATTR, ENV_LM_TOKEN_LIFETIME_MINUTES, LIMIT_ATTR, \
     APPLICATION_ID_ATTR, MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE, \
     APPLICATION_TENANTS_ALL, MAESTRO_RIGHTSIZER_APPLICATION_TYPE, \
-    ENV_FORCE_RESCAN, FORCE_RESCAN_ATTR
+    ENV_FORCE_RESCAN, FORCE_RESCAN_ATTR, PARAM_USER_TENANT_ACCESS
 from commons.constants import POST_METHOD, GET_METHOD, DELETE_METHOD, ID_ATTR, \
     NAME_ATTR, USER_ID_ATTR, PARENT_ID_ATTR, SCAN_FROM_DATE_ATTR, \
     SCAN_TO_DATE_ATTR, TENANT_LICENSE_KEY_ATTR, PARENT_SCOPE_SPECIFIC_TENANT
@@ -72,6 +72,22 @@ class JobProcessor(AbstractCommandProcessor):
             POST_METHOD: self.post,
             DELETE_METHOD: self.delete,
         }
+
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            job_service=SERVICE_PROVIDER.job_service(),
+            application_service=SERVICE_PROVIDER.rightsizer_application_service(),
+            environment_service=SERVICE_PROVIDER.environment_service(),
+            customer_service=SERVICE_PROVIDER.customer_service(),
+            tenant_service=SERVICE_PROVIDER.tenant_service(),
+            settings_service=SERVICE_PROVIDER.settings_service(),
+            shape_service=SERVICE_PROVIDER.shape_service(),
+            shape_price_service=SERVICE_PROVIDER.shape_price_service(),
+            parent_service=SERVICE_PROVIDER.rightsizer_parent_service(),
+            license_manager_service=SERVICE_PROVIDER.license_manager_service()
+        )
 
     def get(self, event):
         _LOG.debug(f'Describe job event: {event}')
@@ -129,26 +145,17 @@ class JobProcessor(AbstractCommandProcessor):
         _LOG.debug(f'Submit job event: {event}')
         validate_params(event, (USER_ID_ATTR,))
 
-        resolved_applications = self.application_service.resolve_application(
-            event=event
+        user_id = event.get(USER_ID_ATTR)
+        user_customer = event.get(PARAM_USER_CUSTOMER)
+        event_application_id = event.get(APPLICATION_ID_ATTR)
+
+        licensed_application = self._resolve_licensed_application(
+            event=event,
+            user_customer=user_customer,
+            event_application_id=event_application_id
         )
-        if not resolved_applications:
-            _LOG.error('Application matching given query '
-                       'does not exist')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content='Application matching given query '
-                        'does not exist'
-            )
-        if len(resolved_applications) > 1:
-            _LOG.error('More than one matching application found. Please '
-                       'try to specify application_id explicitly')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content='More than one matching application found. Please '
-                        'try to specify application_id explicitly'
-            )
-        licensed_application = resolved_applications[0]
+        if not isinstance(licensed_application, Application):
+            return licensed_application
 
         if (licensed_application.type !=
                 MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE):
@@ -170,9 +177,6 @@ class JobProcessor(AbstractCommandProcessor):
             application_id=licensed_application.application_id,
             parent_id=parent_id
         )
-
-        user_id = event.get(USER_ID_ATTR)
-        user_customer = event.get(PARAM_USER_CUSTOMER)
 
         if user_customer != 'admin' and licensed_application.customer_id \
                 != user_customer:
@@ -244,6 +248,18 @@ class JobProcessor(AbstractCommandProcessor):
                 parents=parents,
                 cloud=app_meta.cloud
             )
+        tap = event.get(PARAM_USER_TENANT_ACCESS)
+        if tap and not tap.is_allowed_for_all_tenants():
+            scan_tenants = [t for t in scan_tenants if tap.is_allowed_for(t)]
+            if not scan_tenants:
+                _LOG.warning(f'User \'{user_id}\' is not allowed to submit '
+                             f'jobs for any of the requested tenants.')
+                return build_response(
+                    code=RESPONSE_FORBIDDEN_CODE,
+                    content='Your role does not allow submitting jobs '
+                            'for the requested tenants.'
+                )
+
         _LOG.debug(f'Setting scan_tenants env to '
                    f'\'{scan_tenants}\'')
         envs['SCAN_TENANTS'] = ','.join(scan_tenants)
@@ -350,6 +366,104 @@ class JobProcessor(AbstractCommandProcessor):
         return build_response(
             code=RESPONSE_OK_CODE,
             content=f'The job with id \'{job_id}\' will be terminated')
+
+    def _resolve_licensed_application(
+            self, event: dict, user_customer: str,
+            event_application_id: Optional[str]
+    ) -> Union[Application, dict]:
+        if user_customer == 'admin':
+            scan_tenants_input = event.get(TENANTS_ATTR) or []
+            if not scan_tenants_input:
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content='Admin users must specify tenants explicitly.'
+                )
+            tenant_objects = [self.tenant_service.get(tenant_name=t)
+                              for t in scan_tenants_input]
+            missing = [name for name, obj
+                       in zip(scan_tenants_input, tenant_objects) if not obj]
+            if missing:
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content=f'Tenants not found: {", ".join(missing)}'
+                )
+            customer_names = {t.customer_name for t in tenant_objects}
+            if len(customer_names) > 1:
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content=f'All tenants must belong to the same customer. '
+                            f'Found: {", ".join(sorted(customer_names))}'
+                )
+
+        if event_application_id or user_customer == 'admin':
+            resolved_applications = self.application_service.resolve_application(
+                event=event
+            )
+            if not resolved_applications:
+                _LOG.error('Application matching given query does not exist')
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content='Application matching given query does not exist'
+                )
+            if len(resolved_applications) > 1:
+                _LOG.error('More than one matching application found. Please '
+                           'try to specify application_id explicitly')
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content='More than one matching application found. Please '
+                            'try to specify application_id explicitly'
+                )
+            return resolved_applications[0]
+
+        tenants_hint = list(event.get(TENANTS_ATTR) or [])
+        if not tenants_hint:
+            tap = event.get(PARAM_USER_TENANT_ACCESS)
+            if tap and not tap.is_allowed_for_all_tenants():
+                allowed, _ = tap.allowed_denied()
+                if isinstance(allowed, tuple):
+                    tenants_hint = list(allowed)
+
+        if tenants_hint:
+            application_id, error = \
+                self.parent_service.resolve_application_id_for_tenants(
+                    customer_id=user_customer,
+                    tenant_names=tenants_hint
+                )
+            if error:
+                _LOG.error(error)
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content=error
+                )
+        else:
+            all_parent = next(self.parent_service.get_by_all_scope(
+                customer_id=user_customer,
+                type_=RIGHTSIZER_LICENSES_PARENT_TYPE
+            ), None)
+            if not all_parent:
+                _LOG.error(
+                    f'No {MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE} '
+                    f'application could be resolved for customer '
+                    f'\'{user_customer}\'')
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content=f'No {MAESTRO_RIGHTSIZER_LICENSES_APPLICATION_TYPE}'
+                            f' application could be resolved. Please specify '
+                            f'application_id explicitly.'
+                )
+            application_id = all_parent.application_id
+
+        licensed_application = self.application_service.get_application_by_id(
+            application_id=application_id
+        )
+        if not licensed_application or licensed_application.is_deleted:
+            _LOG.error(f'Resolved application \'{application_id}\' '
+                       f'not found or deleted')
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content='Application matching given query does not exist'
+            )
+        return licensed_application
 
     def _get_parents(self, application_id: str, parent_id: str = None):
         if parent_id:

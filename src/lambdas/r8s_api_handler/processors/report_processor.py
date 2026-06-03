@@ -9,7 +9,7 @@ from commons import RESPONSE_BAD_REQUEST_CODE, raise_error_response, \
 from commons.abstract_lambda import PARAM_HTTP_METHOD
 from commons.constants import GET_METHOD, ID_ATTR, REPORT_TYPE_ATTR, \
     CUSTOMER_ATTR, TENANT_ATTR, REGION_ATTR, CLOUD_ATTR, INSTANCE_ID_ATTR, \
-    DETAILED_ATTR
+    DETAILED_ATTR, PARAM_USER_TENANT_ACCESS
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -32,6 +32,15 @@ class ReportProcessor(AbstractCommandProcessor):
             None: self.general_report,
             'download': self.download_report
         }
+
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            job_service=SERVICE_PROVIDER.job_service(),
+            report_service=SERVICE_PROVIDER.report_service(),
+            tenant_service=SERVICE_PROVIDER.tenant_service()
+        )
 
     def process(self, event) -> dict:
         method = event.get(PARAM_HTTP_METHOD)
@@ -91,6 +100,16 @@ class ReportProcessor(AbstractCommandProcessor):
             )
             _LOG.debug(f'Resolved customer: {customer}')
 
+        tap = event.get(PARAM_USER_TENANT_ACCESS)
+        if tenant and tap and not tap.is_allowed_for_all_tenants():
+            if not tap.is_allowed_for(tenant):
+                _LOG.warning(f'Access to tenant \'{tenant}\' is not allowed')
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content=f'Your role does not allow access '
+                            f'to tenant \'{tenant}\'.'
+                )
+
         _LOG.debug(f'Going to generate report for job \'{job_id}\'')
         reports = self.report_service.get_job_report(
             job=job, detailed=detailed, customer=customer, cloud=cloud,
@@ -140,6 +159,17 @@ class ReportProcessor(AbstractCommandProcessor):
                 job=job
             )
             _LOG.debug(f'Resolved customer: {customer}')
+
+        tap = event.get(PARAM_USER_TENANT_ACCESS)
+        if tenant and tap and not tap.is_allowed_for_all_tenants():
+            if not tap.is_allowed_for(tenant):
+                _LOG.warning(f'Access to tenant \'{tenant}\' is not allowed')
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content=f'Your role does not allow access '
+                            f'to tenant \'{tenant}\'.'
+                )
+
         _LOG.debug(f'Going to generate report for job \'{job_id}\'')
         report = self.report_service.get_download_report(
             job=job, customer=customer, tenant=tenant, region=region)

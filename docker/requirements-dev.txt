@@ -1,9 +1,6 @@
 # Load all docker requirements
 -r requirements.txt
 
-# Install modular-sdk
-modular-sdk>=6.0.0,<7.0.0
-
 # Install tests requirements
 matplotlib==3.6.2
 pytest==7.1.2

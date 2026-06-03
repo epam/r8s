@@ -128,6 +128,9 @@ ENDPOINT_PERMISSION_MAPPING = {
     '/licenses/sync/': {
         POST_METHOD: 'r8s:license:sync_license'
     },
+    '/tenants/': {
+        GET_METHOD: 'r8s:tenant:describe_tenant',
+    },
     '/settings/license-manager/config': {
         GET_METHOD: 'r8s:setting:describe_lm_config',
         POST_METHOD: 'r8s:setting:create_lm_config',

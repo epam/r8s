@@ -1,6 +1,14 @@
+from pathlib import Path
+import os
+import sys
 import argparse
-
 from typing import Optional, List
+
+dir_path = Path(
+    os.path.dirname(os.path.realpath(__file__))).parent.parent.parent
+src_path = os.path.join(dir_path, 'src')
+sys.path.append(src_path)
+
 from commons.log_helper import get_logger
 
 from modular_sdk.modular import Modular

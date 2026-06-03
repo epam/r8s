@@ -42,6 +42,14 @@ class ResourceGroupProcessor(AbstractCommandProcessor):
             DELETE_METHOD: self.delete
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            application_service=SERVICE_PROVIDER.rightsizer_application_service(),
+            parent_service=SERVICE_PROVIDER.rightsizer_parent_service()
+        )
+
     def get(self, event: dict):
         _LOG.info(f'Describe parent resource group config: {event}')
         validate_params(event, (PARENT_ID_ATTR,))

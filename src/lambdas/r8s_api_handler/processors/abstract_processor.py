@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from typing import Dict, Callable
 
 from commons import secure_event, RESPONSE_BAD_REQUEST_CODE, \
@@ -8,8 +9,13 @@ from commons.log_helper import get_logger
 _LOG = get_logger('r8s-abstract_processor')
 
 
-class AbstractCommandProcessor:
+class AbstractCommandProcessor(ABC):
     method_to_handler: Dict[str, Callable]
+
+    @classmethod
+    @abstractmethod
+    def build(cls) -> 'AbstractCommandProcessor':
+        pass
 
     def process(self, event: dict) -> dict:
         method = event.get(PARAM_HTTP_METHOD)

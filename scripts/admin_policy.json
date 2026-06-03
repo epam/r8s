@@ -80,6 +80,9 @@
         "r8s:setting:delete_lm_config",
         "r8s:setting:describe_lm_client",
         "r8s:setting:create_lm_client",
-        "r8s:setting:delete_lm_client"
-    ]
+        "r8s:setting:delete_lm_client",
+        "r8s:tenant:describe_tenant"
+    ],
+    "customer": "admin",
+    "tenants": ["*"]
 }

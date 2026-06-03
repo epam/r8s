@@ -2,7 +2,7 @@ from commons import RESPONSE_BAD_REQUEST_CODE, build_response, RESPONSE_RESOURCE
     validate_params, ApplicationException
 from commons.constants import GET_METHOD, PATCH_METHOD, CUSTOMER_ATTR, \
     INSTANCE_ID_ATTR, RECOMMENDATION_TYPE_ATTR, \
-    JOB_ID_ATTR, FEEDBACK_STATUS_ATTR
+    JOB_ID_ATTR, FEEDBACK_STATUS_ATTR, TENANT_ATTR, PARAM_USER_TENANT_ACCESS
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -24,6 +24,13 @@ class RecommendationHistoryProcessor(AbstractCommandProcessor):
             PATCH_METHOD: self.patch,
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            recommendation_history_service=SERVICE_PROVIDER.recommendation_history_service()
+        )
+
     def get(self, event):
         _LOG.debug(f'Describe recommendation event: {event}')
 
@@ -33,16 +40,28 @@ class RecommendationHistoryProcessor(AbstractCommandProcessor):
         instance_id = event.get(INSTANCE_ID_ATTR)
         recommendation_type = event.get(RECOMMENDATION_TYPE_ATTR)
         job_id = event.get(JOB_ID_ATTR)
+        tenant = event.get(TENANT_ATTR)
         if recommendation_type:
             self._validate_recommendation_type(
                 recommendation_type=recommendation_type)
+
+        tap = event.get(PARAM_USER_TENANT_ACCESS)
+        if tenant and tap and not tap.is_allowed_for_all_tenants():
+            if not tap.is_allowed_for(tenant):
+                _LOG.warning(f'Access to tenant \'{tenant}\' is not allowed')
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content=f'Your role does not allow access '
+                            f'to tenant \'{tenant}\'.'
+                )
 
         _LOG.debug(f'Searching for recommendations')
         recommendations = self.recommendation_history_service.list(
             customer=customer,
             resource_id=instance_id,
             recommendation_type=recommendation_type,
-            job_id=job_id
+            job_id=job_id,
+            tenant=tenant
         )
 
         if not recommendations:

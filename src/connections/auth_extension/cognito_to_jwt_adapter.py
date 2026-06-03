@@ -101,7 +101,7 @@ class MongoAndSSMAuthClient(BaseAuthClient):
             payload={
                 COGNITO_USERNAME: user.user_id,
                 CUSTOM_CUSTOMER_ATTR: user.customer,
-                CUSTOM_ROLE_ATTR: user.role,
+                CUSTOM_ROLE_ATTR: ','.join(user.roles or []),
                 CUSTOM_LATEST_LOGIN_ATTR: user.latest_login,
                 EXP_ATTR: round(time.time()) + EXPIRATION_IN_MINUTES * 60
             },
@@ -193,13 +193,14 @@ class MongoAndSSMAuthClient(BaseAuthClient):
     def respond_to_auth_challenge(self, challenge_name: str):
         pass
 
-    def sign_up(self, username, password, customer, role, tenants=None):
+    def sign_up(self, username, password, customer, roles, tenants=None):
         user = User()
         user.user_id = username
         self._set_password(user, password)
         user.customer = customer
-        user.role = role
+        user.roles = roles if isinstance(roles, list) else ([roles] if roles else [])
         user.sub = str(uuid4())
+        user.tenants = tenants or []
         User.save(user)
 
     @staticmethod
@@ -225,21 +226,24 @@ class MongoAndSSMAuthClient(BaseAuthClient):
             return
         return [user.get_dto() for user in users]
 
-    def get_user_role(self, username: str):
-        return self._get_user_attr(username, 'role')
+    def get_user_roles(self, username: str) -> list:
+        return self._get_user_attr(username, 'roles') or []
 
     def get_user_customer(self, username: str):
         return self._get_user_attr(username, 'customer')
 
+    def get_user_tenants(self, username: str) -> list:
+        return self._get_user_attr(username, 'tenants') or []
+
     def get_user_latest_login(self, username: str):
         return self._get_user_attr(username, 'latest_login')
 
-    def update_role(self, username: str, role: str):
+    def update_roles(self, username: str, roles: list):
         user = self._get_user(username)
         if not user:
             _LOG.warning(USER_NOT_FOUND_MESSAGE.format(username=username))
             return
-        user.role = role
+        user.roles = roles
         user.save()
 
     def update_customer(self, username: str, customer: str):
@@ -267,7 +271,7 @@ class MongoAndSSMAuthClient(BaseAuthClient):
         if not user:
             _LOG.warning(USER_NOT_FOUND_MESSAGE.format(username=username))
             return
-        user.role = None
+        user.roles = []
         user.save()
 
     def delete_customer(self, username: str):

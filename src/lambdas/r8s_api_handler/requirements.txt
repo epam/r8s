@@ -1,4 +1,4 @@
-modular-sdk @ git+https://github.com/epam/modular-sdk@2904a0d9532817b960ef076a5fe240c7ef50d359
+modular-sdk==7.0.0
 boto3==1.36.11
 botocore==1.36.11
 certifi==2023.7.22

@@ -35,6 +35,14 @@ class StorageDataProcessor(AbstractCommandProcessor):
             INSTANCE_ID_ATTR: '',
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            storage_service=SERVICE_PROVIDER.storage_service(),
+            tenant_service=SERVICE_PROVIDER.tenant_service()
+        )
+
     def get(self, event):
         _LOG.debug(f'Sign up event: {event}')
 

@@ -13,6 +13,7 @@ from r8scli.group.role import role
 from r8scli.group.setting import setting
 from r8scli.group.shape import shape
 from r8scli.group.storage import storage
+from r8scli.group.tenant import tenant
 from r8scli.group.user import user
 from r8scli.service.config import (create_configuration,
                                    clean_up_configuration, save_token)
@@ -27,29 +28,27 @@ def r8s():
 
 
 @r8s.command(cls=ViewCommand, name='configure')
-@click.option('--api_link', '-api', type=str,
-              required=True,
-              help='Link to the R8s host.')
+@click.option('--api_link', '-api', type=str, required=True,
+              help='Link to the R8s host')
 @cli_response()
 def configure(api_link):
     """
-    Configures r8s tool to work with r8s API.
+    Configures r8s tool to work with r8s API
     """
     context = click.get_current_context()
     return create_configuration(api_link=api_link, context=context)
 
 
 @r8s.command(cls=ViewCommand, name='login')
-@click.option('--username', '-u', type=str,
-              required=True,
-              help='R8s user username.')
+@click.option('--username', '-u', type=str, required=True,
+              help='R8s user username')
 @click.option('--password', '-p', type=str,
               required=True, hide_input=True, prompt=True,
-              help='R8s user password.')
+              help='R8s user password')
 @cli_response()
 def login(username: str, password: str):
     """
-    Authenticates user to work with R8s.
+    Authenticates user to work with R8s
     """
     from r8scli.service.initializer import init_configuration
 
@@ -58,8 +57,10 @@ def login(username: str, password: str):
     if isinstance(response, tuple):
         access_token = response[0]
         refresh_token = response[1]
-        return save_token(access_token=access_token,
-                          refresh_token=refresh_token)
+        return save_token(
+            access_token=access_token,
+            refresh_token=refresh_token,
+        )
     return response
 
 
@@ -67,7 +68,7 @@ def login(username: str, password: str):
 @cli_response()
 def refresh():
     """
-    Refresh r8s access token using stored refresh token.
+    Refresh r8s access token using stored refresh token
     """
     from r8scli.service.initializer import init_configuration
 
@@ -81,28 +82,31 @@ def refresh():
 
 
 @r8s.command(cls=ViewCommand, name='register')
-@click.option('--username', '-u', type=str,
-              required=True,
-              help='R8s user username.')
+@click.option('--username', '-u', type=str, required=True,
+              help='R8s user username')
 @click.option('--password', '-p', type=str,
               required=True, hide_input=True, prompt=True,
-              help='R8s user password.')
+              help='R8s user password')
 @click.option('--customer_id', '-cid', type=str,
               required=True,
-              help='R8s user customer.')
+              help='R8s user customer')
 @click.option('--role_name', '-rn', type=str,
-              required=True,
-              help='R8s user role name.')
+              required=True, multiple=True,
+              help='R8s user role name. Can be specified multiple times')
+@click.option('--tenant', '-t', type=str,
+              required=True, multiple=True,
+              help='Tenant the user has access to. Can be specified multiple times')
 @cli_response()
-def register(username: str, password: str, customer_id, role_name):
+def register(username: str, password: str, customer_id, role_name, tenant):
     """
-    Creates user to work with R8s.
+    Creates user to work with R8s
     """
-
     from r8scli.service.initializer import init_configuration
+
     response = init_configuration().register(
         username=username, password=password,
-        customer=customer_id, role_name=role_name)
+        customer=customer_id, role_names=list(role_name),
+        tenants=list(tenant))
     return response
 
 
@@ -110,7 +114,7 @@ def register(username: str, password: str, customer_id, role_name):
 @cli_response()
 def cleanup():
     """
-    Removes all the configuration data related to the tool.
+    Removes all the configuration data related to the tool
     """
     return clean_up_configuration()
 
@@ -118,11 +122,11 @@ def cleanup():
 @r8s.command(cls=ViewCommand, name='health-check')
 @click.option('--check_type', '-t', multiple=True, required=False,
               type=click.Choice(AVAILABLE_CHECK_TYPES),
-              help='List of check types to execute.')
+              help='List of check types to execute')
 @cli_response()
 def health_check(check_type):
     """
-    Describes a R8s health check status.
+    Describes a R8s health check status
     """
     from r8scli.service.initializer import init_configuration
 
@@ -143,3 +147,4 @@ r8s.add_command(shape)
 r8s.add_command(recommendation)
 r8s.add_command(setting)
 r8s.add_command(license)
+r8s.add_command(tenant)

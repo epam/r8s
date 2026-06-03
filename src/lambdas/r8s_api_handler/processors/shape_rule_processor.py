@@ -41,6 +41,15 @@ class ShapeRuleProcessor(AbstractCommandProcessor):
             DELETE_METHOD: self.delete,
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            application_service=SERVICE_PROVIDER.rightsizer_application_service(),
+            parent_service=SERVICE_PROVIDER.rightsizer_parent_service(),
+            tenant_service=SERVICE_PROVIDER.tenant_service()
+        )
+
     def get(self, event: dict):
         _LOG.debug(f'Describe shape rule event: {event}')
 
