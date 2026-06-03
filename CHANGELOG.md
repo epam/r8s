@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added X-R8s-Mcp-User-Name header support to scope API requests to a specific user's permissions, enabling MCP server integrations to act on behalf of r8s users.
 * `r8s job submit` will try to resolve RIGHTSIZER_LICENSES application based on Parent scope priority chain.
 
+## [3.13.1] - 2026-01-02
+* Bump MongoDB Version due to CVE-2025-14847 Vulnerability
+
 ## [3.13.0] - 2025-06-02
 * Extend resource group support:
   * Delete `r8s application policies` command group
