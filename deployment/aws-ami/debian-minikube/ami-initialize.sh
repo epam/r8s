@@ -23,7 +23,7 @@ get_imds_token () {
 }
 identity_document() { curl -s -H "X-aws-ec2-metadata-token: $(get_imds_token)" http://169.254.169.254/latest/dynamic/instance-identity/document; }
 document_signature() { curl -s -H "X-aws-ec2-metadata-token: $(get_imds_token)" http://169.254.169.254/latest/dynamic/instance-identity/signature | tr -d '\n'; }
-request_to_lm() { curl -s -X POST -d "{\"signature\":\"$(document_signature)\",\"document\":\"$(identity_document | base64 -w 0)\"}" "$LM_API_LINK/marketplace/rightsizer/init"; }
+request_to_lm() { curl -sf -X POST -H "Content-Type: application/json" -d "{\"signature\":\"$(document_signature)\",\"document\":\"$(identity_document | base64 -w 0)\"}" "$LM_API_LINK/marketplace/rightsizer/init"; }
 generate_password() {
   chars="20"
   typ='-base64'
