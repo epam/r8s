@@ -1,7 +1,9 @@
 from mcp.types import Content, TextContent
 
 from r8s_mcp.commons.formatters import format_result
-from r8s_mcp.commons.utils import demo_tenant_notice
+from r8s_mcp.commons.utils import (
+    demo_tenant_notice, extract_tenant_names_from_jobs,
+)
 from r8s_mcp.services.r8s_client import R8SClient
 from r8s_mcp.commons.log_helper import get_logger
 
@@ -23,8 +25,7 @@ async def get_jobs(
             limit=limit,
         )
         _LOG.info(result)
-        print(result)
-        tenant_names = set() # TODO get tenant names from result
+        tenant_names = extract_tenant_names_from_jobs(result)
         demo_notice = demo_tenant_notice(tenant_names)
 
         formatted_text = format_result(
@@ -57,8 +58,7 @@ async def submit_job(
             force_rescan=force_rescan,
         )
         _LOG.info(result)
-        print(result)
-        tenant_names = set()  # TODO get tenant names from result
+        tenant_names = extract_tenant_names_from_jobs(result)
         demo_notice = demo_tenant_notice(tenant_names)
 
         formatted_text = format_result(

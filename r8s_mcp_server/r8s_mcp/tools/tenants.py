@@ -19,7 +19,6 @@ async def get_tenants(
             name=name,
         )
         _LOG.info(result)
-        print(result)
         tenant_names = set()  # TODO get tenant names from result
         demo_notice = demo_tenant_notice(tenant_names)
 

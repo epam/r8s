@@ -36,3 +36,26 @@ def demo_tenant_notice(
         f'Demo project: this result involves shared demo projects(tenants) '
         f'{names_json}.'
     )
+
+
+def extract_tenant_names_from_recommendations(result: dict) -> set[str]:
+    """
+    Recommendation items have a flat `tenant` field.
+    """
+    tenant_names = set()
+    for item in (result or {}).get('items', []):
+        tenant = item.get('tenant')
+        if tenant:
+            tenant_names.add(tenant)
+    return tenant_names
+
+
+def extract_tenant_names_from_jobs(result: dict) -> set[str]:
+    """
+    Job items keep tenants as keys of `tenant_status_map`.
+    """
+    tenant_names = set()
+    for item in (result or {}).get('items', []):
+        status_map = item.get('tenant_status_map') or {}
+        tenant_names.update(status_map.keys())
+    return tenant_names
