@@ -47,7 +47,7 @@ modular-api:
   fullnameOverride: modular-api
   disableRateLimiter: "true"
   image:
-    tag: 4.2.11-rightsizer-3.14.0
+    tag: 4.3.26-rightsizer-3.14.0
 metric-collector:
   enabled: true
   fullnameOverride: metric-collector
