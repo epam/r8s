@@ -347,8 +347,15 @@ initialize_system() {
     syndicate r8s setting client add --key_id "$(echo "$lm_response" | jq ".private_key.key_id" -r)" --algorithm "$(echo "$lm_response" | jq ".private_key.algorithm" -r)" --private_key "$(echo "$lm_response" | jq ".private_key.value" -r)" --format "PEM" --b64encoded --json
   fi
 
-  echo "Creating rightsizer customer users"
-  syndicate r8s register --username "$RIGHTSIZER_USERNAME" --password "$rightsizer_password" --role_name admin_role --customer_id "$customer_name" --tenant "*" --json
+  echo "Creating rightsizer customer policy"
+  syndicate r8s policy add --policy_name customer_admin_policy --permissions_admin --effect allow --customer "$customer_name" --tenant "*" --json
+
+  echo "Creating rightsizer customer role"
+  role_expiration=$(date -d "+1 year" +"%Y-%m-%dT%H:%M:%S")
+  syndicate r8s role add --name customer_admin_role --policies customer_admin_policy --customer "$customer_name" --expiration "$role_expiration" --json
+
+  echo "Creating rightsizer customer user"
+  syndicate r8s register --username "$RIGHTSIZER_USERNAME" --password "$rightsizer_password" --role_name customer_admin_role --customer_id "$customer_name" --tenant "*" --json
 
   echo "Logging in as customer users"
   syndicate admin login --username "$MODULAR_SERVICE_USERNAME" --password "$modular_service_password" --json
