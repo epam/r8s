@@ -4,6 +4,9 @@ from r8s_mcp.commons.constants import RecommendationType
 from r8s_mcp.commons.formatters import format_result
 from r8s_mcp.commons.utils import demo_tenant_notice
 from r8s_mcp.services.r8s_client import R8SClient
+from r8s_mcp.commons.log_helper import get_logger
+
+_LOG = get_logger(__name__)
 
 
 async def get_recommendations(
@@ -22,6 +25,8 @@ async def get_recommendations(
             job_id=job_id,
             customer_id=customer_id,
         )
+        _LOG.info(result)
+        print(result)
         tenant_names = set()  # TODO get tenant names from result
         demo_notice = demo_tenant_notice(tenant_names)
 

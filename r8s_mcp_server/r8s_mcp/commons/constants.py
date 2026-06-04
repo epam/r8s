@@ -2,7 +2,6 @@ import os
 from enum import Enum
 from itertools import chain
 from typing import Callable, Literal, MutableMapping, TypeVar
-from typing_extensions import Self
 
 from r8s_mcp.commons.__version__ import __version__
 
