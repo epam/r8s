@@ -195,6 +195,8 @@ class AccessControlService:
 
     def get_admin_permissions(self):
         permission_groups_mapping = self.setting_service.get_iam_permissions()
+        if not permission_groups_mapping:
+            return []
         permissions_list = []
         for group, available_actions in permission_groups_mapping.items():
             permissions_list.extend(

@@ -7,7 +7,7 @@ from bottle import Bottle, request, Route, HTTPResponse
 
 from commons import ApplicationException, RequestContext, RESPONSE_UNAUTHORIZED
 from commons.abstract_lambda import PARAM_HTTP_METHOD
-from commons.constants import COGNITO_USERNAME
+from commons.constants import COGNITO_USERNAME, CUSTOM_CUSTOMER_ATTR
 from commons.log_helper import get_logger
 from connections.auth_extension.cognito_to_jwt_adapter import \
     UNAUTHORIZED_MESSAGE
@@ -114,7 +114,7 @@ class DynamicAPI:
             "user_id": token_decoded.get(COGNITO_USERNAME),
 
             'pathParameters': path_kwargs,
-            'user_customer': token_decoded.get('cognito:customer'),
+            'user_customer': token_decoded.get(CUSTOM_CUSTOMER_ATTR),
             'action': endpoint_meta.get('action')
         }
         if request.method == 'GET':

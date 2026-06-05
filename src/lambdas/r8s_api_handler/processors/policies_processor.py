@@ -131,6 +131,13 @@ class PolicyProcessor(AbstractCommandProcessor):
                 )
         elif event.get(PERMISSIONS_ADMIN_ATTR, None):
             permissions = self.access_control_service.get_admin_permissions()
+            if not permissions:
+                _LOG.debug('IAM permissions setting is not configured')
+                return build_response(
+                    code=RESPONSE_BAD_REQUEST_CODE,
+                    content='IAM permissions are not configured. '
+                            'Cannot create admin policy.'
+                )
 
         effect = event.get(EFFECT_ATTR)
         tenants = event.get(TENANTS_ATTR) or []
