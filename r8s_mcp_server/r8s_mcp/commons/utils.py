@@ -1,5 +1,6 @@
 import json
 
+from r8s_mcp.commons.constants import PARAM_TENANT
 from r8s_mcp.commons.context import get_mcp_config
 from r8s_mcp.commons.log_helper import get_logger
 
@@ -38,13 +39,16 @@ def demo_tenant_notice(
     )
 
 
-def extract_tenant_names_from_recommendations(result: dict) -> set[str]:
+def extract_tenant_names_from_response(
+        result: dict,
+        target_param: str = PARAM_TENANT,
+) -> set[str]:
     """
-    Recommendation items have a flat `tenant` field.
+    The result items have a field with tenant name.
     """
     tenant_names = set()
     for item in (result or {}).get('items', []):
-        tenant = item.get('tenant')
+        tenant = item.get(target_param)
         if tenant:
             tenant_names.add(tenant)
     return tenant_names

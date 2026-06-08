@@ -1,9 +1,9 @@
 from mcp.types import Content, TextContent
 
-from r8s_mcp.commons.constants import RecommendationType
+from r8s_mcp.commons.constants import RecommendationType, PARAM_TENANT
 from r8s_mcp.commons.formatters import format_result
 from r8s_mcp.commons.utils import (
-    demo_tenant_notice, extract_tenant_names_from_recommendations,
+    demo_tenant_notice, extract_tenant_names_from_response,
 )
 from r8s_mcp.services.r8s_client import R8SClient
 from r8s_mcp.commons.log_helper import get_logger
@@ -28,7 +28,10 @@ async def get_recommendations(
             customer_id=customer_id,
         )
         _LOG.info(result)
-        tenant_names = extract_tenant_names_from_recommendations(result)
+        tenant_names = extract_tenant_names_from_response(
+            result=result,
+            target_param=PARAM_TENANT,
+        )
         demo_notice = demo_tenant_notice(tenant_names)
 
         formatted_text = format_result(
