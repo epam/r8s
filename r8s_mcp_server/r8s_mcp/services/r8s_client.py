@@ -7,7 +7,7 @@ from r8s_mcp.commons.constants import PARAM_TYPES, R8SEndpoint, PARAM_ID, \
     PARAM_LIMIT, PARAM_APPLICATION_ID, PARAM_PARENT_ID, PARAM_TENANTS, \
     PARAM_SCAN_FROM_DATE, PARAM_SCAN_TO_DATE, PARAM_FORCE_RESCAN, \
     RecommendationType, PARAM_INSTANCE_ID, PARAM_RECOMMENDATION_TYPE, \
-    PARAM_CUSTOMER, PARAM_JOB_ID
+    PARAM_CUSTOMER, PARAM_JOB_ID, PARAM_TENANT
 from r8s_mcp.commons.config import Config
 from r8s_mcp.commons.context import get_mcp_config
 from r8s_mcp.commons.exceptions import ConnectionError
@@ -230,7 +230,7 @@ class R8SClient:
     ) -> Dict[str, Any]:
         """Retrieve tenants from the R8S API"""
         params = {
-            PARAM_NAME: name,
+            PARAM_TENANT: name,
         }
 
         try:
