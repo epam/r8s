@@ -49,6 +49,7 @@ def add(name, policies, expiration, customer):
         role_name=name,
         policies=policies,
         expiration=expiration,
+        customer=customer
     )
 
 
