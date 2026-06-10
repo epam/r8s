@@ -189,6 +189,13 @@ def register_tools(
 
 # -- factory -------------------------------------------------------------------
 
+def get_middlewares() -> list[Middleware]:
+    """Get list of middlewares to use at Modular-MCP"""
+    return [
+        Middleware(cls=McpUsernameHeaderMiddleware)
+    ]
+
+
 def create_mcp_server(
         api_base_url: str | None = None,
         username: str | None = None,

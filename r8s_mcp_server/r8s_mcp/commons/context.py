@@ -20,7 +20,6 @@ OUTPUT_FORMAT_HEADER: Final = 'x-r8s-output-format'
 
 # Optional MCP caller identity, forwarded to R8S API (HTTP transports only)
 MCP_USERNAME_HEADER: Final = 'x-r8s-mcp-user-name'
-MCP_USERNAME_OUTBOUND_HEADER: Final = 'X-R8s-Mcp-User-Name'
 
 _mcp_username_ctx: ContextVar[str | None] = ContextVar(
     'mcp_username', default=None
@@ -37,8 +36,7 @@ _default_mcp_config: Config | None = None
 
 def get_mcp_config() -> Config:
     """Return the active server :class:`~r8s_mcp.commons.config.Config`."""
-    _LOG.info(
-        f'Getting MCP server configuration.')
+    _LOG.info('Getting MCP server configuration.')
     c = _mcp_config_ctx.get()
     if c is not None:
         return c
@@ -51,7 +49,7 @@ def get_mcp_config() -> Config:
 
 def set_mcp_config(config: Config) -> Token[Config | None]:
     """Bind *config* for the current context (used at server startup)."""
-    _LOG.info(f'Setting MCP server configuration.')
+    _LOG.info('Setting MCP server configuration.')
     return _mcp_config_ctx.set(config)
 
 

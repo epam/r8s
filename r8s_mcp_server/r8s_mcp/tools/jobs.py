@@ -1,7 +1,13 @@
 from mcp.types import Content, TextContent
 
 from r8s_mcp.commons.formatters import format_result
+from r8s_mcp.commons.utils import (
+    demo_tenant_notice, extract_tenant_names_from_jobs,
+)
 from r8s_mcp.services.r8s_client import R8SClient
+from r8s_mcp.commons.log_helper import get_logger
+
+_LOG = get_logger(__name__)
 
 
 async def get_jobs(
@@ -18,7 +24,17 @@ async def get_jobs(
             job_name=job_name,
             limit=limit,
         )
-        return [TextContent(type='text', text=format_result(result))]
+        _LOG.info(result)
+        tenant_names = extract_tenant_names_from_jobs(result)
+        demo_notice = demo_tenant_notice(tenant_names)
+
+        formatted_text = format_result(
+            data=result,
+            title="Jobs",
+            demo_notice=demo_notice,
+        )
+
+        return [TextContent(type='text', text=formatted_text)]
 
 
 async def submit_job(
@@ -41,4 +57,14 @@ async def submit_job(
             scan_to_date=scan_to_date,
             force_rescan=force_rescan,
         )
-        return [TextContent(type='text', text=format_result(result))]
+        _LOG.info(result)
+        tenant_names = extract_tenant_names_from_jobs(result)
+        demo_notice = demo_tenant_notice(tenant_names)
+
+        formatted_text = format_result(
+            data=result,
+            title="Jobs",
+            demo_notice=demo_notice,
+        )
+
+        return [TextContent(type='text', text=formatted_text)]

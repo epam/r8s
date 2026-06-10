@@ -11,6 +11,7 @@ _LOG = get_logger(__name__)
 def format_result(
         data: Any,
         title: str | None = None,
+        demo_notice: str | None = None,
 ) -> str:
     """
     Format result based on config output format.
@@ -18,6 +19,8 @@ def format_result(
     Args:
         data: The data to format
         title: Optional title for the formatted output
+        demo_notice: Optional notice to include in the formatted output
+            regarding demo tenants
 
     Returns:
         Formatted string based on configured output format
@@ -31,6 +34,9 @@ def format_result(
         format_type=output_format,
         title=title,
     )
+
+    if demo_notice:
+        formatted = f'{demo_notice}\n\n{formatted}'
 
     return formatted
 

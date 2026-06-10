@@ -14,6 +14,12 @@ def _default_resource_path() -> str:
     return str(Path(__file__).resolve().parent.parent / 'resources')
 
 
+def parse_demo_tenant_names(raw: str | None) -> frozenset[str]:
+    if not raw or not raw.strip():
+        return frozenset()
+    return frozenset(part.strip() for part in raw.split(',') if part.strip())
+
+
 @dataclass
 class Config:
     """Configuration for the R8S MCP server"""
@@ -26,6 +32,7 @@ class Config:
     timeout: float = 10.0
     max_retries: int = 3
     resource_path: str = field(default_factory=_default_resource_path)
+    demo_tenant_names: frozenset[str] = field(default_factory=frozenset)
 
     @classmethod
     def from_env_and_args(
@@ -33,6 +40,7 @@ class Config:
             api_base_url: Optional[str] = None,
             username: Optional[str] = None,
             password: Optional[str] = None,
+            demo_tenant_names: frozenset[str] = field(default_factory=frozenset)
     ) -> 'Config':
         """Create config from environment variables and command line arguments"""
 
@@ -66,4 +74,7 @@ class Config:
             timeout=float(MCPEnv.R8S_API_TIMEOUT.get()),
             max_retries=int(MCPEnv.R8S_API_MAX_RETRIES.get()),
             resource_path=resource_path,
+            demo_tenant_names=parse_demo_tenant_names(
+                MCPEnv.R8S_DEMO_TENANT_NAMES.get()
+            ),
         )
