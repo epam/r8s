@@ -6,15 +6,22 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "r8scli"
 description = "Rightsizer CLI"
-requires-python = ">=3.10,<3.15"
+requires-python = ">=3.14,<4"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.14",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
 readme = "README.md"
 dynamic = ["version"]
 dependencies = [
     "click>=8.3,<9",
     "prettytable>=3.9,<4",
     "python-dateutil>=2.9,<3",
-    "modular-cli-sdk[hvac] @ git+https://github.com/epam/modular-cli-sdk@feature/python_314#egg=modular-cli-sdk==3.1.5",
-    "requests>=2.31.0,<3.0.0"
+    "modular-cli-sdk[hvac]>=3.1.5,<4",
+    "requests>=2.31,<3"
 ]
 
 [project.scripts]

@@ -1,5 +1,5 @@
 from pynamodb.attributes import MapAttribute, UnicodeAttribute, \
-    NumberAttribute, ListAttribute
+    NumberAttribute
 
 PERMITTED_ATTACHMENT = 'permitted'
 PROHIBITED_ATTACHMENT = 'prohibited'

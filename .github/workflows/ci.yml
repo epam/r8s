@@ -103,10 +103,10 @@ jobs:
       with:
         ref: ${{ github.event.pull_request.head.sha }}
 
-    - name: Set up Python 3.10
+    - name: Set up Python 3.14
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.14'
 
     - name: Setup test env
       run: |
@@ -119,7 +119,7 @@ jobs:
     - name: Run tests
       run: 
         source .venv/bin/activate
-        tox -e py310-lambdas
+        tox -e py314-lambdas
 
     - name: Upload coverage report
       if: steps.check_files.outputs.changes_found == 'true'
@@ -147,10 +147,10 @@ jobs:
       with:
         ref: ${{ github.event.pull_request.head.sha }}
 
-    - name: Set up Python 3.10
+    - name: Set up Python 3.14
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.14'
 
     - name: Setup test env
       run: |
@@ -164,7 +164,7 @@ jobs:
       if: steps.check_files.outputs.changes_found == 'true'
       run: |
         source .venv/bin/activate
-        tox -e py310-docker
+        tox -e py314-docker
 
     - name: Upload coverage report
       if: steps.check_files.outputs.changes_found == 'true'

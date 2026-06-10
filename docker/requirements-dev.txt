@@ -1,14 +1,11 @@
 # Load all docker requirements
 -r requirements.txt
 
-# Install modular-sdk
-modular-sdk>=6.0.0,<7.0.0
-
 # Install tests requirements
-matplotlib==3.6.2
-pytest==7.1.2
-mongomock==4.3.0
-pytest-cov==3.0.0
-pyflakes==2.4.0
-coverage==6.4.4
-tox==4.4.6
+matplotlib>=3.6.2,<4     # TODO: verify — grep for `import matplotlib` / check .ipynb; heavy dep, remove if unused
+pytest>=9,<10            # used 100% (tox runs pytest)
+mongomock==4.3.0         # used 100%
+pytest-cov>=7,<8         # used 100% (--cov in tox.ini)
+pyflakes>=3,<4           # TODO: remove? — never invoked (no flake8/tox/CI ref), not installed
+coverage>=7,<8           # TODO: remove? — transitive via pytest-cov, not installed standalone
+tox>=4,<5                # TODO: remove? — CI installs tox separately; circular here

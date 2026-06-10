@@ -1,24 +1,17 @@
-modular-sdk @ git+https://github.com/epam/modular-sdk@2904a0d9532817b960ef076a5fe240c7ef50d359
-boto3==1.36.11
-botocore==1.36.11
-certifi==2023.7.22
-cffi==1.15.1
-cryptography==41.0.3
-dnspython==2.4.2
-dynamodb-json~=1.4.2
-mongoengine==0.29.1
-oauthlib==3.2.2
-pymongo==4.11.2
-pynamodb>=5.5.1,<6
-requests==2.31.0
-typing_extensions==4.7.1
-pycryptodome==3.19.0
-joblib==1.3.2
-numpy==1.25.2
-pandas==2.1.1
-scikit-learn==1.3.1
-scipy==1.11.3
-cron-converter==1.0.2
-kneed==0.8.5
-tslearn==0.6.2
-msgspec==0.18.6
+# VERIFIED
+modular-sdk>=7.1.12,<8        # used 100%
+boto3>=1.36.11,<2             # used 100%
+botocore>=1.36.11,<2          # used 100%
+cryptography>=41,<50          # NOT imported directly — required at runtime by modular-sdk (AESGCM signature) & pymongo (OCSP/TLS); both import it lazily but don't declare it
+mongoengine>=0.24.2,<1           # used 100%
+pymongo==4.11.2               # used 100%
+pynamodb==6.1.0               # used 100%
+requests>=2.31,<3             # used 100%
+pycryptodome>=3.19,<4         # used 100%
+numpy>=2,<3                   # used 100%
+pandas>=2.1.1,<3              # used 100%
+scikit-learn>=1.3.1,<2        # used 100%
+cron-converter>=1.0.2,<2      # used 100%
+kneed>=0.8.5,<1               # used 100%
+tslearn>=0.6.2,<1             # used 100%
+msgspec>=0.18.6,<0.22         # used 100%

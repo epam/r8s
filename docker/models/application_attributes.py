@@ -1,5 +1,5 @@
 from pynamodb.attributes import MapAttribute, UnicodeAttribute, \
-    NumberAttribute, ListAttribute
+    NumberAttribute
 
 
 class ConnectionAttribute(MapAttribute):

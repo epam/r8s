@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from re import finditer, findall
-from typing import Union, Optional, List, Dict, re
+from typing import Union, Optional, List, Dict
 
 from commons.constants import GET_METHOD, POST_METHOD, PATCH_METHOD, \
     DELETE_METHOD
@@ -40,7 +40,8 @@ class DeploymentResourcesParser:
             lambda_name = self.get_endpoint_lambda_name(resource_meta,
                                                         endpoint_methods[0])
 
-            request_path = '/' + stage + self.get_proxied_resource(url)
+            request_path = \
+                '/' + stage.strip('/') + self.get_proxied_resource(url)
             config[request_path] = {
                 'allowed_methods': endpoint_methods,
                 'lambda_name': lambda_name,
@@ -87,7 +88,7 @@ class DeploymentResourcesParser:
         - returns `/path/<child_1>/<child_2>`
         :return: str
         """
-        pattern = '([^{\/]+)(?=})'
+        pattern = r'([^{/]+)(?=})'
         for match in finditer(pattern=pattern, string=resource):
             suffix = resource[match.end() + 1:]
             resource = resource[:match.start() - 1]
