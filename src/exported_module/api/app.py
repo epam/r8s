@@ -22,7 +22,7 @@ RESPONSE_HEADERS = {'Content-Type': 'application/json'}
 
 class DynamicAPI:
     def __init__(self, dr_parser: DeploymentResourcesParser):
-        self.app = Bottle(__name__)
+        self.app = Bottle()
 
         self.dr_parser = dr_parser
         self.api_config = self.dr_parser.generate_api_config()
@@ -79,8 +79,9 @@ class DynamicAPI:
                 token_decoded = self.authorize()
         except ApplicationException as e:
             return HTTPResponse(
-                body=dict(message=e.content),
+                body=json.dumps({'message': e.content}),
                 status=e.code,
+                headers={'Content-Type': 'application/json'},
             )
 
         config_path = str(request.path)
@@ -135,8 +136,9 @@ class DynamicAPI:
             )
         except ApplicationException as e:
             return HTTPResponse(
-                body={'message': e.content},
-                status=e.code
+                body=json.dumps({'message': e.content}),
+                status=e.code,
+                headers={'Content-Type': 'application/json'},
             )
 
     @staticmethod
