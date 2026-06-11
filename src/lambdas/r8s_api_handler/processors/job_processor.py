@@ -94,16 +94,8 @@ class JobProcessor(AbstractCommandProcessor):
 
         job_id = event.get(ID_ATTR)
         job_name = event.get(NAME_ATTR)
-        applications = self.application_service.resolve_application(
-            event=event
-        )
         limit = event.get(LIMIT_ATTR, DEFAULT_JOB_LIMIT)
-        if not applications:
-            _LOG.error(f'No suitable application found to describe jobs.')
-            return build_response(
-                code=RESPONSE_BAD_REQUEST_CODE,
-                content=f'No suitable application found to describe jobs.'
-            )
+        tap = event.get(PARAM_USER_TENANT_ACCESS)
 
         if limit:
             try:
@@ -126,6 +118,22 @@ class JobProcessor(AbstractCommandProcessor):
             jobs = self.job_service.list(limit=limit)
 
         if not jobs or jobs and all([job is None for job in jobs]):
+            _LOG.debug(f'No jobs found matching given query')
+            return build_response(
+                code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
+                content=f'No jobs found matching given query'
+            )
+
+        if tap and not tap.is_allowed_for_all_tenants():
+            jobs = [
+                job for job in jobs
+                if job and any(
+                    tap.is_allowed_for(tenant)
+                    for tenant in (job.tenant_status_map or {})
+                )
+            ]
+
+        if not jobs:
             _LOG.debug(f'No jobs found matching given query')
             return build_response(
                 code=RESPONSE_RESOURCE_NOT_FOUND_CODE,
@@ -229,8 +237,21 @@ class JobProcessor(AbstractCommandProcessor):
                    f'{rate_limit}')
         envs[ENV_TENANT_CUSTOMER_INDEX] = str(rate_limit)
 
+        tap = event.get(PARAM_USER_TENANT_ACCESS)
         scan_tenants = event.get(TENANTS_ATTR, [])
         if scan_tenants:
+            if tap and not tap.is_allowed_for_all_tenants():
+                forbidden = [t for t in scan_tenants
+                             if not tap.is_allowed_for(t)]
+                if forbidden:
+                    _LOG.warning(
+                        f'User \'{user_id}\' is not allowed to submit '
+                        f'jobs for tenants: {forbidden}')
+                    return build_response(
+                        code=RESPONSE_FORBIDDEN_CODE,
+                        content=f'Your role does not allow submitting jobs '
+                                f'for tenants: {", ".join(forbidden)}'
+                    )
             _LOG.debug(f'Validating user-provided scan tenants: '
                        f'{scan_tenants}')
             self._validate_input_tenants(
@@ -248,17 +269,18 @@ class JobProcessor(AbstractCommandProcessor):
                 parents=parents,
                 cloud=app_meta.cloud
             )
-        tap = event.get(PARAM_USER_TENANT_ACCESS)
-        if tap and not tap.is_allowed_for_all_tenants():
-            scan_tenants = [t for t in scan_tenants if tap.is_allowed_for(t)]
-            if not scan_tenants:
-                _LOG.warning(f'User \'{user_id}\' is not allowed to submit '
-                             f'jobs for any of the requested tenants.')
-                return build_response(
-                    code=RESPONSE_FORBIDDEN_CODE,
-                    content='Your role does not allow submitting jobs '
-                            'for the requested tenants.'
-                )
+            if tap and not tap.is_allowed_for_all_tenants():
+                scan_tenants = [t for t in scan_tenants
+                                if tap.is_allowed_for(t)]
+                if not scan_tenants:
+                    _LOG.warning(
+                        f'User \'{user_id}\' is not allowed to submit '
+                        f'jobs for any of the resolved tenants.')
+                    return build_response(
+                        code=RESPONSE_FORBIDDEN_CODE,
+                        content='Your role does not allow submitting jobs '
+                                'for the requested tenants.'
+                    )
 
         _LOG.debug(f'Setting scan_tenants env to '
                    f'\'{scan_tenants}\'')
