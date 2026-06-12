@@ -66,6 +66,7 @@ class McpUsernameHeaderMiddleware(BaseHTTPMiddleware):
     """
     async def dispatch(self, request: Request, call_next):
         raw = request.headers.get(MCP_USERNAME_HEADER)
+        _LOG.debug(f'Captured MCP username header: {raw!r}')
         async with mcp_username_request_scope(raw):
             return await call_next(request)
 
