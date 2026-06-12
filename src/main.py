@@ -39,7 +39,7 @@ DEFAULT_NUMBER_OF_WORKERS = (multiprocessing.cpu_count() * 2) + 1
 def get_logger():
     config = {
         'version': 1,
-        'disable_existing_loggers': True
+        'disable_existing_loggers': False
     }
     logging.config.dictConfig(config)
     logger = logging.getLogger()

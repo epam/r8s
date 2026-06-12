@@ -31,6 +31,17 @@ class ParentResizeInsightsProcessor(AbstractCommandProcessor):
             GET_METHOD: self.get
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            parent_service=SERVICE_PROVIDER.rightsizer_parent_service(),
+            algorithm_service=SERVICE_PROVIDER.algorithm_service(),
+            shape_service=SERVICE_PROVIDER.shape_service(),
+            customer_preferences_service=SERVICE_PROVIDER.customer_preferences_service(),
+            resize_service=SERVICE_PROVIDER.resize_service()
+        )
+
     def get(self, event):
         validate_params(event, (PARENT_ID_ATTR, INSTANCE_TYPE_ATTR))
 

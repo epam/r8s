@@ -24,6 +24,11 @@ class StorageProcessor(AbstractCommandProcessor):
             DELETE_METHOD: self.delete,
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(storage_service=SERVICE_PROVIDER.storage_service())
+
     def get(self, event):
         _LOG.debug(f'Get storage event: {event}')
 
@@ -143,8 +148,8 @@ class StorageProcessor(AbstractCommandProcessor):
 
         access = event.get(ACCESS_ATTR)
         if access:
-            bucket_name = event.get(BUCKET_NAME_ATTR)
-            prefix = event.get(PREFIX_ATTR)
+            bucket_name = access.get(BUCKET_NAME_ATTR)
+            prefix = access.get(PREFIX_ATTR)
             if not bucket_name and not prefix:
                 _LOG.debug('\'bucket_name\' or \'prefix\' must be specified ')
                 return build_response(
@@ -154,7 +159,7 @@ class StorageProcessor(AbstractCommandProcessor):
             access_config = storage.to_mongo().to_dict().get(ACCESS_ATTR, {})
             if bucket_name:
                 access_config[BUCKET_NAME_ATTR] = bucket_name
-            elif prefix:
+            if prefix:
                 access_config[PREFIX_ATTR] = prefix
 
             _LOG.debug(f'Validating storage type access')

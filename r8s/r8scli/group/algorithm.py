@@ -49,11 +49,11 @@ def algorithm():
 
 @algorithm.command(cls=ViewCommand, name='describe')
 @click.option('--algorithm_name', '-name', type=str,
-              help='Algorithm name to describe.')
+              help='Algorithm name to describe')
 @cli_response()
 def describe(algorithm_name=None):
     """
-    Describes a R8s algorithm.
+    Describes a R8s algorithm
     """
     from r8scli.service.initializer import init_configuration
     return init_configuration().algorithm_get(algorithm_name=algorithm_name)
@@ -61,27 +61,24 @@ def describe(algorithm_name=None):
 
 @algorithm.command(cls=ViewCommand, name='add')
 @click.option('--algorithm_name', '-name', type=str, required=True,
-              help='Algorithm name to create.')
+              help='Algorithm name to create')
 @click.option('--customer_id', '-cid', type=str, required=True,
-              help='Algorithm customer.')
-@click.option('--cloud', '-c',
-              type=click.Choice(AVAILABLE_CLOUDS),
-              required=True, help='Algorithm cloud.')
-@click.option('--data_attribute', '-da', multiple=True,
-              required=False,
+              help='Algorithm customer')
+@click.option('--cloud', '-c', type=click.Choice(AVAILABLE_CLOUDS),
+              required=True, help='Algorithm cloud')
+@click.option('--data_attribute', '-da', multiple=True, required=False,
               help=f'List of required data attributes for the algorithm. '
                    f'Default: {DEFAULT_DATA_ATTRIBUTES}')
-@click.option('--metric_attribute', '-ma', multiple=True,
-              required=False,
+@click.option('--metric_attribute', '-ma', multiple=True, required=False,
               help=f'List of metric attributes for the algorithm. '
                    f'Default: {DEFAULT_METRIC_ATTRIBUTES}')
 @click.option('--timestamp_attribute', '-ta', type=str, required=True,
-              help='Name of the column that will be used as timestamp.')
+              help='Name of the column that will be used as timestamp')
 @cli_response()
 def add(algorithm_name, customer_id, cloud, data_attribute,
         metric_attribute, timestamp_attribute):
     """
-    Creates a R8s Algorithm.
+    Creates a R8s Algorithm
     """
     from r8scli.service.initializer import init_configuration
 
@@ -105,20 +102,18 @@ def add(algorithm_name, customer_id, cloud, data_attribute,
 
 @algorithm.command(cls=ViewCommand, name='update_general_settings')
 @click.option('--algorithm_name', '-name', type=str, required=True,
-              help='Algorithm name to update.')
-@click.option('--data_attribute', '-da', multiple=True,
-              required=False,
+              help='Algorithm name to update')
+@click.option('--data_attribute', '-da', multiple=True, required=False,
               help='List of required data attributes for the algorithm')
-@click.option('--metric_attribute', '-ma', multiple=True,
-              required=False,
+@click.option('--metric_attribute', '-ma', multiple=True, required=False,
               help='List of metric attributes for the algorithm')
 @click.option('--timestamp_attribute', '-ta', type=str, required=False,
-              help='Name of the column that will be used as timestamp.')
+              help='Name of the column that will be used as timestamp')
 @cli_response()
 def update_general_settings(algorithm_name, data_attribute, metric_attribute,
                             timestamp_attribute):
     """
-    Updates a R8s algorithm general settings.
+    Updates a R8s algorithm general settings
     """
     from r8scli.service.initializer import init_configuration
 
@@ -143,13 +138,13 @@ def update_general_settings(algorithm_name, data_attribute, metric_attribute,
 
 @algorithm.command(cls=ViewCommand, name='update_metric_format')
 @click.option('--algorithm_name', '-name', type=str, required=True,
-              help='Algorithm name to update.')
+              help='Algorithm name to update')
 @click.option('--delimiter', '-d', type=str, required=False,
               help='A one-character string used to separate fields. '
                    'Max length: 2 chars')
 @click.option('--skipinitialspace', '-sis', type=bool, required=False,
               help='When True, spaces immediately following the delimiter '
-                   'are ignored.')
+                   'are ignored')
 @click.option('--lineterminator', '-ln', type=str, required=False,
               help='The string used to terminate lines. Defaults to "\r\n". '
                    'Max length: 3 chars')
@@ -167,13 +162,13 @@ def update_general_settings(algorithm_name, data_attribute, metric_attribute,
               help='Controls how instances of quotechar appearing inside '
                    'a field should themselves be quoted. When True, the '
                    'character is doubled. When False, the escapechar is '
-                   'used as a prefix to the quotechar. It defaults to True.')
+                   'used as a prefix to the quotechar. It defaults to True')
 @cli_response()
 def update_metric_format(algorithm_name, delimiter, skipinitialspace,
                          lineterminator, quotechar, quoting, escapechar,
                          doublequote):
     """
-    Updates a R8s algorithm metric format settings.
+    Updates a R8s algorithm metric format settings
     """
     from r8scli.service.initializer import init_configuration
 
@@ -199,7 +194,7 @@ def update_metric_format(algorithm_name, delimiter, skipinitialspace,
 
 @algorithm.command(cls=ViewCommand, name='update_clustering_settings')
 @click.option('--algorithm_name', '-name', type=str, required=True,
-              help='Algorithm name to update.')
+              help='Algorithm name to update')
 @click.option('--max_clusters', '-mc', type=int, required=False,
               help='Max number of possible clusters per day. [1-10]')
 @click.option('--wcss_kmeans_init', '-wki',
@@ -214,7 +209,7 @@ def update_metric_format(algorithm_name, delimiter, skipinitialspace,
 # todo
 @click.option('--knee_interp_method', '-kim',
               type=click.Choice(AVAILABLE_KNEE_INTERP_OPTIONS),
-              help='Interpolation method for fitting a spline to the input.')
+              help='Interpolation method for fitting a spline to the input')
 @click.option('--knee_polynomial_degree', '-kpd', type=int, required=False,
               help='Controls the degree of the polynomial fit. Only for '
                    '"polynomial" interpolation method. [1-20]')
@@ -223,7 +218,7 @@ def update_clustering_settings(algorithm_name, max_clusters, wcss_kmeans_init,
                                wcss_kmeans_max_iter, wcss_kmeans_n_init,
                                knee_interp_method, knee_polynomial_degree):
     """
-    Updates a R8s algorithm clustering settings.
+    Updates a R8s algorithm clustering settings
     """
     from r8scli.service.initializer import init_configuration
 
@@ -249,20 +244,18 @@ def update_clustering_settings(algorithm_name, max_clusters, wcss_kmeans_init,
 
 @algorithm.command(cls=ViewCommand, name='update_recommendation_settings')
 @click.option('--algorithm_name', '-name', type=str, required=True,
-              help='Algorithm name to update.')
+              help='Algorithm name to update')
 @click.option('--record_step_minutes', '-rsm', type=int, required=False,
-              help='Group metrics to specific step before processing [1-60].')
+              help='Group metrics to specific step before processing [1-60]')
 @click.option('--threshold', '-thr', multiple=True, type=int, required=False,
               help='Load thresholds used to divide clusters. '
-                   'Exactly 3 values required [0-100].')
-@click.option('--min_allowed_days', '-mind',
-              type=int, required=False,
+                   'Exactly 3 values required [0-100]')
+@click.option('--min_allowed_days', '-mind', type=int, required=False,
               help='Minimum allowed number of days data to process [1-90]')
 @click.option('--max_days', '-maxd', type=int, required=False,
               help='Maximum number of days to process for a single '
                    'instance. [7-365]')
-@click.option('--min_allowed_days_schedule', '-minds', type=int,
-              required=False,
+@click.option('--min_allowed_days_schedule', '-minds', type=int, required=False,
               help='Minimum required number of days data to allow schedule '
                    'detection. [7-60]')
 @click.option('--ignore_savings', '-igs', type=bool, required=False,
@@ -270,16 +263,14 @@ def update_clustering_settings(algorithm_name, max_clusters, wcss_kmeans_init,
 @click.option('--max_recommended_shapes', '-maxsh', type=int, required=False,
               help='Maximum number of shapes to recommend for single '
                    'instance. [1-10]')
-@click.option('--shape_compatibility_rule', '-scr',
+@click.option('--shape_compatibility_rule', '-scr', required=False,
               type=click.Choice(AVAILABLE_SHAPE_COMPATIBILITY_RULES),
-              required=False, help='Shape compatibility rule to apply for '
-                                   'instances while checking their '
-                                   'compatibility with current instance type')
-@click.option('--shape_sorting', '-ss',
+              help='Shape compatibility rule to apply for instances while '
+                   'checking their compatibility with current instance type')
+@click.option('--shape_sorting', '-ss', required=False,
               type=click.Choice(AVAILABLE_SHAPE_SORTING),
-              required=False, help='Sort recommended shapes by PRICE '
-                                   '(cheaper first) or '
-                                   'PERFORMANCE (most suitable first)')
+              help='Sort recommended shapes by PRICE (cheaper first) or '
+                   'PERFORMANCE (most suitable first)')
 @click.option('--use_past_recommendations', '-upr', type=bool, required=False,
               help='Indicates to take into account previous r8s '
                    'recommendations for that instance')
@@ -287,14 +278,14 @@ def update_clustering_settings(algorithm_name, max_clusters, wcss_kmeans_init,
               help='Indicates to take into account provided instance tags')
 @click.option('--analysis_price', '-ap', required=False,
               type=click.Choice(AVAILABLE_ANALYSIS_PRICE),
-              help='Price strategy used to calculate possible savings.')
+              help='Price strategy used to calculate possible savings')
 @click.option('--ignore_action', '-ia', multiple=True, required=False,
               help='Force r8s to skip specific recommendation types')
 @click.option('--target_timezone_name', '-ttz', type=str, required=False,
               help='Adjust metrics for specific timezone before processing')
 @click.option('--discard_initial_zeros', '-did', type=bool, required=False,
               help='Discard metrics with zero-filled values at the '
-                   'beginning of processing period.', default=True)
+                   'beginning of processing period', default=True)
 @click.option('--forbid_change_series', '-fcs', type=bool, required=False,
               help='Forbids to recommend shapes from different series')
 @click.option('--forbid_change_family', '-fcf', type=bool, required=False,
@@ -312,7 +303,7 @@ def update_recommendation_settings(algorithm_name, record_step_minutes,
                                    target_timezone_name, discard_initial_zeros,
                                    forbid_change_series, forbid_change_family):
     """
-    Updates a R8s algorithm recommendation settings.
+    Updates a R8s algorithm recommendation settings
     """
     from r8scli.service.initializer import init_configuration
 
@@ -359,12 +350,11 @@ def update_recommendation_settings(algorithm_name, record_step_minutes,
 
 @algorithm.command(cls=ViewCommand, name='delete')
 @click.option('--algorithm_name', '-name', type=str, required=True,
-              help='Algorithm name to delete.')
+              help='Algorithm name to delete')
 @cli_response()
 def delete(algorithm_name=None):
     """
-    Deletes a R8s algorithm.
+    Deletes a R8s algorithm
     """
     from r8scli.service.initializer import init_configuration
-    return init_configuration().algorithm_delete(
-        algorithm_name=algorithm_name)
+    return init_configuration().algorithm_delete(algorithm_name=algorithm_name)

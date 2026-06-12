@@ -74,6 +74,25 @@ class HealthCheckProcessor(AbstractCommandProcessor):
             CHECK_TYPE_SHAPE_UPDATE_DATE: self._init_shape_update_date_handler
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            application_service=SERVICE_PROVIDER.rightsizer_application_service(),
+            tenant_service=SERVICE_PROVIDER.tenant_service(),
+            shape_service=SERVICE_PROVIDER.shape_service(),
+            shape_price_service=SERVICE_PROVIDER.shape_price_service(),
+            parent_service=SERVICE_PROVIDER.rightsizer_parent_service(),
+            storage_service=SERVICE_PROVIDER.storage_service(),
+            ssm_service=SERVICE_PROVIDER.ssm_service(),
+            api_gateway_client=SERVICE_PROVIDER.api_gateway_client(),
+            user_service=SERVICE_PROVIDER.user_service(),
+            algorithm_service=SERVICE_PROVIDER.algorithm_service(),
+            settings_service=SERVICE_PROVIDER.settings_service(),
+            s3_client=SERVICE_PROVIDER.s3(),
+            environment_service=SERVICE_PROVIDER.environment_service()
+        )
+
     def post(self, event):
         _LOG.debug(f'Health Check event: {event}')
 

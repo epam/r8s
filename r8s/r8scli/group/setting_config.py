@@ -20,8 +20,7 @@ def describe():
 
 
 @config.command(cls=ViewCommand, name='add')
-@click.option('--host', '-h',
-              type=str, required=True,
+@click.option('--host', '-h',type=str, required=True,
               help='License Manager host. You can specify the full url here')
 @click.option('--port', '-p', type=int,
               help='License Manager port.', required=False)
@@ -42,7 +41,7 @@ def add(host, port, protocol, stage):
 
 
 @config.command(cls=ViewCommand, name='delete')
-@click.option('--confirm', is_flag=True, help='Confirms the action.')
+@click.option('--confirm', is_flag=True, help='Confirms the action')
 @cli_response()
 def delete(confirm: bool):
     """
@@ -50,7 +49,8 @@ def delete(confirm: bool):
     """
     if not confirm:
         return LocalCommandResponse(
-            body={'message': 'Please, specify `--confirm` flag'})
+            body={'message': 'Please, specify `--confirm` flag'},
+        )
 
     from r8scli.service.initializer import init_configuration
     return init_configuration().lm_config_setting_delete()

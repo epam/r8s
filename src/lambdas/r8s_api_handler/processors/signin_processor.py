@@ -16,6 +16,11 @@ class SignInProcessor(AbstractCommandProcessor):
             POST_METHOD: self.post,
         }
 
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(user_service=SERVICE_PROVIDER.user_service())
+
     def post(self, event):
         username = event.get(USERNAME_ATTR)
         _LOG.debug(f'Sign in event for user: {username}')

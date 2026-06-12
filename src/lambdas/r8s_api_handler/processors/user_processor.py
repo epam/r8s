@@ -1,8 +1,9 @@
-from commons import RESPONSE_FORBIDDEN_CODE, \
+from commons import RESPONSE_FORBIDDEN_CODE, RESPONSE_BAD_REQUEST_CODE, \
     build_response, RESPONSE_RESOURCE_NOT_FOUND_CODE, RESPONSE_OK_CODE, \
     validate_params
 from commons.constants import GET_METHOD, DELETE_METHOD, \
-    PATCH_METHOD, USER_ID_ATTR, PASSWORD_ATTR
+    PATCH_METHOD, USER_ID_ATTR, PASSWORD_ATTR, \
+    ROLES_TO_ATTACH, ROLES_TO_DETACH
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.abstract_processor import \
     AbstractCommandProcessor
@@ -27,6 +28,15 @@ class UserProcessor(AbstractCommandProcessor):
             PATCH_METHOD: self.patch,
             DELETE_METHOD: self.delete,
         }
+
+    @classmethod
+    def build(cls):
+        from services import SERVICE_PROVIDER
+        return cls(
+            user_service=SERVICE_PROVIDER.user_service(),
+            access_control_service=SERVICE_PROVIDER.access_control_service(),
+            iam_service=SERVICE_PROVIDER.iam_service()
+        )
 
     def get(self, event):
         _LOG.debug(f'Get user event: {event}')
@@ -64,11 +74,22 @@ class UserProcessor(AbstractCommandProcessor):
 
     def patch(self, event):
         _LOG.debug(f'Update user event')
-        validate_params(event, (PARAM_TARGET_USER, PASSWORD_ATTR))
+        validate_params(event, (PARAM_TARGET_USER,))
 
         current_user_id = event.get(USER_ID_ATTR)
         user_customer = event.get(PARAM_USER_CUSTOMER)
         target_user = event.get(PARAM_TARGET_USER)
+        password = event.get(PASSWORD_ATTR)
+        roles_to_attach = event.get(ROLES_TO_ATTACH)
+        roles_to_detach = event.get(ROLES_TO_DETACH)
+
+        if not any([password, roles_to_attach, roles_to_detach]):
+            return build_response(
+                code=RESPONSE_BAD_REQUEST_CODE,
+                content=f'At least one of: {PASSWORD_ATTR}, '
+                        f'{ROLES_TO_ATTACH}, {ROLES_TO_DETACH} must be provided'
+            )
+
         target_user_customer = self.user_service.get_user_customer(target_user)
 
         allowed_to_update = self._is_allowed_to_modify(
@@ -77,7 +98,6 @@ class UserProcessor(AbstractCommandProcessor):
             target_user_id=target_user,
             target_user_customer=target_user_customer
         )
-
         if not allowed_to_update:
             _LOG.error(f'You are not allowed to update user \'{target_user}\'')
             return build_response(
@@ -85,11 +105,28 @@ class UserProcessor(AbstractCommandProcessor):
                 content=f'You are not allowed to update user \'{target_user}\''
             )
 
-        password = event.get(PASSWORD_ATTR)
+        if password:
+            _LOG.debug(f'Updating user \'{target_user}\' password')
+            self.user_service.update_user_password(username=target_user,
+                                                   password=password)
 
-        _LOG.debug(f'Updating user \'{target_user}\' password')
-        self.user_service.update_user_password(username=target_user,
-                                               password=password)
+        if roles_to_attach or roles_to_detach:
+            if roles_to_attach:
+                non_existing = self.access_control_service.get_non_existing_roles(
+                    roles=roles_to_attach)
+                if non_existing:
+                    return build_response(
+                        code=RESPONSE_FORBIDDEN_CODE,
+                        content=f'Roles do not exist: {", ".join(non_existing)}'
+                    )
+            current_roles = set(
+                self.user_service.get_user_roles(user=target_user))
+            if roles_to_attach:
+                current_roles.update(roles_to_attach)
+            if roles_to_detach:
+                current_roles.difference_update(roles_to_detach)
+            self.user_service.update_roles(username=target_user,
+                                           roles=list(current_roles))
 
         _LOG.debug(f'User with name \'{target_user}\' has been updated')
         return build_response(
