@@ -382,5 +382,6 @@ ERROR_NO_APPLICATION_FOUND = 'No application found matching given query.'
 
 TENANT_SCOPED_PERMISSION_GROUPS = frozenset({
     'r8s:job', 'r8s:parent', 'r8s:report', 'r8s:recommendation', 'r8s:iam',
+    'r8s:tenant',
 })
 PARAM_USER_TENANT_ACCESS = 'user_tenant_access'
