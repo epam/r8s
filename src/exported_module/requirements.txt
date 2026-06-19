@@ -4,7 +4,7 @@ typing_extensions>=4.7.1,<5
 pymongo==4.11.2
 bcrypt>=4,<5
 psutil>=5.8.0,<8
-modular-sdk>=7.1.12,<8
+modular-sdk>=8,<9
 hvac==2.1.0
 python-dotenv>=1,<2
 PyJWT>=2.11,<3

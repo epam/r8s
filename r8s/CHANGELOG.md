@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.13.5] - 2026-06-03
 * Add Python 3.14 support (`requires-python = ">=3.14,<4"`)
-* Update library `modular-cli-sdk` from `==3.1.4` to `==3.1.5`
+* Update library `modular-cli-sdk` from `==3.1.4` to `>=4,<5`
 * Replaced pinned dependency versions with compatible ranges to allow broader Python 3.14 resolution:
   - `click==8.3.0` -> `click>=8.3,<9`
   - `prettytable==3.9.0` -> `prettytable>=3.9,<4`
