@@ -4,17 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] - 2026-06-02
+## [1.1.0] - 2026-06-23
 ### Added
 - Python 3.14 support (`requires-python` now `>=3.10,<3.15`).
 
 ### Changed
 - Synced dependency versions with `modular-mcp` for consistency across the suite:
   - `mcp` `>=1.6.0` -> `>=1.26.0`
-  - `starlette` `>=0.37.0` -> `>=0.52.1`
   - `pyyaml` `>=6.0.0` -> `>=6.0.3`
   - `pydantic` `>=2.7.0` -> `>=2.12.5`
   - `pytest` (dev) `>=8.0.0` -> `>=9.0.2`
+  - `starlette` version updated to `~=1.3.1`
 - Capped supported Python version to `<3.15` to align with the modular-mcp host.
 
 ### Fixed
