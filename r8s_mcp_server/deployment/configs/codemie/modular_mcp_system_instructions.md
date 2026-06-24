@@ -23,6 +23,7 @@ R8S reviews existing virtual instances and produces the following types of recom
 
 | User Intent                             | Primary Tool(s)       |
 |-----------------------------------------|-----------------------|
+| List my projects / check activation     | `get_tenants`         |
 | Start a new scan / trigger analysis     | `submit_job`          |
 | Check scan history, status, or progress | `get_jobs`            |
 | View optimization recommendations       | `get_recommendations` |
