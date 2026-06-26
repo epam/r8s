@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.15.0] - 2026-06-22
+- Added 15-minute deadline to DefectDojo token polling loop to prevent infinite hang on initialization failure
+
 ## [3.14.0] - 2026-06-02
 * Implement tenant-level RBAC permissions:
   * `Policy` model extended with `effect` (`allow`/`deny`), `tenants` fields

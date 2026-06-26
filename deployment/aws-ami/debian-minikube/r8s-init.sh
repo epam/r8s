@@ -395,7 +395,11 @@ initialize_system() {
   fi
 
   echo "Getting Defect dojo token"
+  local _dojo_deadline=$(( $(date +%s) + 900 ))
   while [ -z "$dojo_token" ]; do
+    if [ "$(date +%s)" -ge "$_dojo_deadline" ]; then
+      die_with_support "Timed out waiting for Defect Dojo token after 15 minutes"
+    fi
     sleep 2
     dojo_token=$(curl -X POST -H 'content-type: application/json' "http://$mip:32107/api/v2/api-token-auth/" -d "{\"username\":\"admin\",\"password\":\"$(get_kubectl_secret "$DEFECTDOJO_SECRET_NAME" system-password)\"}" | jq ".token" -r || true)
   done
@@ -803,7 +807,7 @@ cmd_backup_restore() {
 }
 
 # Start
-VERSION="1.0.0"
+VERSION="1.0.1"
 PROGRAM="${0##*/}"
 COMMAND="$1"
 
