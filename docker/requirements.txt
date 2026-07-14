@@ -1,9 +1,9 @@
 # VERIFIED
 modular-sdk>=8,<9             # used 100%
-boto3>=1.36.11,<2             # used 100%
-botocore>=1.36.11,<2          # used 100%
+boto3>=1.36.11,<1.43.40       # used 100%
+botocore>=1.36.11,<1.43.40    # used 100%
 cryptography>=41,<50          # NOT imported directly — required at runtime by modular-sdk (AESGCM signature) & pymongo (OCSP/TLS); both import it lazily but don't declare it
-mongoengine>=0.24.2,<1           # used 100%
+mongoengine>=0.24.2,<1        # used 100%
 pymongo==4.11.2               # used 100%
 pynamodb==6.1.0               # used 100%
 requests>=2.31,<3             # used 100%
