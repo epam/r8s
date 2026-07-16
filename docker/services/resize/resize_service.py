@@ -1,6 +1,8 @@
 from math import inf
 from typing import List
 
+import pandas as pd
+
 from commons.constants import JOB_STEP_GENERATE_REPORTS, ACTION_SPLIT, \
     CLOUD_ATTR, PROBABILITY
 from commons.exception import ExecutorException
@@ -200,7 +202,7 @@ class ResizeService:
         }
         shape_prob = []
         for metric_name, metric_trend in trend.metric_trends.items():
-            if metric_trend.mean == -1:
+            if pd.isna(metric_trend.mean):
                 continue
             shape_key = metric_to_shape_key.get(metric_name)
 

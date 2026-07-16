@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from statistics import quantiles
 
+import pandas as pd
+
 from commons.constants import ACTION_SPLIT, ACTION_SCALE_DOWN, ACTION_SCALE_UP, \
     ACTION_CHANGE_SHAPE
 
@@ -21,7 +23,7 @@ class ResizeTrend:
         self.metric_trends = {}
         self.probability = None
         self._default_metric_trend = MetricTrend(
-            mean=-1, percentiles=quantiles([-1, -1], n=100),
+            mean=float('nan'), percentiles=quantiles([-1, -1], n=100),
             result=0, threshold=0)
 
     def __getitem__(self, item):
@@ -31,9 +33,13 @@ class ResizeTrend:
         return self.metric_trends.get(item, self._default_metric_trend)
 
     def add_metric_trend(self, metric_name, column):
-        mean = column.mean()
-        threshold = column.quantile(.9)
-        percentiles = quantiles(column, n=100)
+        clean_column = column.dropna()
+        if clean_column.empty:
+            self.metric_trends[metric_name] = self._default_metric_trend
+            return
+        mean = clean_column.mean()
+        threshold = clean_column.quantile(.9)
+        percentiles = quantiles(clean_column, n=100)
         result_direction = self.__get_result_direction(
             mean=mean,
             threshold=threshold
@@ -135,7 +141,7 @@ class ResizeTrend:
 
     @staticmethod
     def __get_result_direction(mean, threshold):
-        if mean == -1:
+        if pd.isna(mean):
             return 0
         result = 0
         if threshold <= 20:  # under utilized

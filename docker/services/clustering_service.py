@@ -60,6 +60,9 @@ class ClusteringService:
         for column_name in column_names:
             df_[column_name] = df_[column_name].rolling(
                 window=rolling_avg, min_periods=1).mean()
+            df_[column_name] = (df_[column_name].ffill()
+                                .bfill()
+                                .fillna(0))
         return df_
 
     @staticmethod
