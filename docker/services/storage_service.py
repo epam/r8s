@@ -82,6 +82,7 @@ class StorageService:
                          max_days, min_days, recommendations_map: dict,
                          force_rescan: bool):
         type_downloader_mapping = {
+            Storage: self._download_metrics_s3,
             S3Storage: self._download_metrics_s3
         }
         downloader = type_downloader_mapping.get(data_source.__class__)

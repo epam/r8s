@@ -299,6 +299,8 @@ class RightSizerApplicationService(ApplicationService):
 
     def is_license_expired(self, application: Application):
         app_meta = self.get_application_meta(application=application)
+        if not app_meta.expiration:
+            return False
         return app_meta.expiration <= utc_iso()
 
     def get_by_license_key(self, customer, license_key: str):

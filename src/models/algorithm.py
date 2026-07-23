@@ -96,7 +96,8 @@ class RecommendationSettings(EmbeddedDocument):
     forbid_change_family = BooleanField(default=False)
     optimized_aggregation_threshold_days = IntField(default=14)
     optimized_aggregation_step_minutes = IntField(default=15)
-
+    missing_data_threshold_percent = IntField(min_value=0, max_value=100,
+                                              default=50)
 
 class Algorithm(BaseModel):
     dto_skip_attrs = ['_id', 'md5', 'format_version']
