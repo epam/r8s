@@ -10966,5 +10966,4126 @@
     "physical_processor": "Intel Xeon Processor",
     "architecture": "64-bit",
     "rating": ""
+  },
+  {
+    "name": "db.r4.16xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 64.0,
+    "memory": 488.0,
+    "network_throughput": 3125.0,
+    "iops": 75000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.621000+00:00",
+    "engines": [
+      "aurora-mysql"
+    ],
+    "storage_types": [
+      "aurora"
+    ]
+  },
+  {
+    "name": "db.r4.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 61.0,
+    "network_throughput": 437.5,
+    "iops": 12000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.621000+00:00",
+    "engines": [
+      "aurora-mysql"
+    ],
+    "storage_types": [
+      "aurora"
+    ]
+  },
+  {
+    "name": "db.r4.4xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 16.0,
+    "memory": 122.0,
+    "network_throughput": 437.5,
+    "iops": 18750.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.621000+00:00",
+    "engines": [
+      "aurora-mysql"
+    ],
+    "storage_types": [
+      "aurora"
+    ]
+  },
+  {
+    "name": "db.r4.8xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 32.0,
+    "memory": 244.0,
+    "network_throughput": 1250.0,
+    "iops": 37500.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.621000+00:00",
+    "engines": [
+      "aurora-mysql"
+    ],
+    "storage_types": [
+      "aurora"
+    ]
+  },
+  {
+    "name": "db.r4.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 15.25,
+    "network_throughput": 437.5,
+    "iops": 3000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.621000+00:00",
+    "engines": [
+      "aurora-mysql"
+    ],
+    "storage_types": [
+      "aurora"
+    ]
+  },
+  {
+    "name": "db.r4.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 30.5,
+    "network_throughput": 437.5,
+    "iops": 6000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.621000+00:00",
+    "engines": [
+      "aurora-mysql"
+    ],
+    "storage_types": [
+      "aurora"
+    ]
+  },
+  {
+    "name": "db.r5.12xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 48.0,
+    "memory": 384.0,
+    "network_throughput": 1500.0,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.621000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r5.16xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 64.0,
+    "memory": 512.0,
+    "network_throughput": 2500.0,
+    "iops": 60000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.622000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r5.24xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 96.0,
+    "memory": 768.0,
+    "network_throughput": 3125.0,
+    "iops": 80000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.622000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r5.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 64.0,
+    "network_throughput": 437.5,
+    "iops": 18750.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.622000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r5.4xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 16.0,
+    "memory": 128.0,
+    "network_throughput": 437.5,
+    "iops": 18750.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.622000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r5.8xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 32.0,
+    "memory": 256.0,
+    "network_throughput": 1250.0,
+    "iops": 30000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.622000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r5.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 16.0,
+    "network_throughput": 437.5,
+    "iops": 18750.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.622000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r5.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 32.0,
+    "network_throughput": 437.5,
+    "iops": 18750.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.622000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r6g.12xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 48.0,
+    "memory": 384.0,
+    "network_throughput": 2500.0,
+    "iops": 50000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.622000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r6g.16xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 64.0,
+    "memory": 512.0,
+    "network_throughput": 3125.0,
+    "iops": 80000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.622000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r6g.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 64.0,
+    "network_throughput": 437.5,
+    "iops": 20000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.622000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r6g.4xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 16.0,
+    "memory": 128.0,
+    "network_throughput": 437.5,
+    "iops": 20000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.622000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r6g.8xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 32.0,
+    "memory": 256.0,
+    "network_throughput": 1500.0,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.622000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r6g.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 16.0,
+    "network_throughput": 437.5,
+    "iops": 20000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.622000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r6g.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 32.0,
+    "network_throughput": 437.5,
+    "iops": 20000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.623000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r6i.12xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 48.0,
+    "memory": 384.0,
+    "network_throughput": 2343.75,
+    "iops": 60000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.623000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r6i.16xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 64.0,
+    "memory": 512.0,
+    "network_throughput": 3125.0,
+    "iops": 80000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.623000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r6i.24xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 96.0,
+    "memory": 768.0,
+    "network_throughput": 4687.5,
+    "iops": 120000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.623000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r6i.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 64.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.623000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r6i.32xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 128.0,
+    "memory": 1024.0,
+    "network_throughput": 6250.0,
+    "iops": 160000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.623000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r6i.4xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 16.0,
+    "memory": 128.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.623000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r6i.8xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 32.0,
+    "memory": 256.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.623000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r6i.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 16.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.623000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r6i.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 32.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.623000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.t2.medium",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 4.0,
+    "network_throughput": 437.5,
+    "iops": null,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.623000+00:00",
+    "engines": [
+      "aurora-mysql"
+    ],
+    "storage_types": [
+      "aurora"
+    ]
+  },
+  {
+    "name": "db.t2.small",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 1.0,
+    "memory": 2.0,
+    "network_throughput": 437.5,
+    "iops": null,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.623000+00:00",
+    "engines": [
+      "aurora-mysql"
+    ],
+    "storage_types": [
+      "aurora"
+    ]
+  },
+  {
+    "name": "db.t3.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 8.0,
+    "network_throughput": 625.0,
+    "iops": 15700.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.623000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.t3.medium",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 4.0,
+    "network_throughput": 625.0,
+    "iops": 11800.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.623000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.t3.small",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 2.0,
+    "network_throughput": 625.0,
+    "iops": 11800.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.623000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.t4g.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 8.0,
+    "network_throughput": 625.0,
+    "iops": 15700.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.623000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.t4g.medium",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 4.0,
+    "network_throughput": 625.0,
+    "iops": 11800.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.624000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r7g.12xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 48.0,
+    "memory": 384.0,
+    "network_throughput": 2812.5,
+    "iops": 60000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.624000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r7g.16xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 64.0,
+    "memory": 512.0,
+    "network_throughput": 3750.0,
+    "iops": 80000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.624000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r7g.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 64.0,
+    "network_throughput": 1875.0,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.624000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r7g.4xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 16.0,
+    "memory": 128.0,
+    "network_throughput": 1875.0,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.624000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r7g.8xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 32.0,
+    "memory": 256.0,
+    "network_throughput": 1875.0,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.624000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r7g.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 16.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.624000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r7g.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 32.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.624000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r7i.12xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 48.0,
+    "memory": 384.0,
+    "network_throughput": 2343.75,
+    "iops": 60000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.624000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r7i.16xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 64.0,
+    "memory": 512.0,
+    "network_throughput": 3125.0,
+    "iops": 80000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.624000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r7i.24xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 96.0,
+    "memory": 768.0,
+    "network_throughput": 4687.5,
+    "iops": 120000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.624000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r7i.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 64.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.624000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r7i.48xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 192.0,
+    "memory": 1536.0,
+    "network_throughput": 6250.0,
+    "iops": 240000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.624000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r7i.4xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 16.0,
+    "memory": 128.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.624000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r7i.8xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 32.0,
+    "memory": 256.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.624000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r7i.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 16.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.624000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r7i.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 32.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.624000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r8g.12xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 48.0,
+    "memory": 384.0,
+    "network_throughput": 2812.5,
+    "iops": 60000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.624000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r8g.16xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 64.0,
+    "memory": 512.0,
+    "network_throughput": 3750.0,
+    "iops": 80000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.625000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r8g.24xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 96.0,
+    "memory": 768.0,
+    "network_throughput": 5000.0,
+    "iops": 120000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.625000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r8g.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 64.0,
+    "network_throughput": 1875.0,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.625000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r8g.48xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 192.0,
+    "memory": 1536.0,
+    "network_throughput": 6250.0,
+    "iops": 240000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.625000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r8g.4xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 16.0,
+    "memory": 128.0,
+    "network_throughput": 1875.0,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.625000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r8g.8xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 32.0,
+    "memory": 256.0,
+    "network_throughput": 1875.0,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.625000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r8g.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 16.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.625000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r8g.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 32.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.625000+00:00",
+    "engines": [
+      "aurora-mysql",
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "aurora",
+      "aurora-iopt1",
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m5.12xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 48.0,
+    "memory": 192.0,
+    "network_throughput": 1500.0,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.625000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m5.16xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 64.0,
+    "memory": 256.0,
+    "network_throughput": 2500.0,
+    "iops": 60000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.625000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m5.24xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 96.0,
+    "memory": 384.0,
+    "network_throughput": 3125.0,
+    "iops": 80000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.625000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m5.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 32.0,
+    "network_throughput": 437.5,
+    "iops": 18750.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.625000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m5.4xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 16.0,
+    "memory": 64.0,
+    "network_throughput": 437.5,
+    "iops": 18750.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.625000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m5.8xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 32.0,
+    "memory": 128.0,
+    "network_throughput": 1250.0,
+    "iops": 30000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.625000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m5.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 8.0,
+    "network_throughput": 437.5,
+    "iops": 18750.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.625000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m5.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 16.0,
+    "network_throughput": 437.5,
+    "iops": 18750.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.625000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m5d.12xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 48.0,
+    "memory": 192.0,
+    "network_throughput": 1500.0,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.625000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m5d.16xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 64.0,
+    "memory": 256.0,
+    "network_throughput": 2500.0,
+    "iops": 60000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.625000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m5d.24xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 96.0,
+    "memory": 384.0,
+    "network_throughput": 3125.0,
+    "iops": 80000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.626000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m5d.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 32.0,
+    "network_throughput": 437.5,
+    "iops": 18750.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.626000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m5d.4xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 16.0,
+    "memory": 64.0,
+    "network_throughput": 437.5,
+    "iops": 18750.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.626000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m5d.8xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 32.0,
+    "memory": 128.0,
+    "network_throughput": 1250.0,
+    "iops": 30000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.626000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m5d.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 8.0,
+    "network_throughput": 437.5,
+    "iops": 18750.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.626000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m5d.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 16.0,
+    "network_throughput": 437.5,
+    "iops": 18750.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.626000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6g.12xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 48.0,
+    "memory": 192.0,
+    "network_throughput": 2500.0,
+    "iops": 50000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.626000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6g.16xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 64.0,
+    "memory": 256.0,
+    "network_throughput": 3125.0,
+    "iops": 80000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.626000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6g.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 32.0,
+    "network_throughput": 437.5,
+    "iops": 20000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.626000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6g.4xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 16.0,
+    "memory": 64.0,
+    "network_throughput": 437.5,
+    "iops": 20000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.626000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6g.8xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 32.0,
+    "memory": 128.0,
+    "network_throughput": 1500.0,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.626000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6g.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 8.0,
+    "network_throughput": 437.5,
+    "iops": 20000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.626000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6g.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 16.0,
+    "network_throughput": 437.5,
+    "iops": 20000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.626000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6gd.12xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 48.0,
+    "memory": 192.0,
+    "network_throughput": 2500.0,
+    "iops": 50000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.626000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6gd.16xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 64.0,
+    "memory": 256.0,
+    "network_throughput": 3125.0,
+    "iops": 80000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.627000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6gd.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 32.0,
+    "network_throughput": 437.5,
+    "iops": 20000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.627000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6gd.4xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 16.0,
+    "memory": 64.0,
+    "network_throughput": 437.5,
+    "iops": 20000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.627000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6gd.8xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 32.0,
+    "memory": 128.0,
+    "network_throughput": 1500.0,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.627000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6gd.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 8.0,
+    "network_throughput": 437.5,
+    "iops": 20000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.627000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6gd.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 16.0,
+    "network_throughput": 437.5,
+    "iops": 20000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.627000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6i.12xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 48.0,
+    "memory": 192.0,
+    "network_throughput": 2343.75,
+    "iops": 60000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.627000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6i.16xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 64.0,
+    "memory": 256.0,
+    "network_throughput": 3125.0,
+    "iops": 80000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.627000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6i.24xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 96.0,
+    "memory": 384.0,
+    "network_throughput": 4687.5,
+    "iops": 120000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.627000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6i.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 32.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.627000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6i.32xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 128.0,
+    "memory": 512.0,
+    "network_throughput": 6250.0,
+    "iops": 160000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.627000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6i.4xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 16.0,
+    "memory": 64.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.627000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6i.8xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 32.0,
+    "memory": 128.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.627000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6i.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 8.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.627000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m6i.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 16.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.627000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m7g.12xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 48.0,
+    "memory": 192.0,
+    "network_throughput": 2812.5,
+    "iops": 60000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.627000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m7g.16xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 64.0,
+    "memory": 256.0,
+    "network_throughput": 3750.0,
+    "iops": 80000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.627000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m7g.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 32.0,
+    "network_throughput": 1875.0,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.627000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m7g.4xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 16.0,
+    "memory": 64.0,
+    "network_throughput": 1875.0,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.627000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m7g.8xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 32.0,
+    "memory": 128.0,
+    "network_throughput": 1875.0,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.628000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m7g.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 8.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.628000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m7g.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 16.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.628000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m7i.12xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 48.0,
+    "memory": 192.0,
+    "network_throughput": 2343.75,
+    "iops": 60000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.628000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m7i.16xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 64.0,
+    "memory": 256.0,
+    "network_throughput": 3125.0,
+    "iops": 80000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.628000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m7i.24xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 96.0,
+    "memory": 384.0,
+    "network_throughput": 4687.5,
+    "iops": 120000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.628000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m7i.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 32.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.628000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m7i.48xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 192.0,
+    "memory": 768.0,
+    "network_throughput": 6250.0,
+    "iops": 240000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.628000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m7i.4xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 16.0,
+    "memory": 64.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.628000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m7i.8xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 32.0,
+    "memory": 128.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.628000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m7i.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 8.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.628000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m7i.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 16.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.628000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m8g.12xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 48.0,
+    "memory": 192.0,
+    "network_throughput": 2812.5,
+    "iops": 60000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.628000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m8g.16xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 64.0,
+    "memory": 256.0,
+    "network_throughput": 3750.0,
+    "iops": 80000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.628000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m8g.24xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 96.0,
+    "memory": 384.0,
+    "network_throughput": 5000.0,
+    "iops": 120000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.628000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m8g.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 32.0,
+    "network_throughput": 1875.0,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.628000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m8g.48xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 192.0,
+    "memory": 768.0,
+    "network_throughput": 6250.0,
+    "iops": 240000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.628000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m8g.4xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 16.0,
+    "memory": 64.0,
+    "network_throughput": 1875.0,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.628000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m8g.8xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 32.0,
+    "memory": 128.0,
+    "network_throughput": 1875.0,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.628000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m8g.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 8.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.629000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m8g.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 16.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.629000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m8gd.12xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 48.0,
+    "memory": 192.0,
+    "network_throughput": 2812.5,
+    "iops": 60000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.629000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m8gd.16xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 64.0,
+    "memory": 256.0,
+    "network_throughput": 3750.0,
+    "iops": 80000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.629000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m8gd.24xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 96.0,
+    "memory": 384.0,
+    "network_throughput": 5000.0,
+    "iops": 120000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.629000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m8gd.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 32.0,
+    "network_throughput": 1875.0,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.629000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m8gd.48xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 192.0,
+    "memory": 768.0,
+    "network_throughput": 6250.0,
+    "iops": 240000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.629000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m8gd.4xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 16.0,
+    "memory": 64.0,
+    "network_throughput": 1875.0,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.629000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m8gd.8xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 32.0,
+    "memory": 128.0,
+    "network_throughput": 1875.0,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.629000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m8gd.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 8.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.629000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.m8gd.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 16.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.629000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r5d.12xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 48.0,
+    "memory": 384.0,
+    "network_throughput": 1500.0,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.629000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r5d.16xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 64.0,
+    "memory": 512.0,
+    "network_throughput": 2500.0,
+    "iops": 60000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.629000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r5d.24xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 96.0,
+    "memory": 768.0,
+    "network_throughput": 3125.0,
+    "iops": 80000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.629000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r5d.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 64.0,
+    "network_throughput": 437.5,
+    "iops": 18750.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.629000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r5d.4xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 16.0,
+    "memory": 128.0,
+    "network_throughput": 437.5,
+    "iops": 18750.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.629000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r5d.8xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 32.0,
+    "memory": 256.0,
+    "network_throughput": 1250.0,
+    "iops": 30000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.629000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r5d.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 16.0,
+    "network_throughput": 437.5,
+    "iops": 18750.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.629000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r5d.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 32.0,
+    "network_throughput": 437.5,
+    "iops": 18750.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r8gd.12xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 48.0,
+    "memory": 384.0,
+    "network_throughput": 2812.5,
+    "iops": 60000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r8gd.16xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 64.0,
+    "memory": 512.0,
+    "network_throughput": 3750.0,
+    "iops": 80000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r8gd.24xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 96.0,
+    "memory": 768.0,
+    "network_throughput": 5000.0,
+    "iops": 120000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r8gd.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 64.0,
+    "network_throughput": 1875.0,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r8gd.48xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 192.0,
+    "memory": 1536.0,
+    "network_throughput": 6250.0,
+    "iops": 240000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r8gd.4xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 16.0,
+    "memory": 128.0,
+    "network_throughput": 1875.0,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r8gd.8xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 32.0,
+    "memory": 256.0,
+    "network_throughput": 1875.0,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r8gd.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 16.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.r8gd.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 32.0,
+    "network_throughput": 1562.5,
+    "iops": 40000.0,
+    "family_type": "Memory optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.t3.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 32.0,
+    "network_throughput": 625.0,
+    "iops": 15700.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.t3.micro",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 1.0,
+    "network_throughput": 625.0,
+    "iops": 11800.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.t3.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 16.0,
+    "network_throughput": 625.0,
+    "iops": 15700.0,
+    "family_type": "General purpose",
+    "physical_processor": "Intel Xeon Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.t4g.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 32.0,
+    "network_throughput": 625.0,
+    "iops": 15700.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.t4g.micro",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 1.0,
+    "network_throughput": 625.0,
+    "iops": 11800.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.t4g.small",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 2.0,
+    "network_throughput": 625.0,
+    "iops": 11800.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.t4g.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 16.0,
+    "network_throughput": 625.0,
+    "iops": 15700.0,
+    "family_type": "General purpose",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mariadb",
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.c6gd.12xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 48.0,
+    "memory": 96.0,
+    "network_throughput": 2500.0,
+    "iops": 50000.0,
+    "family_type": "Compute optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.c6gd.16xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 64.0,
+    "memory": 128.0,
+    "network_throughput": 3125.0,
+    "iops": 80000.0,
+    "family_type": "Compute optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.c6gd.2xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 8.0,
+    "memory": 16.0,
+    "network_throughput": 437.5,
+    "iops": 20000.0,
+    "family_type": "Compute optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.c6gd.4xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 16.0,
+    "memory": 32.0,
+    "network_throughput": 437.5,
+    "iops": 20000.0,
+    "family_type": "Compute optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.c6gd.8xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 32.0,
+    "memory": 64.0,
+    "network_throughput": 1500.0,
+    "iops": 40000.0,
+    "family_type": "Compute optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.c6gd.large",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 2.0,
+    "memory": 4.0,
+    "network_throughput": 437.5,
+    "iops": 20000.0,
+    "family_type": "Compute optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.630000+00:00",
+    "engines": [
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.c6gd.medium",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 1.0,
+    "memory": 2.0,
+    "network_throughput": 437.5,
+    "iops": 20000.0,
+    "family_type": "Compute optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.631000+00:00",
+    "engines": [
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
+  },
+  {
+    "name": "db.c6gd.xlarge",
+    "resource_type": "RDS",
+    "cloud": "AWS",
+    "cpu": 4.0,
+    "memory": 8.0,
+    "network_throughput": 437.5,
+    "iops": 20000.0,
+    "family_type": "Compute optimized",
+    "physical_processor": "AWS Graviton Processor",
+    "architecture": "64-bit",
+    "added_at": "2026-07-17T09:01:17.631000+00:00",
+    "engines": [
+      "mysql"
+    ],
+    "storage_types": [
+      "gp2",
+      "gp3",
+      "io1",
+      "io2",
+      "standard"
+    ]
   }
 ]
