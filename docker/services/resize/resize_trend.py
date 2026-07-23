@@ -39,7 +39,10 @@ class ResizeTrend:
             return
         mean = clean_column.mean()
         threshold = clean_column.quantile(.9)
-        percentiles = quantiles(clean_column, n=100)
+        if len(clean_column) < 2:
+            percentiles = [clean_column.iloc[0]] * 99
+        else:
+            percentiles = quantiles(clean_column, n=100)
         result_direction = self.__get_result_direction(
             mean=mean,
             threshold=threshold

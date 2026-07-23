@@ -1100,7 +1100,7 @@ class RecommendationService:
         deciles = [round(float(decile), 2) for decile in deciles[0]]
 
         return {
-            "min": round(float(np.max(series)), 2),
+            "min": round(float(np.min(series)), 2),
             "max": round(float(np.max(series)), 2),
             "mean": round(float(np.mean(series)), 2),
             "deciles": deciles,
