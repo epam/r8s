@@ -94,6 +94,7 @@ class RecommendationSettings(EmbeddedDocument):
     target_timezone_name = StringField(default="Europe/London")
     forbid_change_series = BooleanField(default=False)
     forbid_change_family = BooleanField(default=False)
+    prefer_newer_generation = BooleanField(default=True)
     optimized_aggregation_threshold_days = IntField(default=14)
     optimized_aggregation_step_minutes = IntField(default=15)
     missing_data_threshold_percent = IntField(min_value=0, max_value=100,
