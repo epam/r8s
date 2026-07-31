@@ -18,11 +18,12 @@ from r8s_mcp.commons.context import (
     MCP_USERNAME_HEADER,
     OUTPUT_FORMAT_HEADER,
     VALID_OUTPUT_FORMATS,
-    mcp_username_request_scope,
     set_default_mcp_config,
     set_mcp_config,
     set_output_format,
-    OutputFormat,
+    OutputFormat, MCP_USER_CONTEXT_HEADER, bind_mcp_user_context,
+    preserve_context_through_response, reset_mcp_user_context,
+    bind_mcp_username, reset_mcp_username, MODULAR_MCP_USERNAME_HEADER,
 )
 from r8s_mcp.commons.api_key import (
     SECRET_API_KEY_HEADER,
@@ -66,9 +67,28 @@ class McpUsernameHeaderMiddleware(BaseHTTPMiddleware):
     """
     async def dispatch(self, request: Request, call_next):
         raw = request.headers.get(MCP_USERNAME_HEADER)
-        _LOG.debug(f'Captured MCP username header: {raw!r}')
-        async with mcp_username_request_scope(raw):
-            return await call_next(request)
+        if raw is None:
+            raw = request.headers.get(MODULAR_MCP_USERNAME_HEADER)
+        token = bind_mcp_username(raw)
+        response = await call_next(request)
+        return preserve_context_through_response(
+            response, token, reset_mcp_username,
+        )
+
+
+class McpUserContextHeaderMiddleware(BaseHTTPMiddleware):
+    """
+    Capture ``X-MCP-USER-CONTEXT`` on inbound MCP HTTP requests so
+    it can be included in the request to SRE API.
+    """
+    async def dispatch(self, request: Request, call_next):
+        header = request.headers.get(MCP_USER_CONTEXT_HEADER)
+        _LOG.debug(f'Inbound MCP user context header: {header}')
+        token = bind_mcp_user_context(header)
+        response = await call_next(request)
+        return preserve_context_through_response(
+            response, token, reset_mcp_user_context,
+        )
 
 
 class SecretAPIKeyMiddleware(BaseHTTPMiddleware):
@@ -165,6 +185,9 @@ def build_http_middlewares(
     middlewares.append(
         Middleware(cls=McpUsernameHeaderMiddleware)
     )
+    middlewares.append(
+        Middleware(cls=McpUserContextHeaderMiddleware)
+    )
     return middlewares
 
 
@@ -193,7 +216,8 @@ def register_tools(
 def get_middlewares() -> list[Middleware]:
     """Get list of middlewares to use at Modular-MCP"""
     return [
-        Middleware(cls=McpUsernameHeaderMiddleware)
+        Middleware(cls=McpUsernameHeaderMiddleware),
+        Middleware(cls=McpUserContextHeaderMiddleware),
     ]
 
 
