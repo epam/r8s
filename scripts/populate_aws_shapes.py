@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -73,6 +74,25 @@ def load_local_json_file(file_name):
         return json.load(f)
 
 
+def parse_aws_generation(shape_name):
+    """Extract (generation_family, generation) from an AWS shape name.
+
+    Examples:
+        m5.xlarge   -> ('m', 5)
+        c7g.large   -> ('c', 7)
+        mac2.metal  -> ('mac', 2)
+        db.m6i.xl   -> ('m', 6)  -- RDS prefix stripped
+    Returns (None, None) if the name does not match the expected pattern.
+    """
+    name = shape_name[3:] if shape_name.startswith('db.') else shape_name
+    # Allow hyphens and alphanumerics after the generation digit to handle
+    # variants like m7i-flex.12xlarge, u7i-6tb.112xlarge, mac2-m2.metal
+    m = re.match(r'^([a-z]+)(\d+)[a-z0-9-]*\.', name)
+    if m:
+        return m.group(1), int(m.group(2))
+    return None, None
+
+
 def populate_shapes(shapes_data):
     from mongoengine import NotUniqueError
     from models.shape import Shape
@@ -87,6 +107,8 @@ def populate_shapes(shapes_data):
         else:
             resource_type = 'VM'
 
+        generation_family, generation = parse_aws_generation(shape_name)
+
         shape_obj_data = {
             'name': shape_name,
             'resource_type': resource_type,
@@ -98,6 +120,8 @@ def populate_shapes(shapes_data):
             'family_type': shape_data.get('family_type'),
             'physical_processor': shape_data.get('physical_processor'),
             'architecture': shape_data.get('architecture'),
+            'generation_family': generation_family,
+            'generation': generation,
         }
         shape_obj = Shape(**shape_obj_data)
         try:

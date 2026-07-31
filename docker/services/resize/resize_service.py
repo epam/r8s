@@ -90,6 +90,10 @@ class ResizeService:
                    f'for cloud {current_shape.cloud.value}, '
                    f'resource type {algorithm.resource_type}')
 
+        if algorithm.recommendation_settings.prefer_newer_generation:
+            all_shapes = self._filter_latest_generation(all_shapes)
+            _LOG.debug(f'{len(all_shapes)} shapes after generation filter')
+
         if parent_meta:
             _LOG.debug(f'Applying parent meta: '
                        f'{parent_meta.as_dict()}')
@@ -229,6 +233,33 @@ class ResizeService:
 
         matching = [i for i in percentiles_abs if min_abs <= i <= max_abs]
         return round(len(matching) / len(percentiles) * 100)
+
+    @staticmethod
+    def _filter_latest_generation(shapes):
+        """Keep only the highest-generation shapes per generation family.
+
+        Shapes missing generation data are always kept. For shapes that do
+        have generation info, only those at the maximum generation for their
+        family are retained (e.g., if m5 and m7 both exist, m5 is dropped).
+        """
+        shapes = list(shapes)
+        with_gen = [s for s in shapes
+                    if s.generation is not None and s.generation_family]
+        without_gen = [s for s in shapes
+                       if s.generation is None or not s.generation_family]
+
+        if not with_gen:
+            return shapes
+
+        max_gen_per_family = {}
+        for shape in with_gen:
+            fam = shape.generation_family
+            if shape.generation > max_gen_per_family.get(fam, -1):
+                max_gen_per_family[fam] = shape.generation
+
+        latest = [s for s in with_gen
+                  if s.generation == max_gen_per_family[s.generation_family]]
+        return latest + without_gen
 
     @staticmethod
     def _remove_shape_duplicates(shapes, max_results: int = None):
