@@ -3,7 +3,9 @@ from abc import abstractmethod
 from commons import build_response, ApplicationException, \
     RESPONSE_INTERNAL_SERVER_ERROR, RESPONSE_FORBIDDEN_CODE, secure_event
 from commons import validate_params
-from commons.constants import MCP_USER_NAME_HEADER
+from commons.constants import MCP_USER_NAME_HEADER, MCP_USER_CONTEXT_HEADER, \
+    PARAM_USER_TENANT_ACCESS
+from commons.mcp_context import MCPUserContext
 from commons.log_helper import get_logger
 from services import SERVICE_PROVIDER
 from services.rbac.endpoint_to_permission_mapping import \
@@ -62,21 +64,11 @@ class AbstractApiHandlerLambda:
                      if k.lower() == MCP_USER_NAME_HEADER.lower()),
                     None
                 )
-                if mcp_user_name:
-                    mcp_user_name = mcp_user_name.lower()
-                    _LOG.info(f'MCP user name from header: {mcp_user_name!r}')
-                    user_service = SERVICE_PROVIDER.user_service()
-                    if user_service.is_user_exists(username=mcp_user_name):
-                        _LOG.info(
-                            f'MCP user {mcp_user_name!r} found, '
-                            f'using their permissions'
-                        )
-                        event[PARAM_USER_ID] = mcp_user_name
-                    else:
-                        _LOG.info(
-                            f'MCP user {mcp_user_name!r} not found, '
-                            f'using caller permissions'
-                        )
+                mcp_user_context_header = next(
+                    (v for k, v in headers.items()
+                     if k.lower() == MCP_USER_CONTEXT_HEADER.lower()),
+                    None
+                )
                 ac_service = SERVICE_PROVIDER.access_control_service()
                 if not ac_service.is_allowed_to_access(
                         event=event,
@@ -89,6 +81,51 @@ class AbstractApiHandlerLambda:
                         code=RESPONSE_FORBIDDEN_CODE,
                         content=f'You are not allowed to access the resource '
                                 f'{target_permission}')
+                if mcp_user_name:
+                    mcp_user_name = mcp_user_name.lower()
+                    _LOG.info(f'MCP user name from header: {mcp_user_name!r}')
+                    user_service = SERVICE_PROVIDER.user_service()
+                    if user_service.is_user_exists(username=mcp_user_name):
+                        _LOG.info(
+                            f'MCP user {mcp_user_name!r} found, '
+                            f'using their permissions'
+                        )
+                        event[PARAM_USER_ID] = mcp_user_name
+                        if not ac_service.is_allowed_to_access(
+                                event=event,
+                                target_permission=target_permission
+                        ):
+                            _LOG.debug(
+                                f'MCP user \'{mcp_user_name}\' is not '
+                                f'allowed to access the resource: '
+                                f'{event.get(PARAM_REQUEST_PATH)}')
+                            return build_response(
+                                code=RESPONSE_FORBIDDEN_CODE,
+                                content=f'You are not allowed to access the '
+                                        f'resource {target_permission}')
+                    elif mcp_user_context_header:
+                        _LOG.info(
+                            'MCP user context header found. '
+                            'Resolving tenants from it'
+                        )
+                        mcp_uc = MCPUserContext(mcp_user_context_header)
+                        mcp_tenants = mcp_uc.tenants
+                        tap = event.get(PARAM_USER_TENANT_ACCESS)
+                        if tap and mcp_tenants:
+                            _LOG.debug(
+                                f'Expanding tenant access with MCP tenants: '
+                                f'{mcp_tenants}'
+                            )
+                            tap.allow_tenants(mcp_tenants)
+                    else:
+                        _LOG.info(
+                            f'MCP user {mcp_user_name!r} not found and no '
+                            f'MCP user context. Using native tenant access'
+                        )
+                _LOG.debug(
+                    f'Resolved tenant access payload: '
+                    f'{event.get(PARAM_USER_TENANT_ACCESS)}'
+                )
             errors = self.validate_request(event=event)
             if errors:
                 return build_response(code=400,
