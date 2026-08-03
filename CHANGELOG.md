@@ -5,6 +5,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [3.15.0] - 2026-08-03
+- Improved r8s-init script:
+  - Added the `r8s-init list [--allow-prereleases]` command - Lists available RightSizer GitHub releases. The current installed version is highlighted in green with a `*` marker. Newer releases are shown above it. Columns: RELEASE, DATE, URL, PRERELEASE, DRAFT.
+  - Added the `r8s-init health` command - Runs a series of checks and reports pass/fail for each:
+    - `R8S_LOCAL_PATH/.success` file exists (installation complete)
+    - RightSizer helm release is present
+    - `syndicate` CLI entrypoint is reachable
+    - `syndicate r8s health_check` passes
+    - DefectDojo helm release is present
+  - Updated the r8s-init update` command with the following options:
+    - `--check` Checks whether a newer release exists but does **not** update
+    - `--no-backup` Skips the automatic backup taken before updating
+    - `--same-version` Re-downloads and reinstall artifacts for the **currently installed** version
+    - `--defectdojo` Updates the DefectDojo Helm chart instead of RightSizer
+    - `--allow-prereleases` Includes pre-release and draft releases when looking for updates
 - Added 15-minute deadline to DefectDojo token polling loop to prevent infinite hang on initialization failure
 - Fixed metric placeholder values (-1) being included in statistical calculations when mixed with real values, causing incorrect under-sizing recommendations.
 - Added generation-aware shape filtering: resize recommendations now exclude older-generation instance types when newer ones are available for the same family (e.g. t2 is excluded when t3 exists). 
