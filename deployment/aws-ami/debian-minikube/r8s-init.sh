@@ -11,6 +11,8 @@ Usage:
 
 Available Commands:
   backup   Allow to manage backups
+  check    Alias for doctor
+  doctor   Check local environment and CLI compatibility
   health   Check installation health
   help     Show help message
   init     Initialize RightSizer installation
@@ -44,6 +46,15 @@ Options:
   --r8s-password    RightSizer password to configure. Must be specified together with --r8s-username
   --admin-username  Modular Service username to configure. Must be specified together with --admin-password
   --admin-password  Modular Service password to configure. Must be specified together with --admin-username
+
+Environment variables:
+  R8S_PYTHON_BIN
+      Optional Python interpreter used during CLI installation.
+      If not set, r8s-init tries python3.14 first, then falls back to python3.
+      Example: R8S_PYTHON_BIN=/usr/local/bin/python3.14 r8s-init init --user example
+  R8S_PYTHON_COMPAT_MODE
+      Compatibility behavior when Python requirement is not satisfied.
+      Supported values: warn, error (default: error)
 EOF
 }
 
@@ -233,6 +244,24 @@ Options
   -h, --help  Show this message and exit
 EOF
 }
+cmd_doctor_usage() {
+  cat <<EOF
+Usage:
+  $PROGRAM doctor [OPTIONS]
+  $PROGRAM check [OPTIONS]
+
+Checks local environment and RightSizer CLI installation compatibility.
+
+Options:
+  --release <version>    Check compatibility against a specific local release
+  -h, --help             Show this help message
+
+Environment variables:
+  R8S_PYTHON_BIN         Optional Python interpreter used to install RightSizer CLI applications.
+  R8S_PYTHON_COMPAT_MODE Compatibility behavior when Python requirement is not satisfied.
+                         Supported values: warn, error
+EOF
+}
 
 
 cmd_version() { echo "$VERSION"; }
@@ -243,6 +272,10 @@ die_with_support() {
   exit 1
 }
 warn() { echo "Warning:" "$@" >&2; }
+_debug() {
+  [ -z "$R8S_INIT_DEBUG" ] && return 0
+  echo "Debug:" "$@" >&2
+}
 cmd_unrecognized() {
   cat <<EOF
 Error: unrecognized command \`$PROGRAM $COMMAND\`
@@ -252,7 +285,7 @@ EOF
 
 
 # helper functions
-get_latest_local_release() { ls "$R8S_RELEASES_PATH" | sort -r | head -n 1; }
+get_latest_local_release() { ls "$R8S_RELEASES_PATH" | sort -Vr | head -n 1; }
 get_helm_release_version() {
   # currently the version of rightsizer chart corresponds to the version of app inside
   helm get metadata "$1" -o json 2>/dev/null | jq -r '.version'
@@ -454,6 +487,134 @@ resolve_customer_name() {
     echo CUSTOMER_1
   fi
 }
+resolve_python_bin() {
+  if [ -n "$R8S_PYTHON_BIN" ]; then
+    if command -v "$R8S_PYTHON_BIN" >/dev/null 2>&1; then
+      command -v "$R8S_PYTHON_BIN"
+      return 0
+    fi
+    if [ -x "$R8S_PYTHON_BIN" ]; then
+      echo "$R8S_PYTHON_BIN"
+      return 0
+    fi
+    die "Requested Python interpreter '$R8S_PYTHON_BIN' was not found or is not executable"
+  fi
+  for candidate in python3.14 /usr/local/bin/python3.14 /opt/python/3.14/bin/python3.14; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      command -v "$candidate"
+      return 0
+    fi
+    if [ -x "$candidate" ]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  command -v python3 || die "python3 was not found"
+}
+python_version() {
+  "$1" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")'
+}
+python_satisfies() {
+  "$1" - "$2" <<'PY'
+import sys
+required = tuple(map(int, sys.argv[1].split(".")[:2]))
+current = sys.version_info[:2]
+sys.exit(0 if current >= required else 1)
+PY
+}
+release_metadata_path() {
+  echo "$R8S_RELEASES_PATH/$1/$R8S_RELEASE_METADATA_NAME"
+}
+release_metadata_exists() {
+  [ -f "$(release_metadata_path "$1")" ]
+}
+get_release_metadata_value() {
+  local metadata_file
+  metadata_file="$(release_metadata_path "$1")"
+  [ -f "$metadata_file" ] || return 1
+  jq -er "$2" "$metadata_file" 2>/dev/null
+}
+get_modular_cli_min_python() {
+  if ! release_metadata_exists "$1"; then
+    echo "${R8S_LEGACY_MODULAR_CLI_MIN_PYTHON:-3.10}"
+    return 0
+  fi
+  get_release_metadata_value "$1" '.components.modular_cli.python_min_version' \
+    || echo "$R8S_DEFAULT_MODULAR_CLI_MIN_PYTHON"
+}
+get_modular_cli_compat_mode() {
+  if ! release_metadata_exists "$1"; then
+    echo "${R8S_LEGACY_PYTHON_COMPAT_MODE:-warn}"
+    return 0
+  fi
+  get_release_metadata_value "$1" '.components.modular_cli.compatibility_mode' \
+    || echo "$R8S_PYTHON_COMPAT_MODE"
+}
+get_modular_cli_compat_message() {
+  if ! release_metadata_exists "$1"; then
+    echo "Legacy release metadata is missing. Using backward-compatible Python requirements."
+    return 0
+  fi
+  get_release_metadata_value "$1" '.components.modular_cli.message' \
+    || echo "Modular CLI requires Python $(get_modular_cli_min_python "$1") or later."
+}
+check_modular_cli_python_compatibility() {
+  # prints resolved python_bin to stdout; warns/errors if version unsatisfied
+  local release="$1"
+  local python_bin required_version current_version compat_mode message
+
+  python_bin="$(resolve_python_bin)"
+  required_version="$(get_modular_cli_min_python "$release")"
+  current_version="$(python_version "$python_bin")"
+  compat_mode="$(get_modular_cli_compat_mode "$release")"
+  message="$(get_modular_cli_compat_message "$release")"
+
+  if python_satisfies "$python_bin" "$required_version"; then
+    echo "$python_bin"
+    return 0
+  fi
+
+  cat >&2 <<EOF
+Warning: Python compatibility change detected.
+
+$message
+
+Required: Python $required_version or later
+Detected: Python $current_version
+Interpreter: $python_bin
+
+To avoid installation or update failures, install Python $required_version+ and explicitly pass it:
+
+  R8S_PYTHON_BIN=/usr/local/bin/python${required_version} r8s-init ...
+
+Do not replace the system default /usr/bin/python3, as it may break OS-level tools.
+EOF
+
+  if [ "$compat_mode" = "warn" ]; then
+    echo "$python_bin"
+    return 0
+  fi
+
+  if [ -t 0 ]; then
+    yesno "Continue anyway?"
+    echo "$python_bin"
+    return 0
+  fi
+
+  die "Unsupported Python version for Modular CLI installation"
+}
+pip_install_artifact() {
+  # $1=python_bin $2=artifact_path; remaining args forwarded to pip (e.g. --upgrade)
+  local python_bin="$1" artifact_path="$2"
+  shift 2
+  echo "Installing '$(basename "$artifact_path")' using Python interpreter: $python_bin"
+  MODULAR_CLI_ENTRY_POINT=$MODULAR_CLI_ENTRY_POINT "$python_bin" -m pip install --user --break-system-packages "$@" "$artifact_path"
+}
+validate_cli_artifacts() {
+  local release_path="$R8S_RELEASES_PATH/$1"
+  [ -f "$release_path/$MODULAR_CLI_ARTIFACT_NAME" ] \
+    || die_with_support "Modular CLI artifact was not found: $release_path/$MODULAR_CLI_ARTIFACT_NAME"
+}
 
 initialize_system() {
   # creates:
@@ -467,10 +628,14 @@ initialize_system() {
 
   ensure_in_path "$HOME/.local/bin"
   sleep 5m # todo temporary
+  local latest_release python_bin
+  latest_release="$(get_latest_local_release)"
+  validate_cli_artifacts "$latest_release"
+  python_bin="$(check_modular_cli_python_compatibility "$latest_release")"
 #  echo "Installing obfuscation manager"
-#  pip3 install --user --break-system-packages --upgrade "$R8S_RELEASES_PATH/$(get_latest_local_release)/${OBFUSCATOR_ARTIFACT_NAME}[xlsx]"
+#  pip_install_artifact "$python_bin" "$R8S_RELEASES_PATH/$latest_release/${OBFUSCATOR_ARTIFACT_NAME}[xlsx]" --upgrade
   echo "Installing modular-cli"
-  MODULAR_CLI_ENTRY_POINT=$MODULAR_CLI_ENTRY_POINT pip3 install --user --break-system-packages --upgrade "$R8S_RELEASES_PATH/$(get_latest_local_release)/$MODULAR_CLI_ARTIFACT_NAME"
+  pip_install_artifact "$python_bin" "$R8S_RELEASES_PATH/$latest_release/$MODULAR_CLI_ARTIFACT_NAME" --upgrade
 
   echo "Updating modular admin policy"
   update_modular_api_policy
@@ -644,10 +809,14 @@ cmd_init() {
     chmod 600 .ssh/authorized_keys
 EOF
   fi
+  local latest_release python_bin
+  latest_release="$(get_latest_local_release)"
+  validate_cli_artifacts "$latest_release"
+  python_bin="$(check_modular_cli_python_compatibility "$latest_release")"
   echo "Installing CLIs for $target_user"
   sudo su - "$target_user" <<EOF >/dev/null
-  # pip3 install --user --break-system-packages "$R8S_RELEASES_PATH/$(get_latest_local_release)/${OBFUSCATOR_ARTIFACT_NAME}[xlsx]"
-  MODULAR_CLI_ENTRY_POINT=$MODULAR_CLI_ENTRY_POINT pip3 install --user --break-system-packages "$R8S_RELEASES_PATH/$(get_latest_local_release)/$MODULAR_CLI_ARTIFACT_NAME"
+  # "$python_bin" -m pip install --user --break-system-packages "$R8S_RELEASES_PATH/$latest_release/${OBFUSCATOR_ARTIFACT_NAME}[xlsx]"
+  MODULAR_CLI_ENTRY_POINT=$MODULAR_CLI_ENTRY_POINT "$python_bin" -m pip install --user --break-system-packages "$R8S_RELEASES_PATH/$latest_release/$MODULAR_CLI_ARTIFACT_NAME"
 EOF
 
   local err=0
@@ -851,7 +1020,9 @@ cmd_update() {
 #  pip3 install --user --break-system-packages --upgrade "$R8S_RELEASES_PATH/$latest_tag/${OBFUSCATOR_ARTIFACT_NAME}[xlsx]" >/dev/null
   if [ -f "$R8S_RELEASES_PATH/$latest_tag/$MODULAR_CLI_ARTIFACT_NAME" ]; then
     echo "Upgrading modular CLI"
-    MODULAR_CLI_ENTRY_POINT=$MODULAR_CLI_ENTRY_POINT pip3 install --user --break-system-packages --upgrade "$R8S_RELEASES_PATH/$latest_tag/${MODULAR_CLI_ARTIFACT_NAME}" >/dev/null
+    local python_bin
+    python_bin="$(check_modular_cli_python_compatibility "$latest_tag")"
+    pip_install_artifact "$python_bin" "$R8S_RELEASES_PATH/$latest_tag/$MODULAR_CLI_ARTIFACT_NAME" --upgrade >/dev/null
   fi
   if [ -f "$R8S_RELEASES_PATH/$latest_tag/$R8S_INIT_ARTIFACT_NAME" ]; then
     echo "Updating r8s-init"
@@ -912,6 +1083,87 @@ cmd_health() {
       exit 1
     fi
   done < <(printf "%s\n" "${!checks[@]}" | sort) | column --table -s "|" --table-columns "№,CHECK,STATUS"
+}
+
+cmd_doctor() {
+  local opts release="" latest_local_release="" release_path=""
+  local python_bin="" required_version="" current_version=""
+  local status=0
+
+  opts="$(getopt -o "h" --long "help,release:" -n "$PROGRAM doctor" -- "$@")" \
+    || die "$(cmd_unrecognized)"
+  eval set -- "$opts"
+  while true; do
+    case "$1" in
+      -h|--help) cmd_doctor_usage; exit 0 ;;
+      --release) release="$2"; shift 2 ;;
+      '--') shift; break ;;
+    esac
+  done
+
+  if [ -n "$release" ]; then
+    latest_local_release="$release"
+  else
+    latest_local_release="$(get_latest_local_release 2>/dev/null || true)"
+  fi
+
+  echo "r8s-init environment check"
+  echo
+
+  if [ -n "$latest_local_release" ]; then
+    release_path="$R8S_RELEASES_PATH/$latest_local_release"
+    echo "[OK] Local release resolved: $latest_local_release"
+
+    if release_metadata_exists "$latest_local_release"; then
+      echo "[OK] Release metadata found: $(release_metadata_path "$latest_local_release")"
+    else
+      echo "[WARN] Release metadata not found. Treating release as legacy."
+    fi
+
+    if [ -d "$release_path" ]; then
+      echo "[OK] Release directory found: $release_path"
+    else
+      echo "[ERROR] Release directory was not found: $release_path"
+      status=1
+    fi
+
+    if [ -f "$release_path/$MODULAR_CLI_ARTIFACT_NAME" ]; then
+      echo "[OK] Modular CLI artifact found"
+    else
+      echo "[ERROR] Modular CLI artifact not found: $release_path/$MODULAR_CLI_ARTIFACT_NAME"
+      status=1
+    fi
+
+    required_version="$(get_modular_cli_min_python "$latest_local_release")"
+    echo "[INFO] Modular CLI Python requirement: >=$required_version"
+  else
+    echo "[WARN] Could not resolve latest local release from $R8S_RELEASES_PATH"
+    required_version="$R8S_DEFAULT_MODULAR_CLI_MIN_PYTHON"
+    status=1
+  fi
+
+  python_bin="$(resolve_python_bin 2>/dev/null || true)"
+
+  if [ -n "$python_bin" ]; then
+    current_version="$(python_version "$python_bin")"
+    echo "[INFO] Resolved Python interpreter: $python_bin"
+    echo "[INFO] Resolved Python version: $current_version"
+
+    if python_satisfies "$python_bin" "$required_version"; then
+      echo "[OK] Python requirement satisfied"
+    else
+      echo "[WARN] Python requirement is not satisfied"
+      echo
+      echo "Recommended command:"
+      echo "  R8S_PYTHON_BIN=/usr/local/bin/python${required_version} $PROGRAM init --user <username>"
+      status=1
+    fi
+  else
+    echo "[ERROR] Could not resolve Python interpreter"
+    status=1
+  fi
+
+  return "$status"
 }
 
 cmd_nginx() {
@@ -1136,13 +1388,21 @@ cmd_backup_restore() {
 }
 
 # Start
-VERSION="1.1.0"
+VERSION="1.2.0"
 PROGRAM="${0##*/}"
 COMMAND="$1"
 SELF_PATH=/usr/local/bin/r8s-init
 readonly _ORIGINAL_ARGS=("$@")
 
 # Some variables that configure how cli behaves
+R8S_PYTHON_BIN="${R8S_PYTHON_BIN:-}"
+R8S_RELEASE_METADATA_NAME="${R8S_RELEASE_METADATA_NAME:-release.json}"
+# Defaults for new releases when release.json exists but some fields are missing
+R8S_DEFAULT_MODULAR_CLI_MIN_PYTHON="${R8S_DEFAULT_MODULAR_CLI_MIN_PYTHON:-3.14}"
+R8S_PYTHON_COMPAT_MODE="${R8S_PYTHON_COMPAT_MODE:-error}"
+# Defaults for old releases without release.json
+R8S_LEGACY_MODULAR_CLI_MIN_PYTHON="${R8S_LEGACY_MODULAR_CLI_MIN_PYTHON:-3.10}"
+R8S_LEGACY_PYTHON_COMPAT_MODE="${R8S_LEGACY_PYTHON_COMPAT_MODE:-warn}"
 R8S_LOCAL_PATH="${R8S_LOCAL_PATH:-/usr/local/r8s}"
 R8S_RELEASES_PATH="${R8S_RELEASES_PATH:-$R8S_LOCAL_PATH/releases}"
 R8S_BACKUPS_PATH="${R8S_BACKUPS_PATH:-$R8S_LOCAL_PATH/backups}"
@@ -1199,6 +1459,7 @@ make_update_notification || true
 
 case "$1" in
   backup) shift; cmd_backup "$@" ;;
+  check|doctor) shift; cmd_doctor "$@" ;;
   health) shift; cmd_health "$@" ;;
   help|-h|--help) shift; cmd_usage "$@" ;;
   version|--version) shift; cmd_version "$@" ;;
