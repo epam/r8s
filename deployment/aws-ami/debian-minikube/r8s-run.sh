@@ -73,13 +73,26 @@ fi
 log "Installing jq and curl"
 sudo apt update -y && sudo apt install -y jq curl
 
-log "Going to resolve release version from Github api"
-export RIGHTSIZER_RELEASE="${RIGHTSIZER_RELEASE:-$(curl -fLs "https://api.github.com/repos/$GITHUB_REPO/releases/latest" | jq -r '.tag_name')}"
-
 if [ -z "$RIGHTSIZER_RELEASE" ]; then
-  log "Could not find latest release"
+  log "Going to resolve latest release from GitHub api"
+  _retries=5
+  _delay=5
+  for _i in $(seq 1 "$_retries"); do
+    _tag="$(curl -fLs "https://api.github.com/repos/$GITHUB_REPO/releases/latest" | jq -r '.tag_name // empty')"
+    if [ -n "$_tag" ] && [ "$_tag" != "null" ]; then
+      export RIGHTSIZER_RELEASE="$_tag"
+      break
+    fi
+    log "Could not resolve latest release (attempt $_i/$_retries). Retrying in ${_delay}s..."
+    sleep "$_delay"
+    _delay=$((_delay * 2))
+  done
+fi
+if [ -z "$RIGHTSIZER_RELEASE" ] || [ "$RIGHTSIZER_RELEASE" = "null" ]; then
+  log_err "Could not find latest release after retries. GitHub API may be rate-limited"
   exit 1
 fi
+log "Using Syndicate RightSizer release: $RIGHTSIZER_RELEASE"
 
 log "Executing ami-initialize from release $RIGHTSIZER_RELEASE"
 # shellcheck disable=SC1090

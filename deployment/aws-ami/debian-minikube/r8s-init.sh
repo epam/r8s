@@ -11,8 +11,10 @@ Usage:
 
 Available Commands:
   backup   Allow to manage backups
+  health   Check installation health
   help     Show help message
   init     Initialize RightSizer installation
+  list     Lists available updates
   nginx    Allow to enable and disable nginx sites
   update   Update the installation
   version  Print versions information
@@ -56,16 +58,41 @@ Usage:
   $PROGRAM $COMMAND [options]
 
 Examples:
+  $PROGRAM $COMMAND --check
   $PROGRAM $COMMAND -y
+  $PROGRAM $COMMAND -y --allow-prereleases
 
 Options:
   -h, --help           Show this message and exit
   -y, --yes            Automatic yes to prompts
+  --allow-prereleases  Include pre-release versions when checking for updates
+  --check              Checks whether update is available but do not try to update
+  --no-backup          Do not do backup before updating
+  --same-version       Fetches artifacts for the version currently installed and reinstalls
+  --defectdojo         Specify this flag to update Defect Dojo chart instead of RightSizer
   --helm-release-name  RightSizer helm release name (default "$HELM_RELEASE_NAME")
   --backup-name        Backup name to make before the update (default "$AUTO_BACKUP_PREFIX\$timestamp")
 EOF
 }
-# todo add force and release version
+cmd_update_list_usage() {
+  cat <<EOF
+Displays available releases
+
+Description:
+  Lists available RightSizer releases. Uses GitHub rest api under the hood and
+  can throttle if rate limit is exceeded
+
+Usage:
+  $PROGRAM $COMMAND [options]
+
+Examples:
+  $PROGRAM $COMMAND
+
+Options:
+  -h, --help           Show this message and exit
+  --allow-prereleases  Include pre-release versions in the list
+EOF
+}
 
 cmd_nginx_usage() {
   cat <<EOF
@@ -192,10 +219,29 @@ Options
   --volumes      Volumes to make the backup for. Uses all k8s volumes if not specified. Specify volumes divided by comma
 EOF
 }
+cmd_health_usage() {
+  cat <<EOF
+Checks installation health
+
+Description:
+  Command that verifies different aspects of installation. Returns 1 in case something is wrong
+
+Examples:
+  $PROGRAM $COMMAND
+
+Options
+  -h, --help  Show this message and exit
+EOF
+}
 
 
 cmd_version() { echo "$VERSION"; }
 die() { echo "Error:" "$@" >&2; exit 1; }
+die_with_support() {
+  echo "Error:" "$@" >&2
+  echo "Please contact our support team at $SUPPORT_EMAIL for further assistance." >&2
+  exit 1
+}
 warn() { echo "Warning:" "$@" >&2; }
 cmd_unrecognized() {
   cat <<EOF
@@ -209,10 +255,137 @@ EOF
 get_latest_local_release() { ls "$R8S_RELEASES_PATH" | sort -r | head -n 1; }
 get_helm_release_version() {
   # currently the version of rightsizer chart corresponds to the version of app inside
-  helm get metadata "$1" -o json | jq -r '.version'
+  helm get metadata "$1" -o json 2>/dev/null | jq -r '.version'
 }
-get_latest_release_tag() {
-  curl -fLs "https://api.github.com/repos/$GITHUB_REPO/releases/latest" | jq -r '.tag_name' || die "no latest release for $GITHUB_REPO found"
+iter_github_releases() {
+  # iterates only over released versions by default. --prerelease flag includes pre-releases to output. --draft includes drafts
+  local opts draft=0 prerelease=0 per_page=${GITHUB_PER_PAGE:-30} filter
+  opts="$(getopt -o "" --long "draft,prerelease,per-page:," -n iter_github_releases -- "$@")"
+  eval set -- "$opts"
+  while true; do
+    case "$1" in
+      --draft) draft=1; shift ;;
+      --prerelease) prerelease=1; shift ;;
+      --per-page) per_page="$2"; shift 2 ;;
+      '--') shift; break ;;
+    esac
+  done
+  if [ "$draft" -eq 1 ] && [ "$prerelease" -eq 1 ]; then
+    filter='.[]'
+  elif [ "$draft" -eq 0 ] && [ "$prerelease" -eq 1 ]; then
+    filter='.[] | select(.draft == false)'
+  elif [ "$draft" -eq 1 ] && [ "$prerelease" -eq 0 ]; then
+    filter='.[] | select(.prerelease == false)'
+  else
+    filter='.[] | select(.prerelease == false and .draft == false)'
+  fi
+  curl -fLs --request GET -H 'Accept: application/vnd.github+json' "${GITHUB_CURL_HEADERS[@]}" "https://api.github.com/repos/$GITHUB_REPO/releases?per_page=$per_page" | jq -c "$filter" || die "Could not make request to GitHub. Probably rate limit exceeded"
+}
+get_github_release_by_tag() {
+  local tag_name
+  while IFS= read -r item; do
+    tag_name=$(jq -r '.tag_name' <<<"$item")
+    if [ "$1" = "$tag_name" ]; then
+      echo "$item"
+      return
+    fi
+  done < <(iter_github_releases --prerelease --draft)
+  return 1
+}
+get_new_github_release() {
+  # requires one parameter -> current release
+  local current_release="$1" tag_name result
+  shift # all other parameters are passed to iter_github_releases
+
+  while IFS= read -r item; do
+    tag_name=$(jq -r '.tag_name' <<<"$item")
+    if dpkg --compare-versions "$tag_name" gt "$current_release"; then
+      result="$item"
+    elif [ -n "$result" ]; then
+      echo "$result"
+      return 0
+    else
+      break
+    fi
+  done < <(iter_github_releases "$@")
+  return 1
+}
+get_release_type() {
+  if [ "$(jq '.draft' <<<"$1")" = 'true' ]; then
+    echo 'draft'
+  elif [ "$(jq '.prerelease' <<<"$1")" = 'true' ]; then
+    echo 'prerelease'
+  else
+    echo 'release'
+  fi
+}
+colorize() {
+  local color
+  case "$1" in
+    GREEN) color="\033[32m" ;;
+    RED) color="\033[31m" ;;
+    YELLOW) color="\033[33m" ;;
+    *) color="" ;;
+  esac
+  printf "%b" "$color"
+  cat -
+  printf "\033[0m"
+}
+check_asset_digest() {
+  # accepts path to file and asset json
+  local digest
+  if [ ! -f "$1" ]; then
+    return 1
+  fi
+  digest="$(jq -r '.digest' <<<"$2" | sed 's/^sha256://')"
+  if [ "$(sha256sum "$1" | awk '{print $1}')" != "$digest" ]; then
+    return 1
+  fi
+}
+download_from_github_url() {
+  # accepts two parameters: destination path and url
+  local tmp_file
+  tmp_file="$(mktemp -t r8s-init.XXXXXX)"
+
+  if curl -fLs "${GITHUB_CURL_HEADERS[@]}" -o "$tmp_file" -H "Accept: application/octet-stream" "$2"; then
+    mv "$tmp_file" "$1"
+    return 0
+  else
+    rm -f "$tmp_file"
+    return 1
+  fi
+}
+pull_artifact() {
+  # accepts two parameters: destination folder and github's asset json
+  local name destination url
+
+  name="$(jq -r '.name' <<<"$2")"
+  destination="$1/$name"
+
+  if [ -f "$destination" ]; then
+    if check_asset_digest "$destination" "$2"; then
+      _debug "asset $name is up-to-date, skipping download"
+      return 0
+    fi
+  fi
+
+  url="$(jq -r '.url' <<<"$2")"
+  if download_from_github_url "$destination" "$url"; then
+    echo "Downloaded $name"
+    return 0
+  else
+    warn "Could not download $name"
+    return 1
+  fi
+}
+find_asset_by_name() {
+  # accepts release data returned by github api and asset name. Returns asset json if found
+  local asset
+  asset="$(jq --arg name "$2" '.assets[] | select(.name == $name)' <<<"$1")"
+  if [ -z "$asset" ]; then
+    return 1
+  fi
+  echo "$asset"
 }
 ensure_in_path() {
   if [[ ":$PATH:" != *":$1:"* ]]; then
@@ -347,15 +520,8 @@ initialize_system() {
     syndicate r8s setting client add --key_id "$(echo "$lm_response" | jq ".private_key.key_id" -r)" --algorithm "$(echo "$lm_response" | jq ".private_key.algorithm" -r)" --private_key "$(echo "$lm_response" | jq ".private_key.value" -r)" --format "PEM" --b64encoded --json
   fi
 
-  echo "Creating rightsizer customer policy"
-  syndicate r8s policy add --policy_name customer_admin_policy --permissions_admin --effect allow --customer "$customer_name" --tenant "*" --json
-
-  echo "Creating rightsizer customer role"
-  role_expiration=$(date -d "+1 year" +"%Y-%m-%dT%H:%M:%S")
-  syndicate r8s role add --name customer_admin_role --policies customer_admin_policy --customer "$customer_name" --expiration "$role_expiration" --json
-
-  echo "Creating rightsizer customer user"
-  syndicate r8s register --username "$RIGHTSIZER_USERNAME" --password "$rightsizer_password" --role_name customer_admin_role --customer_id "$customer_name" --tenant "*" --json
+  echo "Creating rightsizer customer users"
+  syndicate r8s register --username "$RIGHTSIZER_USERNAME" --password "$rightsizer_password" --role_name admin_role --customer_id "$customer_name" --json
 
   echo "Logging in as customer users"
   syndicate admin login --username "$MODULAR_SERVICE_USERNAME" --password "$modular_service_password" --json
@@ -395,11 +561,7 @@ initialize_system() {
   fi
 
   echo "Getting Defect dojo token"
-  local _dojo_deadline=$(( $(date +%s) + 900 ))
   while [ -z "$dojo_token" ]; do
-    if [ "$(date +%s)" -ge "$_dojo_deadline" ]; then
-      die_with_support "Timed out waiting for Defect Dojo token after 15 minutes"
-    fi
     sleep 2
     dojo_token=$(curl -X POST -H 'content-type: application/json' "http://$mip:32107/api/v2/api-token-auth/" -d "{\"username\":\"admin\",\"password\":\"$(get_kubectl_secret "$DEFECTDOJO_SECRET_NAME" system-password)\"}" | jq ".token" -r || true)
   done
@@ -533,56 +695,223 @@ pull_artifacts() {
 }
 update_r8s_init() {
   # assuming that the target version already exists locally
-  local err=0
-  sudo cp "$R8S_RELEASES_PATH/$1/$R8S_INIT_ARTIFACT_NAME" /usr/local/bin/r8s-init || err=1
-  if [ "$err" -eq 0 ]; then
-    sudo chmod +x /usr/local/bin/r8s-init
-  else
-    echo "Could not update r8s-init"
+  sudo ln -sf "$R8S_RELEASES_PATH/$1/$R8S_INIT_ARTIFACT_NAME" /usr/local/bin/r8s-init || {
+    warn "Could not link r8s-init to /usr/local/bin/r8s-init"
+    return 1
+  }
+  if [ ! -x "$R8S_RELEASES_PATH/$1/$R8S_INIT_ARTIFACT_NAME" ]; then
+    sudo chmod +x "$R8S_RELEASES_PATH/$1/$R8S_INIT_ARTIFACT_NAME" || {
+      warn "Could not add x permission to r8s-init"
+      return 1
+    }
   fi
+}
+perform_self_update() {
+  local tag asset new_version
+  tag="$(jq -r '.tag_name' <<<"$1")"
+
+  if ! asset="$(find_asset_by_name "$1" "$R8S_INIT_ARTIFACT_NAME")"; then
+    return 1
+  fi
+  if check_asset_digest "$SELF_PATH" "$asset"; then
+    return 0
+  fi
+
+  pull_artifact "$R8S_RELEASES_PATH/$tag" "$asset" || {
+    warn "could not pull self update artifact $R8S_INIT_ARTIFACT_NAME"
+    return 1
+  }
+  update_r8s_init "$tag" || {
+    warn "could not update r8s-init to $tag"
+    return 1
+  }
+  new_version=$("$SELF_PATH" --version)
+  echo "Automatically updated r8s-init from $VERSION to $new_version"
+  exec "$SELF_PATH" "${_ORIGINAL_ARGS[@]}"
+}
+warn_if_update_available() {
+  local current_release release_data
+  current_release="$(get_helm_release_version "$HELM_RELEASE_NAME")" || return 1
+  if release_data="$(get_new_github_release "$current_release")"; then
+    warn "new $(get_release_type "$release_data") $(jq -r '.tag_name' <<<"$release_data") is available. Use 'r8s-init update'"
+  fi
+}
+make_update_notification() {
+  if [ ! -f "$UPDATE_NOTIFICATION_FILE" ]; then
+    warn_if_update_available || return 1
+    echo "$UPDATE_NOTIFICATION_PERIOD:$(($(date +%s) / UPDATE_NOTIFICATION_PERIOD))" >"$UPDATE_NOTIFICATION_FILE"
+    return
+  fi
+  local period passed
+  IFS=':' read -r period passed <"$UPDATE_NOTIFICATION_FILE"
+  if [ "$(($(date +%s) / period))" -ne "$passed" ]; then
+    warn_if_update_available || return 1
+    echo "$UPDATE_NOTIFICATION_PERIOD:$(($(date +%s) / UPDATE_NOTIFICATION_PERIOD))" >"$UPDATE_NOTIFICATION_FILE"
+  fi
+}
+verify_installation() {
+  if [ -f "$R8S_LOCAL_PATH/.success" ]; then
+    return 0
+  fi
+  local passed=""
+  if [ -f "$LOG_PATH" ]; then
+    passed="$(($(date +%s) - $(stat --format "%W" "$LOG_PATH")))"
+  fi
+  if [ -z "$passed" ] || [ "$passed" -gt "$INSTALLATION_PERIOD_THRESHOLD" ]; then
+    echo "RightSizer does not appear to be initialized. Check $LOG_PATH for details." >&2
+    exit 1
+  fi
+  echo "RightSizer is being initialized for the first time. Please wait. Approximately $(date -d@"$(("$INSTALLATION_PERIOD_THRESHOLD" - "$passed"))" -u "+%M minute(s) %S second(s)") left" >&2
+  exit 1
 }
 
 cmd_update() {
-  local opts auto_yes=0 r_name=$HELM_RELEASE_NAME r_version latest_tag backup_name=""
-  opts="$(getopt -o "hy" --long "help,yes,helm-release-name:,backup-name:" -n "$PROGRAM" -- "$@")"
+  local opts auto_yes=0 r_name=$HELM_RELEASE_NAME r_version release_data latest_tag backup_name="" iter_params=() check=0 same_version=0 do_backup=1 update_defectdojo=0
+  opts="$(getopt -o "hy" --long "help,yes,check,no-backup,defectdojo,allow-prereleases,same-version,backup-name:,helm-release-name:" -n "$PROGRAM" -- "$@")"
   eval set -- "$opts"
   while true; do
     case "$1" in
       '-h'|'--help') cmd_update_usage; exit 0 ;;
       '-y'|'--yes') auto_yes=1; shift ;;
+      '--check') check=1; shift ;;
+      '--no-backup') do_backup=0; shift ;;
+      '--allow-prereleases') iter_params=(--prerelease --draft); shift ;;
+      '--same-version') same_version=1; shift ;;
+      '--defectdojo') update_defectdojo=1; shift ;;
       '--helm-release-name') r_name="$2"; shift 2 ;;
       '--backup-name') backup_name="$2"; shift 2 ;;
       '--') shift; break ;;
     esac
   done
-  r_version="$(get_helm_release_version "$r_name")"
-  echo "The current helm chart release is $r_version"
-  latest_tag="$(get_latest_release_tag)"
-  echo "Latest release available is $latest_tag"
-  if [[ ! "$r_version" < "$latest_tag" ]]; then
-    echo "Rightsizer chart is up-to-date"
+
+  if [ "$update_defectdojo" -eq 1 ]; then
+    [ "$check" -eq 1 ] && die "--check is currently not supported for Defect Dojo"
+    echo "Going to update Defect Dojo chart"
+    if [ "$do_backup" -eq 1 ]; then
+      [ -z "$backup_name" ] && backup_name="$AUTO_BACKUP_PREFIX$(date +%s)"
+      echo "Making backup $backup_name"
+      cmd_backup_create --name "$backup_name" --volumes=defectdojo-cache,defectdojo-data,defectdojo-media
+    fi
+    helm repo update syndicate
+    if ! helm upgrade "$DEFECTDOJO_HELM_RELEASE_NAME" syndicate/defectdojo --wait; then
+      warn "helm upgrade failed. Rolling back to the previous version..."
+      helm rollback "$DEFECTDOJO_HELM_RELEASE_NAME" 0 --wait || die "Helm rollback failed"
+      exit 1
+    else
+      echo "helm upgrade was successful"
+    fi
     exit 0
   fi
-  echo "New release $latest_tag is available."
+
+  r_version="$(get_helm_release_version "$r_name")"
+  if [ "$same_version" -eq 1 ]; then
+    release_data="$(get_github_release_by_tag "$r_version")" || warn "could not get release by tag $r_version"
+    latest_tag="$r_version"
+  else
+    if ! release_data="$(get_new_github_release "$r_version" "${iter_params[@]}")"; then
+      echo "Up-to-date"
+      exit 0
+    fi
+    latest_tag="$(jq -r '.tag_name' <<<"$release_data")"
+  fi
+
+  if [ "$check" -eq 1 ]; then
+    warn "new $(get_release_type "$release_data") $latest_tag is available. Use 'r8s-init update'"
+    exit 1
+  fi
+  # TODO Delete && [ "$same_version" -eq 0 ] from condition
+  if [ -n "$release_data" ] && [ -z "$FORBID_SELF_UPDATE" ] && [ "$same_version" -eq 0 ]; then
+    perform_self_update "$release_data" || true
+  fi
+
+  echo "The current installed version is $r_version"
+  echo "New github $(get_release_type "$release_data") $latest_tag is available"
+  echo "Going to update to $latest_tag"
   [[ $auto_yes -eq 1 ]] || yesno "Do you want to update?"
   echo "Updating to $latest_tag"
-  [ -z "$backup_name" ] && backup_name="$AUTO_BACKUP_PREFIX$(date +%s)"
-  echo "Making backup $backup_name"
-  cmd_backup_create --name "$backup_name" --volumes=minio,mongo,vault
+  if [ "$do_backup" -eq 1 ]; then
+    [ -z "$backup_name" ] && backup_name="$AUTO_BACKUP_PREFIX$(date +%s)"
+    echo "Making backup $backup_name"
+    cmd_backup_create --name "$backup_name" --volumes=minio,mongo,vault
+  fi
   echo "Pulling new artifacts"
   pull_artifacts "$latest_tag"
   echo "Updating helm repo"
   helm repo update syndicate
   helm search repo syndicate/rightsizer --version "$latest_tag" --fail-on-no-result >/dev/null 2>&1 || die "$latest_tag version of $r_name chart not found. Cannot update"
   echo "Upgrading $r_name chart to $latest_tag version"
-  helm upgrade "$HELM_RELEASE_NAME" syndicate/rightsizer --version "$latest_tag"
+  if ! helm upgrade "$HELM_RELEASE_NAME" syndicate/rightsizer --version "$latest_tag" --wait; then
+    warn "helm upgrade failed. Rolling back to the previous version..."
+    helm rollback "$HELM_RELEASE_NAME" 0 --wait || die "Helm rollback failed"
+    exit 1
+  else
+    echo "helm upgrade was successful"
+  fi
 #  echo "Upgrading obfuscation manager"
 #  pip3 install --user --break-system-packages --upgrade "$R8S_RELEASES_PATH/$latest_tag/${OBFUSCATOR_ARTIFACT_NAME}[xlsx]" >/dev/null
-  echo "Upgrading modular CLI"
-  MODULAR_CLI_ENTRY_POINT=$MODULAR_CLI_ENTRY_POINT pip3 install --user --break-system-packages --upgrade "$R8S_RELEASES_PATH/$latest_tag/${MODULAR_CLI_ARTIFACT_NAME}" >/dev/null
-  echo "Trying to update r8s-init"
-  update_r8s_init "$latest_tag"
+  if [ -f "$R8S_RELEASES_PATH/$latest_tag/$MODULAR_CLI_ARTIFACT_NAME" ]; then
+    echo "Upgrading modular CLI"
+    MODULAR_CLI_ENTRY_POINT=$MODULAR_CLI_ENTRY_POINT pip3 install --user --break-system-packages --upgrade "$R8S_RELEASES_PATH/$latest_tag/${MODULAR_CLI_ARTIFACT_NAME}" >/dev/null
+  fi
+  if [ -f "$R8S_RELEASES_PATH/$latest_tag/$R8S_INIT_ARTIFACT_NAME" ]; then
+    echo "Updating r8s-init"
+    update_r8s_init "$latest_tag" || true
+  fi
   echo "Done"
+}
+
+cmd_update_list() {
+  local opts iter_params=()
+  opts="$(getopt -o "h" --long "help,allow-prereleases" -n "$PROGRAM" -- "$@")"
+  eval set -- "$opts"
+  while true; do
+    case "$1" in
+      -h|--help) cmd_update_list_usage; exit 0 ;;
+      --allow-prereleases) iter_params=(--prerelease --draft); shift ;;
+      '--') shift; break ;;
+    esac
+  done
+
+  local tag_name current_release
+  current_release="$(get_helm_release_version "$HELM_RELEASE_NAME")"
+  while IFS= read -r item; do
+    tag_name=$(jq -r '.tag_name' <<<"$item")
+    if [[ "$current_release" == "$tag_name" ]]; then
+      jq -rj '"\(.tag_name)* \(.published_at) \(.html_url) \(.prerelease) \(.draft)"' <<<"$item" | colorize GREEN
+    fi
+    if dpkg --compare-versions "$tag_name" le "$current_release" 2>/dev/null; then
+      break
+    fi
+    jq -rj '"\(.tag_name) \(.published_at) \(.html_url) \(.prerelease) \(.draft)\n"' <<<"$item"
+  done < <(iter_github_releases "${iter_params[@]}") | column --table --table-columns RELEASE,DATE,URL,PRERELEASE,DRAFT
+}
+
+cmd_health() {
+  local opts
+  opts="$(getopt -o "h" --long "help" -n "$PROGRAM" -- "$@")"
+  eval set -- "$opts"
+  while true; do
+    case "$1" in
+      -h|--help) cmd_health_usage; exit 0 ;;
+      '--') shift; break ;;
+    esac
+  done
+  declare -A checks
+  checks["1:RightSizer initialized"]="test -f $R8S_LOCAL_PATH/.success"
+  checks["2:RightSizer helm release"]="helm get metadata $HELM_RELEASE_NAME"
+  checks["3:Syndicate entrypoint"]="syndicate version"
+  checks["4:RightSizer health check"]="syndicate r8s health_check"
+  checks["5:Defect Dojo helm release"]="helm get metadata $DEFECTDOJO_HELM_RELEASE_NAME"
+
+  while IFS= read -r key; do
+    IFS=":" read -r order name <<<"$key"
+    if ${checks[$key]} >/dev/null 2>&1; then
+      printf "%s|%s|ok\n" "$order" "$name" | colorize GREEN
+    else
+      printf "%s|%s|failed\n" "$order" "$name" | colorize RED
+      exit 1
+    fi
+  done < <(printf "%s\n" "${!checks[@]}" | sort) | column --table -s "|" --table-columns "№,CHECK,STATUS"
 }
 
 cmd_nginx() {
@@ -807,22 +1136,26 @@ cmd_backup_restore() {
 }
 
 # Start
-VERSION="1.0.1"
+VERSION="1.0.0"
 PROGRAM="${0##*/}"
 COMMAND="$1"
+SELF_PATH=/usr/local/bin/r8s-init
+readonly _ORIGINAL_ARGS=("$@")
 
-# Some global constants
-R8S_LOCAL_PATH=/usr/local/r8s
-R8S_RELEASES_PATH=$R8S_LOCAL_PATH/releases
-R8S_BACKUPS_PATH=$R8S_LOCAL_PATH/backups
-GITHUB_REPO=epam/r8s
-HELM_RELEASE_NAME=rightsizer
-MODULAR_SERVICE_USERNAME="customer_admin"
-RIGHTSIZER_USERNAME="customer_admin"
-CURRENT_ACCOUNT_TENANT_NAME="CURRENT_ACCOUNT"
+# Some variables that configure how cli behaves
+R8S_LOCAL_PATH="${R8S_LOCAL_PATH:-/usr/local/r8s}"
+R8S_RELEASES_PATH="${R8S_RELEASES_PATH:-$R8S_LOCAL_PATH/releases}"
+R8S_BACKUPS_PATH="${R8S_BACKUPS_PATH:-$R8S_LOCAL_PATH/backups}"
+GITHUB_REPO="${GITHUB_REPO:-epam/r8s}"
+HELM_RELEASE_NAME="${HELM_RELEASE_NAME:-rightsizer}"
+DEFECTDOJO_HELM_RELEASE_NAME="${DEFECTDOJO_HELM_RELEASE_NAME:-defectdojo}"
+MODULAR_SERVICE_USERNAME="${MODULAR_SERVICE_USERNAME:-customer_admin}"
+RIGHTSIZER_USERNAME="${RIGHTSIZER_USERNAME:-customer_admin}"
+CURRENT_ACCOUNT_TENANT_NAME="${CURRENT_ACCOUNT_TENANT_NAME:-CURRENT_ACCOUNT}"
+AUTO_BACKUP_PREFIX="${AUTO_BACKUP_PREFIX:-autobackup-}"
+FORBID_SELF_UPDATE="${FORBID_SELF_UPDATE:-}"
 # regions that will be allowed to activate
-AWS_REGIONS="us-east-1 us-east-2 us-west-1 us-west-2 af-south-1 ap-east-1 ap-south-2 ap-southeast-3 ap-southeast-4 ap-south-1 ap-northeast-3 ap-northeast-2 ap-southeast-1 ap-southeast-2 ap-northeast-1 ca-central-1 ca-west-1 eu-central-1 eu-west-1 eu-west-2 eu-south-1 eu-west-3 eu-south-2 eu-north-1 eu-central-2 il-central-1 me-south-1 me-central-1 sa-east-1 us-gov-east-1 us-gov-west-1"
-AUTO_BACKUP_PREFIX="autobackup-"
+AWS_REGIONS="${AWS_REGIONS:-us-east-1 us-east-2 us-west-1 us-west-2 af-south-1 ap-east-1 ap-south-2 ap-southeast-3 ap-southeast-4 ap-south-1 ap-northeast-3 ap-northeast-2 ap-southeast-1 ap-southeast-2 ap-northeast-1 ca-central-1 ca-west-1 eu-central-1 eu-west-1 eu-west-2 eu-south-1 eu-west-3 eu-south-2 eu-north-1 eu-central-2 il-central-1 me-south-1 me-central-1 sa-east-1 us-gov-east-1 us-gov-west-1}"
 
 RIGHTSIZER_SECRET_NAME=rightsizer-secret
 MODULAR_API_SECRET_NAME=modular-api-secret
@@ -833,18 +1166,44 @@ MODULAR_CLI_ARTIFACT_NAME=modular_cli.tar.gz
 #OBFUSCATOR_ARTIFACT_NAME=r8s_obfuscator.tar.gz
 R8S_INIT_ARTIFACT_NAME=r8s-init.sh
 MODULAR_CLI_ENTRY_POINT=syndicate
+
+GITHUB_CURL_HEADERS=('-H' 'X-GitHub-Api-Version: 2022-11-28')
+if [ -n "$GITHUB_TOKEN" ]; then
+  GITHUB_CURL_HEADERS+=('-H' "Authorization: Bearer $GITHUB_TOKEN")
+fi
+readonly GITHUB_CURL_HEADERS
+
 MODULAR_ADMIN_POLICY='[{"Description": "Admin policy", "Module": "*", "Effect": "Allow", "Resources": ["*"]}, {"Effect": "Deny", "Description": "Prohibited commands", "Module": "r8s", "Resources": ["algorithm:add", "algorithm:update_clustering_settings", "algorithm:update_general_settings", "algorithm:update_metric_format", "algorithm:update_recommendation_settings", "report:initiate_tenant_mail_report"]}]'
-FIRST_USER=$(getent passwd 1000 | cut -d : -f 1)
+FIRST_USER="${FIRST_USER:-$(getent passwd 1000 | cut -d : -f 1)}"
 
 DO_NOT_ACTIVATE_LICENSE="${DO_NOT_ACTIVATE_LICENSE:-}"
 DO_NOT_ACTIVATE_TENANT="${DO_NOT_ACTIVATE_TENANT:-}"
 DO_NOT_ACTIVATE_STORAGE="${DO_NOT_ACTIVATE_STORAGE:-}"
 
+# NOTE: Keep in sync with ami-initialize.sh
+readonly SUPPORT_EMAIL="SupportSyndicateTeam@epam.com"
+
+# in seconds
+readonly INSTALLATION_PERIOD_THRESHOLD="${INSTALLATION_PERIOD_THRESHOLD:-900}"
+readonly LOG_PATH="${LOG_PATH:-/var/log/r8s-init.log}"
+
+# in seconds
+readonly UPDATE_NOTIFICATION_PERIOD="${UPDATE_NOTIFICATION_PERIOD:-3600}"
+readonly UPDATE_NOTIFICATION_FILE="$R8S_LOCAL_PATH/.update-notification"
+
+if [ ! "$1" = "init" ] && [ ! "$1" = '--system' ] && [ ! "$1" = '--user' ]; then
+  verify_installation
+fi
+
+make_update_notification || true
+
 case "$1" in
   backup) shift; cmd_backup "$@" ;;
+  health) shift; cmd_health "$@" ;;
   help|-h|--help) shift; cmd_usage "$@" ;;
   version|--version) shift; cmd_version "$@" ;;
   update) shift; cmd_update "$@" ;;
+  list) shift; cmd_update_list "$@" ;;
   init) shift; cmd_init "$@" ;;
   nginx) shift; cmd_nginx "$@" ;;
   --system|--user) cmd_init "$@" ;;  # redirect to init as default one
