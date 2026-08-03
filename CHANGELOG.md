@@ -4,11 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.15.0] - 2026-07-31
+## [3.15.0] - 2026-08-03
 - Added 15-minute deadline to DefectDojo token polling loop to prevent infinite hang on initialization failure
 - Fixed metric placeholder values (-1) being included in statistical calculations when mixed with real values, causing incorrect under-sizing recommendations.
 - Added generation-aware shape filtering: resize recommendations now exclude older-generation instance types when newer ones are available for the same family (e.g. t2 is excluded when t3 exists). 
 - Added `X-Mcp-User-Context` header support: when an MCP user is not found in r8s, the base64-encoded JSON context (containing tenant assignments) is used to expand the native user's tenant access for the duration of the request.
+- DefectDojo integration now tags the product with the tenant name and ensures `enable_product_tag_inheritance` is enabled, so all findings inherit the tenant tag automatically.
 
 ## [3.14.0] - 2026-06-02
 * Implement tenant-level RBAC permissions:

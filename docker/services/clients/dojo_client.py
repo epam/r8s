@@ -44,7 +44,9 @@ class DojoV2Client:
                     product_type_name: str,
                     product_name: str, engagement_name: str, test_title: str,
                     data: dict, auto_create_context: bool = True,
-                    tags: list[str] | None = None, reimport: bool = True,
+                    tags: list[str] | None = None,
+                    product_tags: list[str] | None = None,
+                    reimport: bool = True,
                     ) -> requests.Response | None:
         return self._request(
             path='/reimport-scan/' if reimport else '/import-scan/',
@@ -56,6 +58,8 @@ class DojoV2Client:
                 'test_title': test_title,
                 'auto_create_context': auto_create_context,
                 'tags': tags or [],
+                'product_tags': product_tags or [],
+                'enable_product_tag_inheritance': True,
                 'scan_type': scan_type,
                 'scan_date': scan_date.date().isoformat()
             },
@@ -64,9 +68,29 @@ class DojoV2Client:
             }
         )
 
+    def get_product(self, name: str) -> dict | None:
+        resp = self._request(
+            path='/products/',
+            method=GET_METHOD,
+            params={'name': name, 'limit': 1}
+        )
+        if resp is None or not resp.ok:
+            return None
+        results = resp.json().get('results') or []
+        return results[0] if results else None
+
+    def update_product(self, product_id: int, **fields) -> bool:
+        resp = self._request(
+            path=f'/products/{product_id}/',
+            method='PATCH',
+            json=fields
+        )
+        return resp is not None and resp.ok
+
     def _request(self, path: str, method: str,
                  params: dict | None = None, data: dict | None = None,
-                 files: dict | None = None, timeout: int | None = None
+                 files: dict | None = None, json: dict | None = None,
+                 timeout: int | None = None
                  ) -> requests.Response | None:
         _LOG.info(f'Making dojo request {method} {path}')
         try:
@@ -76,6 +100,7 @@ class DojoV2Client:
                 params=params,
                 data=data,
                 files=files,
+                json=json,
                 timeout=timeout
             )
             _LOG.info(f'Response status code: {resp.status_code}. '

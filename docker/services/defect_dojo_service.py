@@ -235,15 +235,41 @@ class DefectDojoService:
 
         _LOG.debug(f'Uploading {len(recommendation_history_items)} findings '
                    f'from tenant {tenant_name}. Job id: {job_id}')
+        product_name = parent_meta.product.format(tenant_name=tenant_name)
         self.client.import_scan(
             scan_type=parent_meta.scan_type,
             scan_date=datetime.datetime.now(),
             product_type_name=parent_meta.product_type,
-            product_name=parent_meta.product.format(tenant_name=tenant_name),
+            product_name=product_name,
             engagement_name=parent_meta.engagement,
             test_title=parent_meta.test.format(job_id=job_id),
+            product_tags=[tenant_name],
             data=data
         )
+        self._ensure_product_tag_inheritance(
+            product_name='RightSizer ' + product_name,
+            tenant_name=tenant_name
+        )
+
+    def _ensure_product_tag_inheritance(self, product_name: str,
+                                        tenant_name: str):
+        product = self.client.get_product(name=product_name)
+        if not product:
+            _LOG.warning(f'Could not find DDojo product \'{product_name}\' '
+                         f'to verify tag inheritance')
+            return
+        existing_tags = product.get('tags') or []
+        needs_tag = tenant_name not in existing_tags
+        needs_inheritance = not product.get('enable_product_tag_inheritance')
+        if needs_tag or needs_inheritance:
+            _LOG.debug(f'Updating product \'{product_name}\': '
+                       f'tag={needs_tag}, inheritance={needs_inheritance}')
+            updated_tags = list(set(existing_tags) | {tenant_name})
+            self.client.update_product(
+                product_id=product['id'],
+                tags=updated_tags,
+                enable_product_tag_inheritance=True
+            )
 
     def _to_dojo_report(
             self, recommendation_history_items: list[RecommendationHistory]
