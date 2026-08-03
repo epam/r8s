@@ -1136,7 +1136,7 @@ cmd_backup_restore() {
 }
 
 # Start
-VERSION="1.0.0"
+VERSION="1.1.0"
 PROGRAM="${0##*/}"
 COMMAND="$1"
 SELF_PATH=/usr/local/bin/r8s-init

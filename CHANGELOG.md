@@ -14,11 +14,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `syndicate r8s health_check` passes
     - DefectDojo helm release is present
   - Updated the r8s-init update` command with the following options:
-    - `--check` Checks whether a newer release exists but does **not** update
+    - `--check` Checks whether a newer release exists but does not update
     - `--no-backup` Skips the automatic backup taken before updating
-    - `--same-version` Re-downloads and reinstall artifacts for the **currently installed** version
+    - `--same-version` Re-downloads and reinstall artifacts for the currently installed version
     - `--defectdojo` Updates the DefectDojo Helm chart instead of RightSizer
     - `--allow-prereleases` Includes pre-release and draft releases when looking for updates
+  - Fixed artifact resolution in get_latest_local_release during user addition.
+  - Improved local release artifact detection to ensure the correct R8S artifacts are selected when installing CLI tools for a user.
+  - Added support for explicitly specifying the Python interpreter used during CLI installation.
+  - This change prepares the installation flow for future Modular CLI requirements, where Modular CLI will support only Python 3.14 and later versions.
+  - Added Python version validation before Modular CLI installation/update.
+  - Added support for reading Modular CLI Python requirements from release metadata.
+  - Added a doctor / check command to validate local environment readiness.
+  - Added user-facing warnings/errors for Python compatibility changes.
+  - Avoided changing or relying on the system default /usr/bin/python3.
+  - Resolved the latest local release only once during CLI installation to avoid inconsistent artifact resolution during user initialization.
 - Added 15-minute deadline to DefectDojo token polling loop to prevent infinite hang on initialization failure
 - Fixed metric placeholder values (-1) being included in statistical calculations when mixed with real values, causing incorrect under-sizing recommendations.
 - Added generation-aware shape filtering: resize recommendations now exclude older-generation instance types when newer ones are available for the same family (e.g. t2 is excluded when t3 exists). 
