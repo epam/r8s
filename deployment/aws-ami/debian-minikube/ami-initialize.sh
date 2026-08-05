@@ -1,27 +1,36 @@
 #!/bin/bash
 
-LOG_PATH=/var/log/r8s-init.log
-ERROR_LOG_PATH=$LOG_PATH
+LOG_PATH="${LOG_PATH:-/var/log/r8s-init.log}"
+ERROR_LOG_PATH="${ERROR_LOG_PATH:-$LOG_PATH}"
 
 # Detect OS distribution and version: provides $ID, $VERSION_ID, $VERSION_CODENAME, etc.
 # shellcheck disable=SC1091
 . /etc/os-release
 
 SYNDICATE_HELM_REPOSITORY="${SYNDICATE_HELM_REPOSITORY:-https://charts-repository.s3.eu-west-1.amazonaws.com/syndicate/}"
-HELM_RELEASE_NAME=rightsizer
+HELM_RELEASE_NAME="${HELM_RELEASE_NAME:-rightsizer}"
+DEFECTDOJO_HELM_RELEASE_NAME="${DEFECTDOJO_HELM_RELEASE_NAME:-defectdojo}"
 DOCKER_VERSION="${DOCKER_VERSION:-5:29.5.3-1~${ID}.${VERSION_ID}~${VERSION_CODENAME}}"
-MINIKUBE_VERSION=v1.33.1
-KUBERNETES_VERSION=v1.30.0
-KUBECTL_VERSION=v1.30.3
-HELM_VERSION=3.15.4-1
+MINIKUBE_VERSION="${MINIKUBE_VERSION:-v1.33.1}"
+KUBERNETES_VERSION="${KUBERNETES_VERSION:-v1.30.0}"
+KUBECTL_VERSION="${KUBECTL_VERSION:-v1.30.3}"
+HELM_VERSION="${HELM_VERSION:-3.15.4-1}"
+DO_NOT_ACTIVATE_LICENSE="${DO_NOT_ACTIVATE_LICENSE:-}"
 # Optional: set ALLOW_DRAFT_RELEASE=1 and GITHUB_TOKEN to allow downloading draft GitHub releases.
 # Both must be set together; GITHUB_TOKEN is also persisted for subsequent r8s-init calls.
 ALLOW_DRAFT_RELEASE="${ALLOW_DRAFT_RELEASE:-}"
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 
+# NOTE: Keep in sync with r8s-init.sh
+readonly SUPPORT_EMAIL="SupportSyndicateTeam@epam.com"
 
-log() { echo "[INFO] $(date) $1" >> $LOG_PATH; }
-log_err() { echo "[ERROR] $(date) $1" >> $ERROR_LOG_PATH; }
+
+log() { echo "[INFO] $(date) $1" >>"$LOG_PATH"; }
+log_err() { echo "[ERROR] $(date) $1" >>"$ERROR_LOG_PATH"; }
+log_err_with_support() {
+  echo "[ERROR] $(date) $1" >>"$ERROR_LOG_PATH"
+  echo "[ERROR] $(date) Please contact our support team at $SUPPORT_EMAIL for further assistance." >>"$ERROR_LOG_PATH"
+}
 # Returns a normalised CPU architecture string understood by Docker/minikube/kubectl download URLs.
 sys_arch() {
   local arch
@@ -34,15 +43,17 @@ sys_arch() {
   esac
 }
 # shellcheck disable=SC2120
-get_imds_token () {
-  duration="10"  # must be an integer
+get_imds_token() {
+  duration="10" # must be an integer
   if [ -n "$1" ]; then
     duration="$1"
   fi
-  curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: $duration"
+  curl -sf -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: $duration"
 }
-identity_document() { curl -s -H "X-aws-ec2-metadata-token: $(get_imds_token)" http://169.254.169.254/latest/dynamic/instance-identity/document; }
-document_signature() { curl -s -H "X-aws-ec2-metadata-token: $(get_imds_token)" http://169.254.169.254/latest/dynamic/instance-identity/signature | tr -d '\n'; }
+get_from_metadata() { curl -sf -H "X-aws-ec2-metadata-token: $(get_imds_token)" "http://169.254.169.254/latest$1"; }
+identity_document() { get_from_metadata "/dynamic/instance-identity/document"; }
+document_signature() { get_from_metadata "/dynamic/instance-identity/signature" | tr -d '\n'; }
+region() { get_from_metadata "/dynamic/instance-identity/document" | jq -r ".region"; }
 request_to_lm() { curl -sf -X POST -H "Content-Type: application/json" -d "{\"signature\":\"$(document_signature)\",\"document\":\"$(identity_document | base64 -w 0)\"}" "$LM_API_LINK/marketplace/rightsizer/init"; }
 generate_password() {
   chars="20"
@@ -53,7 +64,21 @@ generate_password() {
   if [ -n "$2" ]; then
     typ="$2"
   fi
-  openssl rand "$typ" "$chars"
+  while true; do
+    password=$(openssl rand "$typ" "$chars")
+    # NOTE: -hex cannot pass the checks below
+    if [ "$typ" = "-hex" ]; then
+      echo "$password"
+      break
+    fi
+    if echo "$password" | grep -q '[0-9]' && \
+       echo "$password" | grep -q '[A-Z]' && \
+       echo "$password" | grep -q '[a-z]' && \
+       echo "$password" | grep -q '[^A-Za-z0-9]'; then
+      echo "$password"
+      break
+    fi
+  done
 }
 minikube_ip(){ sudo su "$FIRST_USER" -c "minikube ip"; }
 enable_minikube_service() {
@@ -78,7 +103,7 @@ EOF
 upgrade_and_install_packages() {
   sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
   # sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
-  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y jq curl python3-pip locales-all nginx
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y jq curl python3-pip locales-all nginx pipx
 }
 install_docker() {
   # Add Docker's official GPG key: https://docs.docker.com/engine/install/
@@ -127,11 +152,23 @@ nginx_conf() {
 worker_processes auto;
 pid /run/nginx.pid;
 error_log /var/log/nginx/error.log;
-# error_log /dev/null emerg;
+worker_rlimit_nofile 8192;
 events {
-    worker_connections 1024;
+    worker_connections 4096;
 }
 http {
+    access_log off;
+    server_tokens off;
+    gzip on;
+    gzip_min_length 10240;
+    gzip_disable msie6;
+    gzip_types application/json;
+
+    client_body_timeout 5s;
+    client_header_timeout 5s;
+    limit_req_zone \$binary_remote_addr zone=req_per_ip:10m rate=30r/s;
+    limit_req_status 429;
+
     include /etc/nginx/mime.types;
     include /etc/nginx/sites-enabled/*;
 }
@@ -201,12 +238,14 @@ server {
         proxy_set_header X-Original-URI \$request_uri;
         proxy_redirect off;
         proxy_pass http://$(minikube_ip):32106/r8s;
+        limit_req zone=req_per_ip burst=5 nodelay;
     }
     location /ms {
         include /etc/nginx/proxy_params;
         proxy_set_header X-Original-URI \$request_uri;
         proxy_redirect off;
         proxy_pass http://$(minikube_ip):32104/dev;
+        limit_req zone=req_per_ip burst=5 nodelay;
     }
 }
 EOF
@@ -219,6 +258,7 @@ server {
         include /etc/nginx/proxy_params;
         proxy_redirect off;
         proxy_pass http://$(minikube_ip):32105;
+        limit_req zone=req_per_ip burst=5 nodelay;
     }
 }
 EOF
@@ -286,6 +326,8 @@ if [ -n "$ALLOW_DRAFT_RELEASE" ] && [ -z "$GITHUB_TOKEN" ]; then
   log_err "GITHUB_TOKEN must be set when ALLOW_DRAFT_RELEASE is enabled"
   exit 1
 fi
+# create early so the dir is ready if the user logs in during initialization
+sudo -u "$FIRST_USER" mkdir -p "$(getent passwd "$FIRST_USER" | cut -d: -f6)/.local/bin" || true
 log "Script is executed on behalf of $(id)"
 
 log "The first run. Configuring r8s for user $FIRST_USER"
@@ -325,12 +367,12 @@ helm repo add syndicate "$SYNDICATE_HELM_REPOSITORY"
 helm repo update syndicate
 
 helm install "$HELM_RELEASE_NAME" syndicate/rightsizer --version $RIGHTSIZER_RELEASE $(build_helm_values)
-helm install defectdojo syndicate/defectdojo
+helm install "$DEFECTDOJO_HELM_RELEASE_NAME" syndicate/defectdojo
 EOF
 
 log "Downloading artifacts"
-sudo mkdir -p "$R8S_LOCAL_PATH/backups"
-sudo mkdir -p "$R8S_LOCAL_PATH/releases/$RIGHTSIZER_RELEASE"
+sudo mkdir -p "$R8S_LOCAL_PATH/backups" || true
+sudo mkdir -p "$R8S_LOCAL_PATH/releases/$RIGHTSIZER_RELEASE" || true
 download_artifact "$R8S_LOCAL_PATH/releases/$RIGHTSIZER_RELEASE/modular_cli.tar.gz" "$RIGHTSIZER_RELEASE" "modular_cli.tar.gz"  # todo get from modular-cli repo
 #download_artifact "$R8S_LOCAL_PATH/releases/$RIGHTSIZER_RELEASE/sre_obfuscator.tar.gz" "$RIGHTSIZER_RELEASE" "r8s_obfuscator.tar.gz"  # todo add obfuscator
 download_artifact "$R8S_LOCAL_PATH/releases/$RIGHTSIZER_RELEASE/r8s-init.sh" "$RIGHTSIZER_RELEASE" "r8s-init.sh"
@@ -344,35 +386,35 @@ if [ -n "$GITHUB_TOKEN" ]; then
 fi
 
 
-log "Going to make request to license manager"
-log "LM Api Link to be used: $LM_API_LINK"
-lm_response=$(request_to_lm)
-code=$?
-if [ $code -ne 0 ];
-then
-  log_err "Unsuccessful response from the license manager: $lm_response"
-  exit 1
+if [ -z "$DO_NOT_ACTIVATE_LICENSE" ]; then
+  log "Going to make request to license manager"
+  log "LM Api Link to be used: $LM_API_LINK"
+  if ! lm_response="$(request_to_lm)"; then
+    log_err_with_support "Unsuccessful response from the license manager"
+    exit 1
+  fi
+  lm_response=$(jq --indent 0 '.items[0]' <<<"$lm_response")
+  log "License information was received"
+else
+  log "Skipping license activation step"
+  lm_response=""
 fi
-lm_response=$(echo "$lm_response" | jq --indent 0 ".items[0]")
-sudo su - "$FIRST_USER" <<EOF
+if [ -z "$lm_response" ]; then
+  sudo su - "$FIRST_USER" <<EOF
+kubectl create secret generic lm-data --from-literal=api-link='$LM_API_LINK'
+EOF
+else
+  sudo su - "$FIRST_USER" <<EOF
 kubectl create secret generic lm-data --from-literal=api-link='$LM_API_LINK' --from-literal=lm-response='$lm_response'
 EOF
-log "License information was received"
+fi
 
 
-log "Describing DefectDojo pod"
-while [[ -z "$dojo_pod" ]]; do
-  dojo_pod=$(sudo su "$FIRST_USER" -c "kubectl get pods" | awk '{print $1}' | grep defectdojo-initializer)
+log "Getting Defect dojo password (usually takes 3-4 minutes)"
+while ! dojo_pass="$(sudo su "$FIRST_USER" -c "kubectl logs job.batch/defectdojo-initializer" 2>/dev/null | grep -oP 'Admin password: \K\w+')"; do
   sleep 5
 done
-log "Dojo pod name: $dojo_pod"
-
-log "Getting Defect dojo password"
-while [ -z "$dojo_pass" ]; do
-  sleep 5
-  dojo_pass=$(sudo su "$FIRST_USER" -c "kubectl logs $dojo_pod" | grep -oP "Admin password: \K\w+")
-done
-dojo_pass=$(base64 <<< "$dojo_pass")
+dojo_pass="$(base64 <<<"$dojo_pass")"
 
 sudo su - "$FIRST_USER" <<EOF
 kubectl patch secret defectdojo-secret -p="{\"data\":{\"system-password\":\"$dojo_pass\"}}"
@@ -383,21 +425,21 @@ log "Enabling minikube service"
 enable_minikube_service
 
 log "Configuring nginx"
-sudo rm /etc/nginx/sites-enabled/*
-sudo rm /etc/nginx/sites-available/*
-nginx_conf | sudo tee /etc/nginx/nginx.conf > /dev/null
-nginx_defectdojo_conf | sudo tee /etc/nginx/sites-available/defectdojo > /dev/null
-nginx_minio_api_conf | sudo tee /etc/nginx/sites-available/minio > /dev/null
-nginx_minio_console_conf | sudo tee /etc/nginx/sites-available/minio-console > /dev/null
-nginx_r8s_conf | sudo tee /etc/nginx/sites-available/r8s > /dev/null  # r8s + modular-service
-nginx_modular_api_conf | sudo tee /etc/nginx/sites-available/modular-api > /dev/null
+sudo rm -f /etc/nginx/sites-enabled/*
+sudo rm -f /etc/nginx/sites-available/*
+nginx_conf | sudo tee /etc/nginx/nginx.conf >/dev/null
+nginx_defectdojo_conf | sudo tee /etc/nginx/sites-available/defectdojo >/dev/null
+nginx_minio_api_conf | sudo tee /etc/nginx/sites-available/minio >/dev/null
+nginx_minio_console_conf | sudo tee /etc/nginx/sites-available/minio-console >/dev/null
+nginx_r8s_conf | sudo tee /etc/nginx/sites-available/r8s >/dev/null  # r8s + modular-service
+nginx_modular_api_conf | sudo tee /etc/nginx/sites-available/modular-api >/dev/null
 
-sudo ln -s /etc/nginx/sites-available/defectdojo /etc/nginx/sites-enabled/
-sudo ln -s /etc/nginx/sites-available/modular-api /etc/nginx/sites-enabled/
-sudo ln -s /etc/nginx/sites-available/minio /etc/nginx/sites-enabled/
+sudo ln -sf /etc/nginx/sites-available/defectdojo /etc/nginx/sites-enabled/
+sudo ln -sf /etc/nginx/sites-available/modular-api /etc/nginx/sites-enabled/
+sudo ln -sf /etc/nginx/sites-available/minio /etc/nginx/sites-enabled/
 
 sudo nginx -s reload
 
 log "Cleaning apt cache"
-sudo apt-get clean
+sudo apt-get clean || true
 log 'Done'
