@@ -4,9 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.15.0] - 2026-08-03
+## [3.15.0] - 2026-08-05
 - Improved r8s-init script:
-  - Added the `r8s-init list [--allow-prereleases]` command - Lists available RightSizer GitHub releases. The current installed version is highlighted in green with a `*` marker. Newer releases are shown above it. Columns: RELEASE, DATE, URL, PRERELEASE, DRAFT.
+  - Added `github_api_get` helper with the exponential back-off retry logic.
+    - `iter_github_releases` now delegates its GitHub API call to `github_api_get`, replacing a bare `curl` that failed immediately on rate-limit.  
+- Added the `r8s-init list [--allow-prereleases]` command - Lists available RightSizer GitHub releases. The current installed version is highlighted in green with a `*` marker. Newer releases are shown above it. Columns: RELEASE, DATE, URL, PRERELEASE, DRAFT.
   - Added the `r8s-init health` command - Runs a series of checks and reports pass/fail for each:
     - `R8S_LOCAL_PATH/.success` file exists (installation complete)
     - RightSizer helm release is present

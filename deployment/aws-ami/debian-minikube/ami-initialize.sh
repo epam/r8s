@@ -14,6 +14,10 @@ MINIKUBE_VERSION=v1.33.1
 KUBERNETES_VERSION=v1.30.0
 KUBECTL_VERSION=v1.30.3
 HELM_VERSION=3.15.4-1
+# Optional: set ALLOW_DRAFT_RELEASE=1 and GITHUB_TOKEN to allow downloading draft GitHub releases.
+# Both must be set together; GITHUB_TOKEN is also persisted for subsequent r8s-init calls.
+ALLOW_DRAFT_RELEASE="${ALLOW_DRAFT_RELEASE:-}"
+GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 
 
 log() { echo "[INFO] $(date) $1" >> $LOG_PATH; }
@@ -220,6 +224,48 @@ server {
 EOF
 }
 
+github_api_get() {
+  # Retries on GitHub rate-limit (HTTP 429/403) with exponential back-off; prints body to stdout
+  local attempt max_attempts=4 wait=5 http_code tmp
+  tmp="$(mktemp)"
+  for attempt in $(seq 1 "$max_attempts"); do
+    http_code=$(curl -Ls -w '%{http_code}' -o "$tmp" "$@")
+    if [ "$http_code" -eq 200 ]; then
+      cat "$tmp"; rm -f "$tmp"; return 0
+    fi
+    if [ "$attempt" -lt "$max_attempts" ] && { [ "$http_code" -eq 429 ] || [ "$http_code" -eq 403 ]; }; then
+      log_err "GitHub API throttled (HTTP $http_code); retrying in ${wait}s (attempt $attempt/$max_attempts)..."
+      sleep "$wait"
+      wait=$((wait * 2))
+    else
+      rm -f "$tmp"; return 1
+    fi
+  done
+  rm -f "$tmp"; return 1
+}
+get_release_asset_url() {
+  # $1=tag_name $2=asset_name; prints the GitHub API asset URL to stdout (works for drafts)
+  local headers=('-H' 'X-GitHub-Api-Version: 2022-11-28' '-H' 'Accept: application/vnd.github+json')
+  [ -n "$GITHUB_TOKEN" ] && headers+=('-H' "Authorization: Bearer $GITHUB_TOKEN")
+  github_api_get "${headers[@]}" \
+    "https://api.github.com/repos/$GITHUB_REPO/releases?per_page=100" \
+    | jq -er --arg tag "$1" --arg name "$2" \
+      '.[] | select(.tag_name == $tag) | .assets[] | select(.name == $name) | .url'
+}
+download_artifact() {
+  # $1=destination $2=tag $3=asset_name
+  # Uses the GitHub API (authenticated) when ALLOW_DRAFT_RELEASE is set, otherwise a direct wget
+  if [ -n "$ALLOW_DRAFT_RELEASE" ]; then
+    local asset_url
+    asset_url="$(get_release_asset_url "$2" "$3")" \
+      || { log_err "Asset '$3' not found for release '$2'"; return 1; }
+    local headers=('-H' "Authorization: Bearer $GITHUB_TOKEN" '-H' 'X-GitHub-Api-Version: 2022-11-28' '-H' 'Accept: application/octet-stream')
+    sudo curl -fLs "${headers[@]}" -o "$1" "$asset_url"
+  else
+    sudo wget -O "$1" "https://github.com/$GITHUB_REPO/releases/download/$2/$3"
+  fi
+}
+
 build_helm_values() {
   # builds values for modularSdk role
   if [ -z "$MODULAR_SDK_ASSUME_ROLE_ARN" ]; then
@@ -234,6 +280,10 @@ build_helm_values() {
 # $R8S_LOCAL_PATH $LM_API_LINK, $RIGHTSIZER_RELEASE, $FIRST_USER will be provided from outside
 if [ -z "$R8S_LOCAL_PATH" ] || [ -z "$LM_API_LINK" ] || [ -z "$RIGHTSIZER_RELEASE" ] || [ -z "$FIRST_USER" ] || [ -z "$GITHUB_REPO" ]; then
   error_log "R8S_LOCAL_PATH=$R8S_LOCAL_PATH LM_API_LINK=$LM_API_LINK RIGHTSIZER_RELEASE=$RIGHTSIZER_RELEASE FIRST_USER=$FIRST_USER. Something is not provided"
+  exit 1
+fi
+if [ -n "$ALLOW_DRAFT_RELEASE" ] && [ -z "$GITHUB_TOKEN" ]; then
+  log_err "GITHUB_TOKEN must be set when ALLOW_DRAFT_RELEASE is enabled"
   exit 1
 fi
 log "Script is executed on behalf of $(id)"
@@ -281,12 +331,17 @@ EOF
 log "Downloading artifacts"
 sudo mkdir -p "$R8S_LOCAL_PATH/backups"
 sudo mkdir -p "$R8S_LOCAL_PATH/releases/$RIGHTSIZER_RELEASE"
-sudo wget -O "$R8S_LOCAL_PATH/releases/$RIGHTSIZER_RELEASE/modular_cli.tar.gz" "https://github.com/$GITHUB_REPO/releases/download/$RIGHTSIZER_RELEASE/modular_cli.tar.gz"  # todo get from modular-cli repo
-#sudo wget -O "$R8S_LOCAL_PATH/releases/$RIGHTSIZER_RELEASE/sre_obfuscator.tar.gz" "https://github.com/$GITHUB_REPO/releases/download/$RIGHTSIZER_RELEASE/r8s_obfuscator.tar.gz" # todo add obfuscator
-sudo wget -O "$R8S_LOCAL_PATH/releases/$RIGHTSIZER_RELEASE/r8s-init.sh" "https://github.com/$GITHUB_REPO/releases/download/$RIGHTSIZER_RELEASE/r8s-init.sh"
+download_artifact "$R8S_LOCAL_PATH/releases/$RIGHTSIZER_RELEASE/modular_cli.tar.gz" "$RIGHTSIZER_RELEASE" "modular_cli.tar.gz"  # todo get from modular-cli repo
+#download_artifact "$R8S_LOCAL_PATH/releases/$RIGHTSIZER_RELEASE/sre_obfuscator.tar.gz" "$RIGHTSIZER_RELEASE" "r8s_obfuscator.tar.gz"  # todo add obfuscator
+download_artifact "$R8S_LOCAL_PATH/releases/$RIGHTSIZER_RELEASE/r8s-init.sh" "$RIGHTSIZER_RELEASE" "r8s-init.sh"
 sudo cp "$R8S_LOCAL_PATH/releases/$RIGHTSIZER_RELEASE/r8s-init.sh" /usr/local/bin/r8s-init
 sudo chmod +x /usr/local/bin/r8s-init
 sudo chown -R $FIRST_USER:$FIRST_USER "$R8S_LOCAL_PATH"
+if [ -n "$GITHUB_TOKEN" ]; then
+  # Persist token so subsequent r8s-init invocations (e.g. r8s-init update) can authenticate
+  printf 'export GITHUB_TOKEN=%s\n' "$GITHUB_TOKEN" | sudo tee /etc/profile.d/r8s-github-token.sh > /dev/null
+  sudo chmod 640 /etc/profile.d/r8s-github-token.sh
+fi
 
 
 log "Going to make request to license manager"
