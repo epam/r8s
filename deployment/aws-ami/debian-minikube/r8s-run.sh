@@ -150,9 +150,15 @@ fi
 } 2>&1 | sudo tee -a "$LOG_PATH" >/dev/null
 rm "$ami_initialize"
 
-modular_api_pod_name=$(kubectl get pods -n default -l app.kubernetes.io/name=modular-api -o jsonpath='{.items[0].metadata.name}')
-log "Waiting for modular api pod to be Running: ${modular_api_pod_name}"
-kubectl wait --for=condition=ready --timeout=300s "pod/${modular_api_pod_name}"
+modular_api_pod_name=$(
+  sudo -EH -u "$FIRST_USER" kubectl get pods -n default \
+    -l app.kubernetes.io/name=modular-api \
+    -o jsonpath='{.items[0].metadata.name}'
+)
+
+log "Waiting for modular api pod to be Ready: ${modular_api_pod_name}"
+sudo -EH -u "$FIRST_USER" kubectl wait -n default --for=condition=ready --timeout=300s \
+  "pod/${modular_api_pod_name}"
 
 log "Executing r8s-init --system"
 sudo -EH -u "$FIRST_USER" r8s-init --system 2>&1 | sudo tee -a "$LOG_PATH" >/dev/null
