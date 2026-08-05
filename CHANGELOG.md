@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [3.15.0] - 2026-08-05
+- Updated r8s-run.sh script
 - Improved r8s-init script:
   - Added `github_api_get` helper with the exponential back-off retry logic.
     - `iter_github_releases` now delegates its GitHub API call to `github_api_get`, replacing a bare `curl` that failed immediately on rate-limit.  
