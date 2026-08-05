@@ -290,6 +290,25 @@ get_helm_release_version() {
   # currently the version of rightsizer chart corresponds to the version of app inside
   helm get metadata "$1" -o json 2>/dev/null | jq -r '.version'
 }
+github_api_get() {
+  # Retries on GitHub rate-limit (HTTP 429/403) with exponential back-off; prints body to stdout
+  local attempt max_attempts=4 wait=5 http_code tmp
+  tmp="$(mktemp)"
+  for attempt in $(seq 1 "$max_attempts"); do
+    http_code=$(curl -Ls -w '%{http_code}' -o "$tmp" "$@")
+    if [ "$http_code" -eq 200 ]; then
+      cat "$tmp"; rm -f "$tmp"; return 0
+    fi
+    if [ "$attempt" -lt "$max_attempts" ] && { [ "$http_code" -eq 429 ] || [ "$http_code" -eq 403 ]; }; then
+      warn "GitHub API throttled (HTTP $http_code); retrying in ${wait}s (attempt $attempt/$max_attempts)..."
+      sleep "$wait"
+      wait=$((wait * 2))
+    else
+      rm -f "$tmp"; return 1
+    fi
+  done
+  rm -f "$tmp"; return 1
+}
 iter_github_releases() {
   # iterates only over released versions by default. --prerelease flag includes pre-releases to output. --draft includes drafts
   local opts draft=0 prerelease=0 per_page=${GITHUB_PER_PAGE:-30} filter
@@ -312,7 +331,7 @@ iter_github_releases() {
   else
     filter='.[] | select(.prerelease == false and .draft == false)'
   fi
-  curl -fLs --request GET -H 'Accept: application/vnd.github+json' "${GITHUB_CURL_HEADERS[@]}" "https://api.github.com/repos/$GITHUB_REPO/releases?per_page=$per_page" | jq -c "$filter" || die "Could not make request to GitHub. Probably rate limit exceeded"
+  github_api_get -H 'Accept: application/vnd.github+json' "${GITHUB_CURL_HEADERS[@]}" "https://api.github.com/repos/$GITHUB_REPO/releases?per_page=$per_page" | jq -c "$filter" || die "Could not make request to GitHub. Probably rate limit exceeded"
 }
 get_github_release_by_tag() {
   local tag_name
