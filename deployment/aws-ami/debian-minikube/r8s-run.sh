@@ -47,6 +47,19 @@ send_cf_signal() {
     log "Not sending signal to Cloud Formation because CF_STACK_NAME is not set"
   fi
 }
+handle_error() {
+  local exit_code=$1 line_number=$2
+  log_err "Error (exit code ${exit_code}) on line ${line_number}"
+  if [[ ${#FUNCNAME[@]} -gt 2 ]]; then
+    log_err "Call stack:"
+    for ((i=1; i<${#FUNCNAME[@]}-1; i++)); do
+      log_err "  ${FUNCNAME[$i]}() at ${BASH_SOURCE[$i+1]:-?}:${BASH_LINENO[$i]}"
+    done
+  fi
+  exit "$exit_code"
+}
+trap 'handle_error $? $LINENO' ERR
+
 on_exit() {
   local status=$?
   [ "$status" -ne 0 ] && send_cf_signal "FAILURE"
@@ -135,7 +148,7 @@ fi
   # shellcheck disable=SC1090
   source "$ami_initialize"
 } 2>&1 | sudo tee -a "$LOG_PATH" >/dev/null
-rm -f "$ami_initialize"
+rm "$ami_initialize"
 
 modular_api_pod_name=$(kubectl get pods -n default -l app.kubernetes.io/name=modular-api -o jsonpath='{.items[0].metadata.name}')
 log "Waiting for modular api pod to be Running: ${modular_api_pod_name}"
