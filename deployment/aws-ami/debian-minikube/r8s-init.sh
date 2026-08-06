@@ -705,7 +705,9 @@ initialize_system() {
   fi
 
   echo "Creating rightsizer customer users"
-  syndicate r8s register --username "$RIGHTSIZER_USERNAME" --password "$rightsizer_password" --role_name admin_role --customer_id "$customer_name" --tenant "*" --json
+  syndicate r8s policy add --policy_name customer_admin_policy --permissions_admin --customer "$customer_name"
+  syndicate r8s role add --name customer_admin_role --policies customer_admin_policy --customer "$customer_name" --expiration "$(date -u -d '+2 years' +'%Y-%m-%dT%H:%M:%S')"
+  syndicate r8s register --username "$RIGHTSIZER_USERNAME" --password "$rightsizer_password" --role_name customer_admin_role --customer_id "$customer_name" --tenant "*" --json
 
   echo "Logging in as customer users"
   syndicate admin login --username "$MODULAR_SERVICE_USERNAME" --password "$modular_service_password" --json
