@@ -47,7 +47,7 @@ class SettingsService:
             setting = Setting(name=SETTING_LAST_SHAPE_UPDATE, value={})
 
         setting.value[cloud] = datetime.utcnow().isoformat()
-        setting.save(setting=setting)
+        setting.update(value=setting.value)
         return setting
 
     def get_license_manager_access_data(self, value: bool = True):
