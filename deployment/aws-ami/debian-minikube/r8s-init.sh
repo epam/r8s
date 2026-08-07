@@ -197,14 +197,17 @@ Description:
 Examples:
   $PROGRAM $COMMAND create --name my-backup
   $PROGRAM $COMMAND create --name my-backup --volumes=minio,mongo,vault
+  $PROGRAM $COMMAND CREATE --name my-backup --volumes=all --secrets=all --helm-values
 
 Required Options:
   -n, --name  Backup name to create
 
 Options
-  -h, --help  Show help message
-  -p, --path  Path where backups are store (default "$R8S_BACKUPS_PATH/$(get_helm_release_version "$HELM_RELEASE_NAME")")
-  --volumes   Volumes to make the backup for. Uses all k8s volumes if not specified. Specify volumes divided by comma
+  -h, --help    Show help message
+  -p, --path    Path where backups are store (default "$R8S_BACKUPS_PATH/$(get_helm_release_version "$HELM_RELEASE_NAME")")
+  --volumes     Volumes to make the backup for. Uses all k8s volumes if not specified. Specify volumes divided by comma
+  --secrets     K8s secrets to backup. Specify secrets names divided by comma. Specify 'all' to backup all Syndicate Rule Engine secrets
+  --helm-values Specify this flag to include helm values into backup
 EOF
 }
 
@@ -409,24 +412,26 @@ download_from_github_url() {
 }
 pull_artifact() {
   # accepts two parameters: destination folder and github's asset json
-  local name destination url
+  local name destination digest url tmp_file
 
   name="$(jq -r '.name' <<<"$2")"
   destination="$1/$name"
 
   if [ -f "$destination" ]; then
-    if check_asset_digest "$destination" "$2"; then
-      _debug "asset $name is up-to-date, skipping download"
+    if ! check_asset_digest "$destination" "$2"; then
+      _debug "Artifact $name already exists but has different digest. Going to download it again"
+    else
+      _debug "Artifact $name already exists and has the same digest. Skipping download"
       return 0
     fi
   fi
 
   url="$(jq -r '.url' <<<"$2")"
   if download_from_github_url "$destination" "$url"; then
-    echo "Downloaded $name"
+    _debug "Downloaded $name to $destination"
     return 0
   else
-    warn "Could not download $name"
+    warn "could not download $name from release from $url"
     return 1
   fi
 }
@@ -877,11 +882,17 @@ EOF
 }
 
 pull_artifacts() {
-  # downloads all necessary files from the given github release tag. Make sure the release exists
-  mkdir -p "$R8S_RELEASES_PATH/$1"
-  wget -q -O "$R8S_RELEASES_PATH/$1/$MODULAR_CLI_ARTIFACT_NAME" "https://github.com/$GITHUB_REPO/releases/download/$1/$MODULAR_CLI_ARTIFACT_NAME" || warn "could not download $MODULAR_CLI_ARTIFACT_NAME from release $1"
-#  wget -q -O "$R8S_RELEASES_PATH/$1/$OBFUSCATOR_ARTIFACT_NAME" "https://github.com/$GITHUB_REPO/releases/download/$1/$OBFUSCATOR_ARTIFACT_NAME" || warn "could not download $OBFUSCATOR_ARTIFACT_NAME from release $1"
-  wget -q -O "$R8S_RELEASES_PATH/$1/$R8S_INIT_ARTIFACT_NAME" "https://github.com/$GITHUB_REPO/releases/download/$1/$R8S_INIT_ARTIFACT_NAME" || warn "could not download $R8S_INIT_ARTIFACT_NAME from release $1"
+  local tag
+  tag="$(jq -r '.tag_name' <<<"$1")"
+  mkdir -p "$R8S_RELEASES_PATH/$tag"
+
+  while IFS= read -r asset; do
+    if pull_artifact "$R8S_RELEASES_PATH/$tag" "$asset"; then
+      echo "Pulled artifact $(jq -r '.name' <<<"$asset") for release $tag"
+    else
+      warn "could not pull artifact $(jq -r '.name' <<<"$asset") for release $tag"
+    fi
+  done < <(jq -c '.assets[]' <<<"$1")
 }
 update_r8s_init() {
   # assuming that the target version already exists locally
@@ -1019,15 +1030,23 @@ cmd_update() {
   echo "Going to update to $latest_tag"
   [[ $auto_yes -eq 1 ]] || yesno "Do you want to update?"
   echo "Updating to $latest_tag"
+  if [ -n "$release_data" ]; then
+    echo "Pulling new artifacts"
+    # TODO: check artifacts from previous release? and copy if totally the same
+    pull_artifacts "$release_data"
+  fi
+
+  if [ -f "$R8S_RELEASES_PATH/$latest_tag/$MODULAR_CLI_ARTIFACT_NAME" ]; then
+    check_modular_cli_python_compatibility "$latest_tag" >/dev/null
+  fi
+
   if [ "$do_backup" -eq 1 ]; then
     [ -z "$backup_name" ] && backup_name="$AUTO_BACKUP_PREFIX$(date +%s)"
     echo "Making backup $backup_name"
     cmd_backup_create --name "$backup_name" --volumes=minio,mongo,vault
   fi
-  echo "Pulling new artifacts"
-  pull_artifacts "$latest_tag"
   echo "Updating helm repo"
-  helm repo update syndicate
+  helm repo update syndicate || die_with_support "helm repo update failed"
   helm search repo syndicate/rightsizer --version "$latest_tag" --fail-on-no-result >/dev/null 2>&1 || die "$latest_tag version of $r_name chart not found. Cannot update"
   echo "Upgrading $r_name chart to $latest_tag version"
   if ! helm upgrade "$HELM_RELEASE_NAME" syndicate/rightsizer --version "$latest_tag" --wait; then
@@ -1037,6 +1056,8 @@ cmd_update() {
   else
     echo "helm upgrade was successful"
   fi
+  local cli_python_bin=""
+  cli_python_bin="$(check_modular_cli_python_compatibility "$latest_tag")"
 #  echo "Upgrading obfuscation manager"
 #  pip3 install --user --break-system-packages --upgrade "$R8S_RELEASES_PATH/$latest_tag/${OBFUSCATOR_ARTIFACT_NAME}[xlsx]" >/dev/null
   if [ -f "$R8S_RELEASES_PATH/$latest_tag/$MODULAR_CLI_ARTIFACT_NAME" ]; then
@@ -1228,6 +1249,15 @@ cmd_nginx_disable() {
   exit 1
 }
 
+scale_for_volume() {
+  # accepts volume name as one parameter and number of replicas as the second one
+  [ ! -v PV_TO_DEPLOYMENTS["$1"] ] && return
+  local deploy
+  while read -r -d ',' deploy; do
+    kubectl scale deployment "$deploy" --replicas="$2"
+  done <<<"${PV_TO_DEPLOYMENTS["$1"]}," # comma added here to make sure read catches the last segment
+}
+
 make_backup() {
   # accepts k8s persistent volume name as first parameter and destination folder as second parameter.
   local host_path
@@ -1259,6 +1289,45 @@ restore_backup() {
   sha256sum "$2/$1.sha256" --check || return 1
   minikube cp "$2/$1.tar.gz" "$HELM_RELEASE_NAME:/tmp/$1.tar.gz"
   minikube ssh "sudo rm -rf $host_path; sudo mkdir -p $host_path ; sudo tar --same-owner --overwrite -xzf /tmp/$1.tar.gz -C $host_path"
+}
+make_secrets_backup() {
+  # accepts target file as a first parameter and secrets names as other parameters
+  local target_file="$1"
+  shift
+  if ! kubectl get secrets -o json --ignore-not-found=false "$@" | jq -c >"$target_file" 2>/dev/null; then
+    warn "Could not dump secrets to $target_file"
+    return 1
+  fi
+  sha256sum "$target_file" >"$target_file.sha256"
+  chmod 440 "$target_file" "$target_file.sha256"
+}
+restore_secrets_backup() {
+  local target_file="$1"
+  if ! sha256sum --check "$target_file.sha256"; then
+    warn "Could not verify sha256 for secrets file"
+    return 1
+  fi
+  kubectl replace --force -f "$target_file" 2>/dev/null
+}
+make_helm_values_backup() {
+  local target_file="$1"
+  if ! helm get values -o json "$HELM_RELEASE_NAME" >"$target_file" 2>/dev/null; then
+    warn "Could not dump helm values to $target_file"
+    return 1
+  fi
+  sha256sum "$target_file" >"$target_file.sha256"
+  chmod 440 "$target_file" "$target_file.sha256"
+}
+restore_helm_values_backup() {
+  local target_file="$1"
+  if ! sha256sum --check "$target_file.sha256"; then
+    warn "Could not verify sha256 for helm values file"
+    return 1
+  fi
+  warn 'helm values will not be restored automatically. Use the following command to restore them: '
+  cat <<EOF
+helm upgrade -f "$target_file" "$HELM_RELEASE_NAME" syndicate/rule-engine --version "$(get_helm_release_version "$HELM_RELEASE_NAME")"
+EOF
 }
 cmd_backup() {
   case "$1" in
@@ -1333,39 +1402,108 @@ cmd_backup_rm() {
 }
 
 cmd_backup_create() {
-  local opts path="" name="" volumes="" vol
-  opts="$(getopt -o "n:hp:" --long "name:,help,path:,volumes:" -n "$PROGRAM" -- "$@")"
+  local opts path="" name="" volumes="" secrets="" vol sec items=() items_secrets=() helm_values=""
+
+  opts="$(getopt -o "n:hp:" --long "name:,help,path:,volumes:,secrets:,helm-values" -n "$PROGRAM" -- "$@")"
   eval set -- "$opts"
+
   while true; do
     case "$1" in
-      -h|--help) cmd_backup_create_usage; exit 0 ;;
-      -p|--path) path="$2"; shift 2 ;;
-      -n|--name) name="$2"; shift 2 ;;
-      --volumes) volumes="$2"; shift 2 ;;
-      '--') shift; break ;;
+      -h|--help)
+        cmd_backup_create_usage
+        exit 0
+        ;;
+      -p|--path)
+        path="$2"
+        shift 2
+        ;;
+      -n|--name)
+        name="$2"
+        shift 2
+        ;;
+      --volumes)
+        volumes="$2"
+        shift 2
+        ;;
+      --secrets)
+        secrets="$2"
+        shift 2
+        ;;
+      --helm-values)
+        helm_values="y"
+        shift 1
+        ;;
+      '--')
+        shift
+        break
+        ;;
     esac
   done
+
   [ -z "$name" ] && die "--name is required"
-  [ -z "$path" ] && path="$R8S_BACKUPS_PATH/$(get_helm_release_version "$HELM_RELEASE_NAME")"
-  [ -d "$path/$name" ] && die "'$name' already exists"
-  mkdir -p "$path/$name"
-  if [ -z "$volumes" ]; then
-    for vol in $(kubectl get pv -o=jsonpath="{.items[*].metadata.name}"); do
-      echo "Making backup for volume $vol"
-      make_backup "$vol" "$path/$name" || warn "could not make backup"
-    done
-  else
-    local items
-    IFS=',' read -ra items <<< "$volumes"
-    for vol in "${items[@]}"; do
-      if ! kubectl get pv "$vol" >/dev/null 2>&1; then
-        warn "'$vol' volume does not exist" >&2
-        continue
-      fi
-      echo "Making backup for volume '$vol'"
-      make_backup "$vol" "$path/$name" || warn "could not make backup"
-    done
+
+  if [ -z "$path" ]; then
+    path="$R8S_BACKUPS_PATH/$(get_helm_release_version "$HELM_RELEASE_NAME")" || die "cannot resolve current version"
   fi
+
+  [ -d "$path/$name" ] && die "'$name' already exists"
+
+  # checking secrets
+  if [ "$secrets" = "all" ]; then
+    items_secrets+=("${ALL_SECRETS[@]}")
+  elif [ -n "$secrets" ]; then
+    while read -r -d ',' sec; do
+      [ -z "$sec" ] && continue
+
+      if ! kubectl get secret "$sec" >/dev/null 2>&1; then
+        die "'$sec' secret does not exist"
+      fi
+
+      items_secrets+=("$sec")
+    done <<<"$secrets,"
+  fi
+  # By here we have an array of secrets names to make a backup
+
+  # checking volumes
+  if [ "$volumes" = "all" ]; then
+    for vol in $(kubectl get pv -o=jsonpath="{.items[*].metadata.name}" 2>/dev/null); do
+      items+=("$vol")
+    done
+  elif [ -n "$volumes" ]; then
+    while read -r -d ',' vol; do
+      [ -z "$vol" ] && continue
+
+      if ! kubectl get pv "$vol" >/dev/null 2>&1; then
+        die "'$vol' volume does not exist"
+      fi
+
+      items+=("$vol")
+    done <<<"$volumes,"
+  fi
+  # By here we have an array of volumes names to make a backup
+
+  if [ "${#items[@]}" -eq 0 ] && [ "${#items_secrets[@]}" -eq 0 ] && [ -z "$helm_values" ]; then
+    die "nothing to backup"
+  fi
+
+  mkdir -p "$path/$name"
+
+  if [ "${#items_secrets[@]}" -ne 0 ]; then
+    echo "Making backup of secrets"
+    make_secrets_backup "$path/$name/$BACKUP_SECRETS_FILENAME" "${items_secrets[@]}"
+  fi
+
+  if [ -n "$helm_values" ]; then
+    echo "Making backup of helm values"
+    make_helm_values_backup "$path/$name/$BACKUP_HELM_VALUES_FILENAME"
+  fi
+
+  for vol in "${items[@]}"; do
+    echo "Making backup of volume $vol"
+    scale_for_volume "$vol" 0
+    make_backup "$vol" "$path/$name" || warn "could not make backup"
+    scale_for_volume "$vol" 1
+  done
 }
 cmd_backup_restore() {
   local opts path="" name="" volumes="" version="" force=0 current_release vol
@@ -1373,39 +1511,84 @@ cmd_backup_restore() {
   eval set -- "$opts"
   while true; do
     case "$1" in
-      -h|--help) cmd_backup_restore_usage; exit 0 ;;
-      -p|--path) path="$2"; shift 2 ;;
-      -v|--version) version="$2"; shift 2 ;;
-      -n|--name) name="$2"; shift 2 ;;
-      -f|--force) force=1; shift ;;
-      --volumes) volumes="$2"; shift 2 ;;
-      '--') shift; break ;;
+      -h|--help)
+        cmd_backup_restore_usage
+        exit 0
+        ;;
+      -p|--path)
+        path="$2"
+        shift 2
+        ;;
+      -v|--version)
+        version="$2"
+        shift 2
+        ;;
+      -n|--name)
+        name="$2"
+        shift 2
+        ;;
+      -f|--force)
+        force=1
+        shift
+        ;;
+      --volumes)
+        volumes="$2"
+        shift 2
+        ;;
+      '--')
+        shift
+        break
+        ;;
     esac
   done
   [ -z "$name" ] && die "--name is required"
-  current_release="$(get_helm_release_version "$HELM_RELEASE_NAME")"
-  [ "$force" -eq 0 ] && [ -n "$version" ] && [ "$version" != "$current_release" ] && die "current release $current_release does not match to the backup version $version. Specify --force if you really want to restore backup"
+
+  current_release="$(get_helm_release_version "$HELM_RELEASE_NAME")" || die "cannot resolve current version"
+
+  [ "$force" -eq 0 ] && \
+    [ -n "$version" ] && \
+    [ "$version" != "$current_release" ] && \
+    die "current release $current_release does not match to the backup version $version. Specify --force if you really want to restore backup"
+
   path="$(resolve_backup_path "$path" "$version")"
+
   [ ! -d "$path/$name" ] && die "backup '$name' (from $path) not found"
 
   declare -a items
+
   if [ -z "$volumes" ]; then
     while IFS= read -r -d ''; do
       items+=("$(basename --suffix='.tar.gz' "$REPLY")")
     done < <(find "$path/$name" -name '*.tar.gz' -type f -print0)
   else
-    IFS=',' read -ra items <<< "$volumes"
+    IFS=',' read -ra items <<<"$volumes"
   fi
-  echo "${items[@]}"
+
+  # TODO add some input flags to control whether secrets are restored
+  if [ -f "$path/$name/$BACKUP_SECRETS_FILENAME" ]; then
+    echo "Restoring secrets"
+    restore_secrets_backup "$path/$name/$BACKUP_SECRETS_FILENAME" || warn "could not restore secrets"
+  fi
 
   for vol in "${items[@]}"; do
+    [ -z "$vol" ] && continue
+
     if ! kubectl get pv "$vol" >/dev/null 2>&1; then
-      warn "'$vol' volume does not exist" >&2
+      warn "'$vol' volume does not exist"
       continue
     fi
+
     echo "Restoring volume '$vol'"
-    restore_backup "$vol" "$path/$name" || die "could not restore backup"
+    scale_for_volume "$vol" 0
+    restore_backup "$vol" "$path/$name" || warn "could not restore backup"
+    scale_for_volume "$vol" 1
   done
+
+  # TODO add some input flags to control whether helm values are restored
+  if [ -f "$path/$name/$BACKUP_HELM_VALUES_FILENAME" ]; then
+    echo "Restoring helm values"
+    restore_helm_values_backup "$path/$name/$BACKUP_HELM_VALUES_FILENAME" || warn "could not restore helm values"
+  fi
 }
 
 # Start
@@ -1438,21 +1621,43 @@ FORBID_SELF_UPDATE="${FORBID_SELF_UPDATE:-}"
 # regions that will be allowed to activate
 AWS_REGIONS="${AWS_REGIONS:-us-east-1 us-east-2 us-west-1 us-west-2 af-south-1 ap-east-1 ap-south-2 ap-southeast-3 ap-southeast-4 ap-south-1 ap-northeast-3 ap-northeast-2 ap-southeast-1 ap-southeast-2 ap-northeast-1 ca-central-1 ca-west-1 eu-central-1 eu-west-1 eu-west-2 eu-south-1 eu-west-3 eu-south-2 eu-north-1 eu-central-2 il-central-1 me-south-1 me-central-1 sa-east-1 us-gov-east-1 us-gov-west-1}"
 
-RIGHTSIZER_SECRET_NAME=rightsizer-secret
-MODULAR_API_SECRET_NAME=modular-api-secret
-MODULAR_SERVICE_SECRET_NAME=modular-service-secret
-DEFECTDOJO_SECRET_NAME=defectdojo-secret
+# All variables below are constants and should not be changed
+readonly DEFECTDOJO_SECRET_NAME=defectdojo-secret
+readonly LM_DATA_SECRET_NAME=lm-data
+readonly MINIO_SECRET_NAME=minio-secret
+readonly MODULAR_API_SECRET_NAME=modular-api-secret
+readonly MODULAR_SERVICE_SECRET_NAME=modular-service-secret
+readonly MONGO_SECRET_NAME=mongo-secret
+readonly RIGHTSIZER_SECRET_NAME=rightsizer-secret
+readonly VAULT_SECRET_NAME=vault-secret
 
-MODULAR_CLI_ARTIFACT_NAME=modular_cli.tar.gz
-#OBFUSCATOR_ARTIFACT_NAME=r8s_obfuscator.tar.gz
-R8S_INIT_ARTIFACT_NAME=r8s-init.sh
+readonly ALL_SECRETS=("$DEFECTDOJO_SECRET_NAME" "$LM_DATA_SECRET_NAME" "$MINIO_SECRET_NAME" "$MODULAR_API_SECRET_NAME" "$MODULAR_SERVICE_SECRET_NAME" "$MONGO_SECRET_NAME" "$RIGHTSIZER_SECRET_NAME" "$VAULT_SECRET_NAME")
+
+readonly BACKUP_SECRETS_FILENAME=${BACKUP_SECRETS_FILENAME:-_k8s_secrets}
+readonly BACKUP_HELM_VALUES_FILENAME=${BACKUP_HELM_VALUES_FILENAME:-_helm_values}
+
+
 MODULAR_CLI_ENTRY_POINT=syndicate
+
+# FOR backups to scale up/down
+declare -rA PV_TO_DEPLOYMENTS=(
+  ["minio"]="minio"
+  ["vault"]="vault"
+  ["mongo"]="mongo"
+  ["defectdojo-cache"]="defectdojo-redis"
+  ["defectdojo-data"]="defectdojo-postgres"
+  ["defectdojo-media"]="defectdojo-nginx,defectdojo-uwsgi,defectdojo-celeryworker"
+)
 
 GITHUB_CURL_HEADERS=('-H' 'X-GitHub-Api-Version: 2022-11-28')
 if [ -n "$GITHUB_TOKEN" ]; then
   GITHUB_CURL_HEADERS+=('-H' "Authorization: Bearer $GITHUB_TOKEN")
 fi
 readonly GITHUB_CURL_HEADERS
+
+readonly MODULAR_CLI_ARTIFACT_NAME=modular_cli.tar.gz
+# readonly OBFUSCATOR_ARTIFACT_NAME=r8s_obfuscator.tar.gz
+readonly R8S_INIT_ARTIFACT_NAME=r8s-init.sh
 
 MODULAR_ADMIN_POLICY='[{"Description": "Admin policy", "Module": "*", "Effect": "Allow", "Resources": ["*"]}, {"Effect": "Deny", "Description": "Prohibited commands", "Module": "r8s", "Resources": ["algorithm:add", "algorithm:update_clustering_settings", "algorithm:update_general_settings", "algorithm:update_metric_format", "algorithm:update_recommendation_settings", "report:initiate_tenant_mail_report"]}]'
 FIRST_USER="${FIRST_USER:-$(getent passwd 1000 | cut -d : -f 1)}"
