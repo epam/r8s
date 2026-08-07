@@ -3,6 +3,7 @@ import json
 import os
 import re
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 
 ALLOWED_REGIONS = ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2',
@@ -35,6 +36,9 @@ def parse_args():
                         required=False, choices=ALLOWED_OS, default=ALLOWED_OS,
                         help='List of AWS operation systems '
                              'to populate price for')
+    parser.add_argument('--skip-check', action='store_true',
+                        help='Skip the staleness check and always repopulate '
+                             'shapes/prices regardless of last update date')
     args = vars(parser.parse_args())
     if not args.get('price_region'):
         args['price_region'] = ALLOWED_REGIONS
@@ -93,6 +97,54 @@ def parse_aws_generation(shape_name):
     return None, None
 
 
+def get_last_update_date():
+    from services.setting_service import SettingsService
+    from models.base_model import CloudEnum
+
+    setting_service = SettingsService()
+    setting = setting_service.get(name='LAST_SHAPE_UPDATE')
+
+    if not setting:
+        return None
+
+    value = setting.value if hasattr(setting, 'value') else setting
+    if not isinstance(value, dict):
+        return None
+
+    date_str = value.get(CloudEnum.CLOUD_AWS.value)
+    if not date_str:
+        return None
+    return datetime.fromisoformat(date_str)
+
+
+def is_update_needed(skip_check):
+    if skip_check:
+        print('--skip-check flag set, repopulating regardless of last update.')
+        return True
+
+    last_updated = get_last_update_date()
+
+    if last_updated is None:
+        print('No last update date found, repopulating.')
+        return True
+
+    age = datetime.utcnow() - last_updated
+    if age > timedelta(days=1):
+        print(f'Shapes last updated {age} ago (> 1 day), repopulating.')
+        return True
+    print(f'Shapes updated recently, skipping.')
+    return False
+
+
+def clear_collections():
+    from models.shape import Shape
+    from models.shape_price import ShapePrice
+
+    deleted_shapes = Shape.objects.delete()
+    deleted_prices = ShapePrice.objects.delete()
+    print(f'Cleared {deleted_shapes} shapes and {deleted_prices} shape prices.')
+
+
 def populate_shapes(shapes_data):
     from mongoengine import NotUniqueError
     from models.shape import Shape
@@ -100,8 +152,6 @@ def populate_shapes(shapes_data):
     shape_mapping = {k['name']: k for k in shapes_data}
 
     for shape_name, shape_data in shape_mapping.items():
-        print(f'Processing shape: {shape_name}')
-
         if shape_name.startswith('db.'):
             resource_type = 'RDS'
         else:
@@ -144,7 +194,7 @@ def populate_prices(os_list, region_list, customer):
             print(f'Processing region: {region}, os: {os_}')
             items = _populate_prices(paginator=paginator, customer=customer,
                                      os=os_, region=region)
-            print(f'Saved \'{len(items)}\' prices for region \'{region}\', '
+            print(f'Saved {len(items)} prices for region \'{region}\', '
                   f'os: {os_}')
 
 
@@ -239,8 +289,14 @@ def main():
     print('Exporting env variables')
     export_args(**args)
 
+    if not is_update_needed(skip_check=args['skip_check']):
+        sys.exit(0)
+
     print('Loading shapes data')
     shapes_data = load_local_json_file(file_name='aws_instances_data.json')
+
+    print('Clearing existing Shape and ShapePrice collections')
+    clear_collections()
 
     print('Populating Shapes')
     populate_shapes(shapes_data=shapes_data)
