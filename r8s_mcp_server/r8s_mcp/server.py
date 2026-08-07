@@ -15,7 +15,6 @@ from r8s_mcp.commons.log_helper import get_logger
 from r8s_mcp.commons.config import Config
 from r8s_mcp.commons.exceptions import ConnectionError
 from r8s_mcp.commons.context import (
-    MCP_USERNAME_HEADER,
     OUTPUT_FORMAT_HEADER,
     VALID_OUTPUT_FORMATS,
     set_default_mcp_config,
@@ -23,7 +22,6 @@ from r8s_mcp.commons.context import (
     set_output_format,
     OutputFormat, MCP_USER_CONTEXT_HEADER, bind_mcp_user_context,
     preserve_context_through_response, reset_mcp_user_context,
-    bind_mcp_username, reset_mcp_username, MODULAR_MCP_USERNAME_HEADER,
 )
 from r8s_mcp.commons.api_key import (
     SECRET_API_KEY_HEADER,
@@ -58,22 +56,6 @@ class OutputFormatMiddleware(BaseHTTPMiddleware):
         _LOG.debug(f'Request output format: {output_format}')
         set_output_format(output_format)
         return await call_next(request)
-
-
-class McpUsernameHeaderMiddleware(BaseHTTPMiddleware):
-    """
-    Capture optional ``X-R8S-MCP-USER-NAME`` on inbound MCP HTTP requests so
-    it can be included in the request to R8S API.
-    """
-    async def dispatch(self, request: Request, call_next):
-        raw = request.headers.get(MCP_USERNAME_HEADER)
-        if raw is None:
-            raw = request.headers.get(MODULAR_MCP_USERNAME_HEADER)
-        token = bind_mcp_username(raw)
-        response = await call_next(request)
-        return preserve_context_through_response(
-            response, token, reset_mcp_username,
-        )
 
 
 class McpUserContextHeaderMiddleware(BaseHTTPMiddleware):
@@ -183,9 +165,6 @@ def build_http_middlewares(
         )
     )
     middlewares.append(
-        Middleware(cls=McpUsernameHeaderMiddleware)
-    )
-    middlewares.append(
         Middleware(cls=McpUserContextHeaderMiddleware)
     )
     return middlewares
@@ -216,7 +195,6 @@ def register_tools(
 def get_middlewares() -> list[Middleware]:
     """Get list of middlewares to use at Modular-MCP"""
     return [
-        Middleware(cls=McpUsernameHeaderMiddleware),
         Middleware(cls=McpUserContextHeaderMiddleware),
     ]
 

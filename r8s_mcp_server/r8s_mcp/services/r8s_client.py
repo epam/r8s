@@ -9,9 +9,8 @@ from r8s_mcp.commons.constants import PARAM_TYPES, R8SEndpoint, PARAM_ID, \
     RecommendationType, PARAM_INSTANCE_ID, PARAM_RECOMMENDATION_TYPE, \
     PARAM_CUSTOMER, PARAM_JOB_ID, PARAM_TENANT
 from r8s_mcp.commons.config import Config
-from r8s_mcp.commons.context import get_mcp_config, get_mcp_username, \
-    MCP_USERNAME_OUTBOUND_HEADER, get_mcp_user_context, \
-    MCP_USER_CONTEXT_OUTBOUND_HEADER
+from r8s_mcp.commons.context import get_mcp_config, \
+    get_mcp_user_context, MCP_USER_CONTEXT_OUTBOUND_HEADER
 from r8s_mcp.commons.exceptions import ConnectionError
 from r8s_mcp.services.auth_manager import AuthManager
 from r8s_mcp.commons.log_helper import get_logger
@@ -83,10 +82,6 @@ class R8SClient:
                 _LOG.warning(
                     f'Failed to get bearer token, falling back to basic auth: {e}'
                 )
-
-        mcp_user = get_mcp_username()
-        if mcp_user:
-            headers[MCP_USERNAME_OUTBOUND_HEADER] = mcp_user
 
         mcp_user_context = get_mcp_user_context()
         if mcp_user_context:

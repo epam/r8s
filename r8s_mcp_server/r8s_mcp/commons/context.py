@@ -17,12 +17,6 @@ _output_format_ctx = \
 
 OUTPUT_FORMAT_HEADER: Final = 'x-r8s-output-format'
 
-# Optional MCP caller identity, forwarded to R8S API (HTTP transports only)
-MCP_USERNAME_HEADER: Final = 'x-r8s-mcp-user-name'
-MCP_USERNAME_OUTBOUND_HEADER: Final = 'X-R8s-Mcp-User-Name'
-
-MODULAR_MCP_USERNAME_HEADER: Final = 'x-mcp-user-name'
-
 MCP_USER_CONTEXT_HEADER: Final = 'x-mcp-user-context'
 MCP_USER_CONTEXT_OUTBOUND_HEADER: Final = 'X-Mcp-User-Context'
 
@@ -95,18 +89,6 @@ def reset_output_format() -> None:
     _output_format_ctx.set(DEFAULT_OUTPUT_FORMAT)
 
 
-def get_mcp_username() -> str | None:
-    """Inbound ``X-R8S-MCP-USER-NAME`` value for this request, if any."""
-    return _mcp_username_ctx.get()
-
-
-def _normalize_mcp_username(raw: str | None) -> str | None:
-    if raw is None:
-        return None
-    s = str(raw).strip()
-    return s or None
-
-
 def get_mcp_user_context() -> str | None:
     return _user_context_ctx.get()
 
@@ -119,16 +101,6 @@ def bind_mcp_user_context(header_value: str | None) -> Token[str | None]:
 def reset_mcp_user_context(token: Token[str | None]) -> None:
     """Restore the previous user-context value."""
     _user_context_ctx.reset(token)
-
-
-def bind_mcp_username(raw_header_value: str | None) -> Token[str | None]:
-    """Bind inbound MCP username for the current request."""
-    return _mcp_username_ctx.set(_normalize_mcp_username(raw_header_value))
-
-
-def reset_mcp_username(token: Token[str | None]) -> None:
-    """Restore the previous MCP username value."""
-    _mcp_username_ctx.reset(token)
 
 
 def preserve_context_through_response(response, token: Token, reset_fn) :
