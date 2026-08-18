@@ -45,9 +45,10 @@ def create_iam_permissions_settings():
     from models.setting import Setting
     settings_service = SERVICE_PROVIDER.settings_service()
 
-    if settings_service.get(SETTING_IAM_PERMISSIONS):
-        _LOG.debug(f'Setting {SETTING_IAM_PERMISSIONS} already exist.')
-        return
+    existing = settings_service.get(SETTING_IAM_PERMISSIONS, value=False)
+    if existing:
+        _LOG.debug(f'Setting {SETTING_IAM_PERMISSIONS} already exists, recreating.')
+        existing.delete()
     _LOG.debug(f'Creating {SETTING_IAM_PERMISSIONS} setting')
     script_dir_path = resolve_scripts_path()
     iam_permissions_data = read_json(dir_path=script_dir_path,
@@ -64,11 +65,14 @@ def create_admin_role():
     iam_service: IamService = SERVICE_PROVIDER.iam_service()
 
     script_dir_path = resolve_scripts_path()
-    if not iam_service.policy_get('admin_policy'):
-        _LOG.debug(f'Creating admin policy')
-        admin_policy_data = read_json(dir_path=script_dir_path,
-                                      file_name='admin_policy.json')
-        Policy(**admin_policy_data).save()
+    existing_policy = iam_service.policy_get('admin_policy')
+    if existing_policy:
+        _LOG.debug(f'Admin policy already exists, recreating.')
+        existing_policy.delete()
+    _LOG.debug(f'Creating admin policy')
+    admin_policy_data = read_json(dir_path=script_dir_path,
+                                  file_name='admin_policy.json')
+    Policy(**admin_policy_data).save()
 
     if not iam_service.role_get('admin_role'):
         _LOG.debug(f'Creating admin role')
