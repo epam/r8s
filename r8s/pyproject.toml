@@ -6,15 +6,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "r8scli"
 description = "Rightsizer CLI"
-requires-python = ">=3.10"
+requires-python = ">=3.14,<4"
 readme = "README.md"
 dynamic = ["version"]
 dependencies = [
-    "click==8.3.0",
-    "prettytable==3.9.0",
-    "python-dateutil==2.9.0.post0",
-    "modular-cli-sdk[hvac]==3.1.4",
-    "requests>=2.31.0,<3.0.0"
+    "click>=8.3,<9",
+    "prettytable>=3.9,<4",
+    "python-dateutil>=2.9,<3",
+    "modular-cli-sdk[hvac]>=4,<5",
+    "requests>=2.31,<3"
 ]
 
 [project.scripts]
@@ -33,5 +33,5 @@ include = ["r8scli"]
 exclude = [
     "**/__pycache__",
 ]
-pythonVersion = "3.10"
+pythonVersion = "3.14"
 reportIncompatibleMethodOverride = "warning"

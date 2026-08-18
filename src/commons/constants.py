@@ -50,6 +50,14 @@ PROTOCOL_ATTR = 'protocol'
 ATTACHMENT_MODEL_ATTR = 'attachment_model'
 API_KEY_ATTR = 'api_key'
 
+CONNECTION_URL_ATTR = 'connection_url'
+REQUEST_QUEUE_ATTR = 'request_queue'
+RESPONSE_QUEUE_ATTR = 'response_queue'
+RABBIT_EXCHANGE_ATTR = 'rabbit_exchange'
+SDK_ACCESS_KEY_ATTR = 'sdk_access_key'
+SDK_SECRET_KEY_ATTR = 'sdk_secret_key'
+MAESTRO_USER_ATTR = 'maestro_user'
+
 SERVICE_ATTR = 'service'
 TYPE_ATTR = 'type'
 TYPES_ATTR = 'types'
@@ -324,8 +332,9 @@ CUSTOM_LATEST_LOGIN_ATTR = 'custom:latest_login'
 
 SYSTEM_CUSTOMER = 'SYSTEM'
 
-MCP_USER_NAME_HEADER = 'X-R8s-Mcp-User-Name'
 MCP_USER_CONTEXT_HEADER = 'X-Mcp-User-Context'
+MCP_JWT_KEY_SSM_NAME = 'r8s_mcp_jwt_key'
+SETTING_MCP_JWT_AUTH = 'MCP_JWT_AUTH'
 
 ENV_MAX_NUMBER_OF_JOBS_ON_PREM = 'MAX_NUMBER_OF_JOBS'
 BATCH_ENV_SUBMITTED_AT = 'SUBMITTED_AT'

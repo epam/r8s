@@ -24,7 +24,7 @@ class ReformatService:
             algorithm=algorithm,
             parse_index=False)
 
-        native_shape_name = df['instance_type'][0]
+        native_shape_name = df['instance_type'].iloc[0]
         shape_data = self.shape_service.get(name=native_shape_name)
         if not shape_data:
             _LOG.error(f'Unknown instance type \'{native_shape_name}\' '

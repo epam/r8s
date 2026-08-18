@@ -17,7 +17,8 @@ from commons.log_helper import get_logger
 from commons.time_helper import utc_iso
 from models.application_attributes import RightsizerApplicationMeta, \
     ConnectionAttribute, RightsizerLicensesApplicationMeta, \
-    RightSizerDojoApplicationMeta, AllowanceAttribute
+    RightSizerDojoApplicationMeta, AllowanceAttribute, \
+    RightSizerRabbitMQApplicationMeta
 from models.storage import Storage
 from services.abstract_api_handler_lambda import PARAM_USER_CUSTOMER
 from services.ssm_service import SSMService
@@ -77,6 +78,37 @@ class RightSizerApplicationService(ApplicationService):
             meta=app_meta.as_dict()
         )
         secret_value = json.dumps({'api_key': api_key})
+        secret_name = self._create_application_secret(
+            application_id=application.application_id,
+            password=secret_value
+        )
+        application.secret = secret_name
+        return application
+
+    def create_rabbitmq_application(
+            self, customer_id: str, description: str,
+            connection_url: str, request_queue: str, response_queue: str,
+            sdk_access_key: str, sdk_secret_key: str,
+            maestro_user: str, created_by: str,
+            rabbit_exchange: str = None):
+        app_meta = RightSizerRabbitMQApplicationMeta(
+            request_queue=request_queue,
+            response_queue=response_queue,
+            rabbit_exchange=rabbit_exchange,
+            sdk_access_key=sdk_access_key,
+            maestro_user=maestro_user,
+        )
+        application = self.build(
+            customer_id=customer_id,
+            type=ApplicationType.RIGHTSIZER_RABBITMQ,
+            description=description,
+            created_by=created_by,
+            meta=app_meta.as_dict()
+        )
+        secret_value = json.dumps({
+            'connection_url': connection_url,
+            'sdk_secret_key': sdk_secret_key,
+        })
         secret_name = self._create_application_secret(
             application_id=application.application_id,
             password=secret_value

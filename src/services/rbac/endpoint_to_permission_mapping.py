@@ -75,6 +75,11 @@ ENDPOINT_PERMISSION_MAPPING = {
         PATCH_METHOD: 'r8s:application:update_dojo_application',
         DELETE_METHOD: 'r8s:application:remove_dojo_application',
     },
+    '/applications/rabbitmq/': {
+        GET_METHOD: 'r8s:application:describe_rabbitmq_application',
+        POST_METHOD: 'r8s:application:create_rabbitmq_application',
+        DELETE_METHOD: 'r8s:application:remove_rabbitmq_application',
+    },
     '/parents/': {
         GET_METHOD: 'r8s:parent:describe_parent',
         POST_METHOD: 'r8s:parent:create_parent',
@@ -135,6 +140,12 @@ ENDPOINT_PERMISSION_MAPPING = {
         GET_METHOD: 'r8s:setting:describe_lm_config',
         POST_METHOD: 'r8s:setting:create_lm_config',
         DELETE_METHOD: 'r8s:setting:delete_lm_config',
+    },
+    '/integrations/mcp/auth/': {
+        GET_METHOD: 'r8s:setting:describe_mcp_auth',
+        POST_METHOD: 'r8s:setting:create_mcp_auth',
+        PATCH_METHOD: 'r8s:setting:update_mcp_auth',
+        DELETE_METHOD: 'r8s:setting:delete_mcp_auth',
     },
     '/settings/license-manager/client': {
         GET_METHOD: 'r8s:setting:describe_lm_client',
