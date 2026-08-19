@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `/applications/rabbitmq/` endpoint and `r8s application rabbitmq` CLI commands to manage `RIGHTSIZER_RABBITMQ` application credentials.
 - DefectDojo integration now tags the product with the tenant name and ensures `enable_product_tag_inheritance` is enabled, so all findings inherit the tenant tag automatically.
 - AWS Shapes data will be reloaded on RightSizer container start if it was written less than 1 day ago
+- Migrated runtime to Python 3.14; updated `modular-sdk` to 8.1.0 with `[jwt]` extra
 
 ## [3.14.0] - 2026-06-02
 * Implement tenant-level RBAC permissions:
