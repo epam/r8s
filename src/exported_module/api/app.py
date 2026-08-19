@@ -22,7 +22,7 @@ RESPONSE_HEADERS = {'Content-Type': 'application/json'}
 
 class DynamicAPI:
     def __init__(self, dr_parser: DeploymentResourcesParser):
-        self.app = Bottle(__name__)
+        self.app = Bottle()
 
         self.dr_parser = dr_parser
         self.api_config = self.dr_parser.generate_api_config()

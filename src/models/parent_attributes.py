@@ -13,15 +13,15 @@ class ShapeRule(MapAttribute):
 
 class ResourceGroupAttribute(MapAttribute):
     allowed_resource_groups = ListAttribute(of=UnicodeAttribute, null=True,
-                                            default=list())
+                                            default=list)
     allowed_tags = ListAttribute(of=UnicodeAttribute, null=True,
-                                 default=list())
+                                 default=list)
 
 
 class LicensesParentMeta(MapAttribute):
-    shape_rules = ListAttribute(of=ShapeRule, null=True, default=[])
+    shape_rules = ListAttribute(of=ShapeRule, null=True, default=list)
     resource_groups = ListAttribute(of=ResourceGroupAttribute,
-                                    null=True, default=[])
+                                    null=True, default=list)
 
 
 class DojoParentMeta(MapAttribute):
