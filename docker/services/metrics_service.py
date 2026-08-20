@@ -108,8 +108,8 @@ class MetricsService:
 
     @staticmethod
     def fill_missing_timestamps(df, diff=TIMESTAMP_FREQUENCY):
-        instance_id = df['instance_id'][0]
-        instance_type = df['instance_type'][0]
+        instance_id = df['instance_id'].iloc[0]
+        instance_type = df['instance_type'].iloc[0]
         df = df[~df.index.duplicated(keep='last')]
 
         complete_index = pd.date_range(df.index.min(), df.index.max(),
@@ -201,6 +201,8 @@ class MetricsService:
                 if placeholder_ratio > missing_threshold:
                     df[attr] = -1
             df = self.fill_missing_timestamps(df=df)
+            df[list(metric_attrs)] = df[list(metric_attrs)].apply(
+                pd.to_numeric, errors='coerce')
             df[list(metric_attrs)] = df[list(metric_attrs)].replace(-1, np.nan)
             df.sort_index(ascending=True, inplace=True)
             for attr in non_metric:
@@ -509,7 +511,7 @@ class MetricsService:
         try:
             df = self.read_metrics(metric_file_path=metric_file_path,
                                    algorithm=algorithm, parse_index=False)
-            return df[instance_type_attr][0]
+            return df[instance_type_attr].iloc[0]
         except Exception as e:
             _LOG.error(f'Failed to extract instance type from metric file. '
                        f'Error: {e}')
@@ -526,11 +528,14 @@ class MetricsService:
             if not parse_index:
                 return pd.read_csv(metric_file_path,
                                    **algorithm.get_read_configuration())
-            return pd.read_csv(
-                metric_file_path, parse_dates=True,
-                date_parser=dateparse,
+            df = pd.read_csv(
+                metric_file_path,
                 index_col=algorithm.timestamp_attribute,
                 **algorithm.get_read_configuration())
+            df.index = pd.DatetimeIndex(
+                [dateparse(ts) for ts in df.index]
+            )
+            return df
         except Exception as e:
             _LOG.error(f'Error occurred while reading metrics file: {str(e)}')
             raise ExecutorException(

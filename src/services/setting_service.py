@@ -5,7 +5,7 @@ from modular_sdk.services.impl.maestro_credentials_service import AccessMeta
 from mongoengine.errors import DoesNotExist
 
 from commons.constants import SETTING_IAM_PERMISSIONS, \
-    SETTING_LAST_SHAPE_UPDATE
+    SETTING_LAST_SHAPE_UPDATE, SETTING_MCP_JWT_AUTH
 from models.setting import Setting
 
 KEY_ACCESS_DATA_LM = 'ACCESS_DATA_LM'
@@ -47,7 +47,7 @@ class SettingsService:
             setting = Setting(name=SETTING_LAST_SHAPE_UPDATE, value={})
 
         setting.value[cloud] = datetime.utcnow().isoformat()
-        setting.update(value=setting.value)
+        setting.save()
         return setting
 
     def get_license_manager_access_data(self, value: bool = True):
@@ -62,6 +62,16 @@ class SettingsService:
         model.update_host(host=host, port=port, protocol=protocol, stage=stage)
         setting = self.create(
             name=KEY_ACCESS_DATA_LM, value=model.dict()
+        )
+        self.save(setting=setting)
+        return setting
+
+    def get_mcp_jwt_auth_configuration(self, value: bool = True):
+        return self.get(name=SETTING_MCP_JWT_AUTH, value=value)
+
+    def create_mcp_jwt_auth_configuration(self, algorithm: str) -> Setting:
+        setting = self.create(
+            name=SETTING_MCP_JWT_AUTH, value={'algorithm': algorithm}
         )
         self.save(setting=setting)
         return setting

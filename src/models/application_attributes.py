@@ -41,3 +41,11 @@ class RightSizerDojoApplicationMeta(MapAttribute):
     port = NumberAttribute(null=True)
     protocol = UnicodeAttribute(null=True)
     stage = UnicodeAttribute(null=True)
+
+
+class RightSizerRabbitMQApplicationMeta(MapAttribute):
+    request_queue = UnicodeAttribute(null=True)
+    response_queue = UnicodeAttribute(null=True)
+    rabbit_exchange = UnicodeAttribute(null=True)
+    sdk_access_key = UnicodeAttribute(null=True)
+    maestro_user = UnicodeAttribute(null=True)

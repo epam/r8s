@@ -30,6 +30,10 @@ def create_iam_permissions():
     iam_permissions = load_local_json_file(IAM_PERMISSIONS_FILE_NAME)
     name = iam_permissions.get('name')
     value = iam_permissions.get('value')
+    existing = Setting.objects(name=name).first()
+    if existing:
+        print(f'Setting {name} already exists, recreating.')
+        existing.delete()
     setting = Setting(name=name, value=value)
     setting.save()
     return setting
@@ -41,6 +45,10 @@ def create_admin_policy():
     permissions = admin_policy.get('permissions')
     policy_name = admin_policy.get('name')
 
+    existing = Policy.objects(name=policy_name).first()
+    if existing:
+        print(f'Policy {policy_name} already exists, recreating.')
+        existing.delete()
     policy = Policy(name=policy_name, permissions=permissions)
     policy.save()
     return policy

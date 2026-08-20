@@ -3,6 +3,7 @@ import click
 from r8scli.group import cli_response, ViewCommand, cast_to_list
 from r8scli.group.algorithm import algorithm
 from r8scli.group.application import application
+from r8scli.group.integrations import integrations
 from r8scli.group.job import job
 from r8scli.group.license import license
 from r8scli.group.parent import parent
@@ -134,6 +135,7 @@ def health_check(check_type):
     return init_configuration().health_check_post(check_types=check_types)
 
 
+r8s.add_command(integrations)
 r8s.add_command(policy)
 r8s.add_command(role)
 r8s.add_command(algorithm)

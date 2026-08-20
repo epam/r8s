@@ -61,6 +61,9 @@
         "r8s:application:create_group_policy",
         "r8s:application:update_group_policy",
         "r8s:application:remove_group_policy",
+        "r8s:application:describe_rabbitmq_application",
+        "r8s:application:create_rabbitmq_application",
+        "r8s:application:remove_rabbitmq_application",
         "r8s:shape:describe_shape",
         "r8s:shape:create_shape",
         "r8s:shape:update_shape",
@@ -81,7 +84,11 @@
         "r8s:setting:describe_lm_client",
         "r8s:setting:create_lm_client",
         "r8s:setting:delete_lm_client",
-        "r8s:tenant:describe_tenant"
+        "r8s:tenant:describe_tenant",
+        "r8s:setting:describe_mcp_auth",
+        "r8s:setting:create_mcp_auth",
+        "r8s:setting:update_mcp_auth",
+        "r8s:setting:delete_mcp_auth"
     ],
     "customer": "admin",
     "tenants": ["*"]

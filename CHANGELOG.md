@@ -4,40 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.15.0] - 2026-08-07
-- Updated r8s-run.sh script
-- Improved r8s-init script:
-  - Added `github_api_get` helper with the exponential back-off retry logic.
-    - `iter_github_releases` now delegates its GitHub API call to `github_api_get`, replacing a bare `curl` that failed immediately on rate-limit.  
-- Added the `r8s-init list [--allow-prereleases]` command - Lists available RightSizer GitHub releases. The current installed version is highlighted in green with a `*` marker. Newer releases are shown above it. Columns: RELEASE, DATE, URL, PRERELEASE, DRAFT.
-  - Added the `r8s-init health` command - Runs a series of checks and reports pass/fail for each:
-    - `R8S_LOCAL_PATH/.success` file exists (installation complete)
-    - RightSizer helm release is present
-    - `syndicate` CLI entrypoint is reachable
-    - `syndicate r8s health_check` passes
-    - DefectDojo helm release is present
-  - Updated the r8s-init update` command with the following options:
-    - `--check` Checks whether a newer release exists but does not update
-    - `--no-backup` Skips the automatic backup taken before updating
-    - `--same-version` Re-downloads and reinstall artifacts for the currently installed version
-    - `--defectdojo` Updates the DefectDojo Helm chart instead of RightSizer
-    - `--allow-prereleases` Includes pre-release and draft releases when looking for updates
-  - Fixed artifact resolution in get_latest_local_release during user addition.
-  - Improved local release artifact detection to ensure the correct R8S artifacts are selected when installing CLI tools for a user.
-  - Added support for explicitly specifying the Python interpreter used during CLI installation.
-  - This change prepares the installation flow for future Modular CLI requirements, where Modular CLI will support only Python 3.14 and later versions.
-  - Added Python version validation before Modular CLI installation/update.
-  - Added support for reading Modular CLI Python requirements from release metadata.
-  - Added a doctor / check command to validate local environment readiness.
-  - Added user-facing warnings/errors for Python compatibility changes.
-  - Avoided changing or relying on the system default /usr/bin/python3.
-  - Resolved the latest local release only once during CLI installation to avoid inconsistent artifact resolution during user initialization.
+## [3.15.0] - 2026-08-20
 - Added 15-minute deadline to DefectDojo token polling loop to prevent infinite hang on initialization failure
 - Fixed metric placeholder values (-1) being included in statistical calculations when mixed with real values, causing incorrect under-sizing recommendations.
 - Added generation-aware shape filtering: resize recommendations now exclude older-generation instance types when newer ones are available for the same family (e.g. t2 is excluded when t3 exists). 
-- Added `X-Mcp-User-Context` header support: when an MCP user is not found in r8s, the base64-encoded JSON context (containing tenant assignments) is used to expand the native user's tenant access for the duration of the request.
+- Added MCP integration: JWT-based identity resolution via `X-Mcp-User-Context` header.
+- Added `/integrations/mcp/auth/` endpoint and `r8s integrations mcp auth` CLI commands to manage the MCP JWT public key configuration.
+- Added `/applications/rabbitmq/` endpoint and `r8s application rabbitmq` CLI commands to manage `RIGHTSIZER_RABBITMQ` application credentials.
 - DefectDojo integration now tags the product with the tenant name and ensures `enable_product_tag_inheritance` is enabled, so all findings inherit the tenant tag automatically.
 - AWS Shapes data will be reloaded on RightSizer container start if it was written less than 1 day ago
+- Migrated runtime to Python 3.14; updated `modular-sdk` to 8.1.0 with `[jwt]` extra
+- Updated Rightsizer initializion scripts
 
 ## [3.14.0] - 2026-06-02
 * Implement tenant-level RBAC permissions:
