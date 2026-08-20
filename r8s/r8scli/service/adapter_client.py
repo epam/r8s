@@ -50,17 +50,15 @@ class AdapterClient:
             response = method_func(**parameters)
             response.json()
         except requests.exceptions.ConnectionError:
-            response = {
+            return LocalCommandResponse(code=503, body={
                 'message': 'Provided configuration api_link is invalid '
                            'or outdated. Please contact the tool support team.'
-            }
-            return response
+            })
         except requests.exceptions.JSONDecodeError:
-            response = {
+            return LocalCommandResponse(code=502, body={
                 'message': 'Malformed response obtained. '
                            'Please contact the tool support team.'
-            }
-            return response
+            })
 
         SYSTEM_LOG.debug(f'API response info: {response}')
         return response
@@ -1130,4 +1128,65 @@ class AdapterClient:
             resource=API_LM_CLIENT_SETTING, method=HTTP_DELETE, payload={
                 PARAM_KEY_ID: key_id
             }
+        )
+
+    def application_rabbitmq_get(self, application_id=None):
+        request = {}
+        if application_id:
+            request[PARAM_APPLICATION_ID] = application_id
+        return self.__make_request(resource=API_APPLICATION_RABBITMQ,
+                                   method=HTTP_GET, payload=request)
+
+    def application_rabbitmq_post(self, customer, description, connection_url,
+                                  request_queue, response_queue,
+                                  sdk_access_key, sdk_secret_key,
+                                  maestro_user, rabbit_exchange=None):
+        request = {
+            PARAM_CUSTOMER: customer,
+            PARAM_DESCRIPTION: description,
+            PARAM_CONNECTION_URL: connection_url,
+            PARAM_REQUEST_QUEUE: request_queue,
+            PARAM_RESPONSE_QUEUE: response_queue,
+            PARAM_SDK_ACCESS_KEY: sdk_access_key,
+            PARAM_SDK_SECRET_KEY: sdk_secret_key,
+            PARAM_MAESTRO_USER: maestro_user,
+        }
+        if rabbit_exchange:
+            request[PARAM_RABBIT_EXCHANGE] = rabbit_exchange
+        return self.__make_request(resource=API_APPLICATION_RABBITMQ,
+                                   method=HTTP_POST, payload=request)
+
+    def application_rabbitmq_delete(self, application_id, force=None):
+        request = {PARAM_APPLICATION_ID: application_id}
+        if force:
+            request[PARAM_FORCE] = force
+        return self.__make_request(resource=API_APPLICATION_RABBITMQ,
+                                   method=HTTP_DELETE, payload=request)
+
+    def mcp_auth_get(self):
+        return self.__make_request(
+            resource=API_MCP_AUTH, method=HTTP_GET, payload={}
+        )
+
+    def mcp_auth_post(self, jwt: str, algorithm: str):
+        return self.__make_request(
+            resource=API_MCP_AUTH, method=HTTP_POST, payload={
+                PARAM_JWT: jwt,
+                PARAM_ALGORITHM: algorithm,
+            }
+        )
+
+    def mcp_auth_patch(self, jwt: str | None, algorithm: str | None):
+        request = {}
+        if jwt is not None:
+            request[PARAM_JWT] = jwt
+        if algorithm is not None:
+            request[PARAM_ALGORITHM] = algorithm
+        return self.__make_request(
+            resource=API_MCP_AUTH, method=HTTP_PATCH, payload=request
+        )
+
+    def mcp_auth_delete(self):
+        return self.__make_request(
+            resource=API_MCP_AUTH, method=HTTP_DELETE, payload={}
         )

@@ -50,7 +50,10 @@
       "describe_group_policy",
       "create_group_policy",
       "update_group_policy",
-      "remove_group_policy"
+      "remove_group_policy",
+      "describe_rabbitmq_application",
+      "create_rabbitmq_application",
+      "remove_rabbitmq_application"
     ],
     "r8s:parent": [
       "describe_parent",
@@ -97,6 +100,15 @@
     ],
     "r8s:tenant": [
       "describe_tenant"
+    ],
+    "r8s:setting": [
+      "describe_mcp_auth",
+      "create_mcp_auth",
+      "update_mcp_auth",
+      "delete_mcp_auth",
+      "describe_lm_client",
+      "create_lm_client",
+      "delete_lm_client"
     ]
   }
 }

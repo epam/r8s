@@ -69,6 +69,7 @@ class ServiceProvider:
         __rightsizer_parent_service = None
         __recommendation_history_service = None
         __maestro_rabbitmq_service = None
+        __rabbitmq_service = None
         __customer_preferences_service = None
         __resize_service = None
         __token_service = None
@@ -334,6 +335,15 @@ class ServiceProvider:
                         config=maestro_config
                 )
             return self.__maestro_rabbitmq_service
+
+        def rabbitmq_service(self):
+            if not self.__rabbitmq_service:
+                from modular_sdk.modular import Modular
+                from services.maestro_rabbitmq_service import RabbitMQService
+                self.__rabbitmq_service = RabbitMQService(
+                    modular_client=Modular()
+                )
+            return self.__rabbitmq_service
 
         def customer_preferences_service(self):
             if not self.__customer_preferences_service:

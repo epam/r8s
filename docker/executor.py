@@ -295,7 +295,7 @@ def process_tenant_instances(metrics_dir, reports_dir,
         try:
             _LOG.debug(f'Initializing dojo service')
             dojo_service = DefectDojoService(
-                ssm_service=SERVICE_PROVIDER.ssm_service(),
+                ssm_service=SERVICE_PROVIDER.modular_ssm_service(),
                 application=dojo_application
             )
         except ExecutorException as e:

@@ -6,12 +6,16 @@ from commons.constants import GET_METHOD
 from commons.log_helper import get_logger
 from lambdas.r8s_api_handler.processors.algorithm_processor import \
     AlgorithmProcessor
+from lambdas.r8s_api_handler.processors.mcp_auth_processor import \
+    McpAuthProcessor
 from lambdas.r8s_api_handler.processors.application_licenses_processor import \
     ApplicationLicensesProcessor
 from lambdas.r8s_api_handler.processors.application_processor import \
     ApplicationProcessor
 from lambdas.r8s_api_handler.processors.dojo_application_processor import \
     DojoApplicationProcessor
+from lambdas.r8s_api_handler.processors.rabbitmq_application_processor import \
+    RabbitMQApplicationProcessor
 from lambdas.r8s_api_handler.processors.dojo_parent_processor import \
     DojoParentProcessor
 from lambdas.r8s_api_handler.processors.health_check_processor import \
@@ -72,6 +76,7 @@ class Action(str, Enum):
     APPLICATION = 'application'
     APPLICATION_LICENSES = 'application_licenses'
     APPLICATION_DOJO = 'application_dojo'
+    APPLICATION_RABBITMQ = 'application_rabbitmq'
     JOB = 'job'
     REPORT = 'report'
     MAIL_REPORT = 'mail_report'
@@ -92,6 +97,7 @@ class Action(str, Enum):
     LM_SETTING_CLIENT = 'settings-client'
     LICENSE_SYNC = 'license-sync'
     TENANT = 'tenant'
+    MCP_AUTH = 'mcp_auth'
 
 
 PROCESSOR_REGISTRY = {
@@ -105,6 +111,7 @@ PROCESSOR_REGISTRY = {
     Action.APPLICATION: ApplicationProcessor.build,
     Action.APPLICATION_LICENSES: ApplicationLicensesProcessor.build,
     Action.APPLICATION_DOJO: DojoApplicationProcessor.build,
+    Action.APPLICATION_RABBITMQ: RabbitMQApplicationProcessor.build,
     Action.JOB: JobProcessor.build,
     Action.REPORT: ReportProcessor.build,
     Action.MAIL_REPORT: MailReportProcessor.build,
@@ -125,6 +132,7 @@ PROCESSOR_REGISTRY = {
     Action.LM_SETTING_CLIENT: LicenseManagerClientProcessor.build,
     Action.LICENSE_SYNC: LicenseSyncProcessor.build,
     Action.TENANT: TenantProcessor.build,
+    Action.MCP_AUTH: McpAuthProcessor.build,
 }
 
 

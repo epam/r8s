@@ -143,7 +143,8 @@ class RecommendationService:
                     calculate_instance_trend_multiple(
                     algorithm=algorithm,
                     non_straight_periods=non_straight_periods,
-                    total_length=total_length
+                    total_length=total_length,
+                    fallback_df=df
                 )
             else:
                 _LOG.debug('Generating resize trend')
@@ -154,7 +155,8 @@ class RecommendationService:
                     df_ = df
                 trends = self.metrics_service.calculate_instance_trend(
                     df=df_,
-                    algorithm=algorithm
+                    algorithm=algorithm,
+                    fallback_df=df
                 )
                 trends = [trends]
             _LOG.debug(f'Resize trend for instance \'{instance_id}\' has been '
@@ -1085,7 +1087,8 @@ class RecommendationService:
     def _get_metric_fields(df: pd.DataFrame, algorithm: Algorithm):
         valid_columns = []
         for column in list(algorithm.metric_attributes):
-            if any([value not in (0, -1) for value in df['cpu_load']]):
+            if any(not pd.isna(value) and value != 0
+                   for value in df['cpu_load']):
                 valid_columns.append(column)
         return valid_columns
 
@@ -1097,7 +1100,7 @@ class RecommendationService:
         deciles = [round(float(decile), 2) for decile in deciles[0]]
 
         return {
-            "min": round(float(np.max(series)), 2),
+            "min": round(float(np.min(series)), 2),
             "max": round(float(np.max(series)), 2),
             "mean": round(float(np.mean(series)), 2),
             "deciles": deciles,
@@ -1293,7 +1296,8 @@ class RecommendationService:
         for metric in metrics:
             if metric not in df.columns:
                 continue
-            if any([value not in (0, -1) for value in df[metric]]):
+            if any(not pd.isna(value) and value != 0
+                   for value in df[metric]):
                 values.append(df[metric].quantile(0.9))
         if not values:
             return 0

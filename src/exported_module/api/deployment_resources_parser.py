@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from re import finditer, findall
-from typing import Union, Optional, List, Dict, re
+from typing import Union, Optional, List, Dict
 
 from commons.constants import GET_METHOD, POST_METHOD, PATCH_METHOD, \
     DELETE_METHOD
@@ -87,7 +87,7 @@ class DeploymentResourcesParser:
         - returns `/path/<child_1>/<child_2>`
         :return: str
         """
-        pattern = '([^{\/]+)(?=})'
+        pattern = r'([^{\/]+)(?=})'
         for match in finditer(pattern=pattern, string=resource):
             suffix = resource[match.end() + 1:]
             resource = resource[:match.start() - 1]

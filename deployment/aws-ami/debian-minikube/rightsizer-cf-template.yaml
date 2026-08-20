@@ -111,5 +111,3 @@ Resources:
 Outputs:
   InstanceId:
     Value: !GetAtt SyndicateRightSizerInstance.InstanceId
-  PublicIp:
-    Value: !GetAtt SyndicateRightSizerInstance.PublicIp

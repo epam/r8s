@@ -74,6 +74,14 @@ class TenantsAccessPayload:
             effective = set(allowed) & tenant_names
         return TenantsAccessPayload(tuple(effective), True)
 
+    def allow_tenants(self, names) -> None:
+        """Expands this payload in-place to also allow the given tenant names.
+        Used to merge MCP user context assignments with policy-based access."""
+        if self._allowed_flag:
+            self._names += tuple(names)
+        else:
+            self._names = tuple(t for t in self._names if t not in names)
+
     def allowed_denied(self) -> tuple:
         """Returns (allowed, denied) where allowed may be TenantsAccessPayload.ALL.
 

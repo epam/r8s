@@ -41,14 +41,17 @@ class MetricsService:
     def __init__(self, clustering_service: ClusteringService):
         self.clustering_service = clustering_service
 
-    def calculate_instance_trend(self, df, algorithm: Algorithm) \
-            -> ResizeTrend:
+    def calculate_instance_trend(self, df, algorithm: Algorithm,
+                                 fallback_df=None) -> ResizeTrend:
         metric_attrs = set(list(algorithm.metric_attributes))
 
         resize_trend = ResizeTrend()
 
         for metric in metric_attrs:
             metric_column = self.get_column(metric_name=metric, df=df)
+            if metric_column.dropna().empty and fallback_df is not None:
+                metric_column = self.get_column(
+                    metric_name=metric, df=fallback_df)
 
             resize_trend.add_metric_trend(
                 metric_name=metric,
@@ -58,13 +61,14 @@ class MetricsService:
 
     def calculate_instance_trend_multiple(
             self, algorithm: Algorithm, non_straight_periods,
-            total_length) -> List[ResizeTrend]:
+            total_length, fallback_df=None) -> List[ResizeTrend]:
         result = []
 
         for period_list in non_straight_periods:
             concat_dt = pd.concat(period_list)
             period_trend = self.calculate_instance_trend(
-                df=concat_dt, algorithm=algorithm)
+                df=concat_dt, algorithm=algorithm,
+                fallback_df=fallback_df)
             period_trend.probability = round(
                 len(concat_dt) / total_length, 2)
             result.append(period_trend)
@@ -104,8 +108,8 @@ class MetricsService:
 
     @staticmethod
     def fill_missing_timestamps(df, diff=TIMESTAMP_FREQUENCY):
-        instance_id = df['instance_id'][0]
-        instance_type = df['instance_type'][0]
+        instance_id = df['instance_id'].iloc[0]
+        instance_type = df['instance_type'].iloc[0]
         df = df[~df.index.duplicated(keep='last')]
 
         complete_index = pd.date_range(df.index.min(), df.index.max(),
@@ -113,9 +117,8 @@ class MetricsService:
         missing_timestamps = complete_index.difference(df.index)
         missing_df = pd.DataFrame(index=missing_timestamps, columns=df.columns)
         missing_df['cpu_load'].fillna(0, inplace=True)
-        missing_df['memory_load'].fillna(0, inplace=True)
-        missing_df['net_output_load'].fillna(0, inplace=True)
-        missing_df['avg_disk_iops'].fillna(-1, inplace=True)
+        missing_df['memory_load'].fillna(-1, inplace=True)
+        missing_df['net_output_load'].fillna(-1, inplace=True)
         missing_df['avg_disk_iops'].fillna(-1, inplace=True)
         df = pd.concat([df, missing_df]).sort_index()
         df = df.assign(instance_id=instance_id)
@@ -188,7 +191,19 @@ class MetricsService:
                     df = df.tz_convert(timezone_name)
                 except UnknownTimeZoneError:
                     _LOG.error(f'Unknown timezone \'{timezone_name}\'')
+            metric_attrs = set(list(algorithm.metric_attributes))
+            missing_threshold = (
+                algorithm.recommendation_settings.missing_data_threshold_percent
+                / 100
+            )
+            for attr in metric_attrs:
+                placeholder_ratio = (df[attr] == -1).sum() / len(df[attr])
+                if placeholder_ratio > missing_threshold:
+                    df[attr] = -1
             df = self.fill_missing_timestamps(df=df)
+            df[list(metric_attrs)] = df[list(metric_attrs)].apply(
+                pd.to_numeric, errors='coerce')
+            df[list(metric_attrs)] = df[list(metric_attrs)].replace(-1, np.nan)
             df.sort_index(ascending=True, inplace=True)
             for attr in non_metric:
                 df.drop(attr, inplace=True, axis=1)
@@ -254,7 +269,8 @@ class MetricsService:
             metric_attrs = algorithm.metric_attributes
             try:
                 for index, row in df.iterrows():
-                    if not all(row[attr] in (0, -1) for attr in metric_attrs):
+                    if not all(pd.isna(row[attr]) or row[attr] == 0
+                               for attr in metric_attrs):
                         _LOG.debug(f'Metrics before {index} will be discarded')
                         return df[df.index >= index]
             except Exception as e:
@@ -328,7 +344,8 @@ class MetricsService:
                       optimized_threshold_days: int = None,
                       optimized_step_minutes: int = None):
         if not optimized_threshold_days and not optimized_step_minutes:
-            return df.groupby(pd.Grouper(freq=f'{step_minutes}Min')).mean()
+            return df.groupby(pd.Grouper(freq=f'{step_minutes}Min')).mean(
+                numeric_only=True)
 
         threshold_date = df.index.max().date() - datetime.timedelta(
             days=optimized_threshold_days)
@@ -338,9 +355,9 @@ class MetricsService:
         old_df = df[df.index < threshold_date_str]
 
         latest_df = latest_df.groupby(pd.Grouper(
-            freq=f'{step_minutes}Min')).mean()
+            freq=f'{step_minutes}Min')).mean(numeric_only=True)
         old_df = old_df.groupby(pd.Grouper(
-            freq=f'{optimized_step_minutes}Min')).mean()
+            freq=f'{optimized_step_minutes}Min')).mean(numeric_only=True)
 
         return pd.concat([old_df, latest_df])
 
@@ -427,7 +444,7 @@ class MetricsService:
     def get_non_empty_attrs(df: pd.DataFrame, attrs):
         non_empty = []
         for attr in attrs:
-            is_empty = all(value == -1 for value in list(df[attr]))
+            is_empty = df[attr].isna().all()
             if not is_empty:
                 non_empty.append(attr)
         return non_empty
@@ -494,7 +511,7 @@ class MetricsService:
         try:
             df = self.read_metrics(metric_file_path=metric_file_path,
                                    algorithm=algorithm, parse_index=False)
-            return df[instance_type_attr][0]
+            return df[instance_type_attr].iloc[0]
         except Exception as e:
             _LOG.error(f'Failed to extract instance type from metric file. '
                        f'Error: {e}')
@@ -511,11 +528,14 @@ class MetricsService:
             if not parse_index:
                 return pd.read_csv(metric_file_path,
                                    **algorithm.get_read_configuration())
-            return pd.read_csv(
-                metric_file_path, parse_dates=True,
-                date_parser=dateparse,
+            df = pd.read_csv(
+                metric_file_path,
                 index_col=algorithm.timestamp_attribute,
                 **algorithm.get_read_configuration())
+            df.index = pd.DatetimeIndex(
+                [dateparse(ts) for ts in df.index]
+            )
+            return df
         except Exception as e:
             _LOG.error(f'Error occurred while reading metrics file: {str(e)}')
             raise ExecutorException(

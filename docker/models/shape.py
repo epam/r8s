@@ -1,8 +1,8 @@
 import datetime
 
 from commons.enum import ListEnum
-from mongoengine import (StringField, FloatField, EnumField, DateTimeField,
-                         ListField)
+from mongoengine import (StringField, FloatField, IntField, EnumField,
+                         DateTimeField, ListField)
 
 from models.base_model import BaseModel
 
@@ -33,6 +33,8 @@ class Shape(BaseModel):
     family_type = StringField(null=True)
     physical_processor = StringField(null=True)
     architecture = StringField(null=True)
+    generation = IntField(null=True)
+    generation_family = StringField(null=True)
     added_at = DateTimeField(null=False, default=datetime.datetime.utcnow)
 
     engines = ListField(null=True)

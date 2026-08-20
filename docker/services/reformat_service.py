@@ -1,3 +1,5 @@
+import math
+
 from commons.constants import JOB_STEP_VALIDATE_METRICS
 from commons.exception import ExecutorException
 from commons.log_helper import get_logger
@@ -22,7 +24,7 @@ class ReformatService:
             algorithm=algorithm,
             parse_index=False)
 
-        native_shape_name = df['instance_type'][0]
+        native_shape_name = df['instance_type'].iloc[0]
         shape_data = self.shape_service.get(name=native_shape_name)
         if not shape_data:
             _LOG.error(f'Unknown instance type \'{native_shape_name}\' '
@@ -50,7 +52,7 @@ class ReformatService:
     @staticmethod
     def convert_net_output(value, shape: Shape):
         provisioned_mb = shape.network_throughput
-        if not provisioned_mb or value == -1:
+        if not provisioned_mb or value == -1 or (isinstance(value, float) and math.isnan(value)):
             return -1
 
         provisioned_mb = float(provisioned_mb)
@@ -62,7 +64,7 @@ class ReformatService:
     @staticmethod
     def convert_iops(value, shape: Shape):
         provisioned_iops = shape.iops
-        if not provisioned_iops or value == -1:
+        if not provisioned_iops or value == -1 or (isinstance(value, float) and math.isnan(value)):
             return -1
         percentage = round(value / provisioned_iops)
         return int(percentage * 100)

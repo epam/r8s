@@ -188,7 +188,12 @@ class MongoAndSSMAuthClient(BaseAuthClient):
                                       bcrypt.gensalt()).decode()
 
     def admin_delete_user(self, username: str):
-        User(hash_key=username).delete()
+        user = self._get_user(username)
+        if user:
+            user.delete()
+
+    def delete_user(self, username: str):
+        self.admin_delete_user(username)
 
     def respond_to_auth_challenge(self, challenge_name: str):
         pass
