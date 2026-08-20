@@ -1,0 +1,47 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "r8s-mcp"
+description = "Model Context Protocol (MCP) server for Syndicate RightSizer (R8S) APIs"
+readme = "README.md"
+requires-python = ">=3.14,<4"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.14",
+  "Operating System :: OS Independent",
+]
+
+dependencies = [
+  "fastmcp>=3.2.4",
+  "mcp>=1.26.0",
+  "httpx>=0.27.0",
+  "pydantic>=2.12.5",
+  "starlette~=1.3.1",
+  "pyyaml>=6.0.3",
+  "typing_extensions>=4.12.0",
+  "python-dotenv>=1.2.1",
+]
+dynamic = ["version"]
+
+[project.scripts]
+r8s-mcp = "r8s_mcp.__main__:main_sync"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=9.0.2",
+]
+
+[tool.hatch.version]
+path = "r8s_mcp/commons/__version__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["r8s_mcp"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/r8s_mcp",
+  "/README.md",
+]
