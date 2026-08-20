@@ -1,9 +1,9 @@
 apiVersion: v2
-appVersion: "3.14.0"
+appVersion: "3.15.0"
 description: A Helm chart for the rightsizer
 name: rightsizer
 type: application
-version: "3.14.0"
+version: "3.15.0"
 dependencies:
   - name: vault
     repository: s3://charts-repository/syndicate/
@@ -19,7 +19,7 @@ dependencies:
     condition: mongo.enabled
   - name: modular-service
     repository: s3://charts-repository/syndicate/
-    version: ^3.3.2
+    version: ^3.4.0
     condition: modular-service.enabled
   - name: modular-api
     repository: s3://charts-repository/syndicate/

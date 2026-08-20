@@ -11,8 +11,12 @@ Usage:
 
 Available Commands:
   backup   Allow to manage backups
+  check    Alias for doctor
+  doctor   Check local environment and CLI compatibility
+  health   Check installation health
   help     Show help message
   init     Initialize RightSizer installation
+  list     Lists available updates
   nginx    Allow to enable and disable nginx sites
   update   Update the installation
   version  Print versions information
@@ -42,6 +46,15 @@ Options:
   --r8s-password    RightSizer password to configure. Must be specified together with --r8s-username
   --admin-username  Modular Service username to configure. Must be specified together with --admin-password
   --admin-password  Modular Service password to configure. Must be specified together with --admin-username
+
+Environment variables:
+  R8S_PYTHON_BIN
+      Optional Python interpreter used during CLI installation.
+      If not set, r8s-init tries python3.14 first, then falls back to python3.
+      Example: R8S_PYTHON_BIN=/usr/local/bin/python3.14 r8s-init init --user example
+  R8S_PYTHON_COMPAT_MODE
+      Compatibility behavior when Python requirement is not satisfied.
+      Supported values: warn, error (default: error)
 EOF
 }
 
@@ -56,16 +69,41 @@ Usage:
   $PROGRAM $COMMAND [options]
 
 Examples:
+  $PROGRAM $COMMAND --check
   $PROGRAM $COMMAND -y
+  $PROGRAM $COMMAND -y --allow-prereleases
 
 Options:
   -h, --help           Show this message and exit
   -y, --yes            Automatic yes to prompts
+  --allow-prereleases  Include pre-release versions when checking for updates
+  --check              Checks whether update is available but do not try to update
+  --no-backup          Do not do backup before updating
+  --same-version       Fetches artifacts for the version currently installed and reinstalls
+  --defectdojo         Specify this flag to update Defect Dojo chart instead of RightSizer
   --helm-release-name  RightSizer helm release name (default "$HELM_RELEASE_NAME")
   --backup-name        Backup name to make before the update (default "$AUTO_BACKUP_PREFIX\$timestamp")
 EOF
 }
-# todo add force and release version
+cmd_update_list_usage() {
+  cat <<EOF
+Displays available releases
+
+Description:
+  Lists available RightSizer releases. Uses GitHub rest api under the hood and
+  can throttle if rate limit is exceeded
+
+Usage:
+  $PROGRAM $COMMAND [options]
+
+Examples:
+  $PROGRAM $COMMAND
+
+Options:
+  -h, --help           Show this message and exit
+  --allow-prereleases  Include pre-release versions in the list
+EOF
+}
 
 cmd_nginx_usage() {
   cat <<EOF
@@ -159,14 +197,17 @@ Description:
 Examples:
   $PROGRAM $COMMAND create --name my-backup
   $PROGRAM $COMMAND create --name my-backup --volumes=minio,mongo,vault
+  $PROGRAM $COMMAND CREATE --name my-backup --volumes=all --secrets=all --helm-values
 
 Required Options:
   -n, --name  Backup name to create
 
 Options
-  -h, --help  Show help message
-  -p, --path  Path where backups are store (default "$R8S_BACKUPS_PATH/$(get_helm_release_version "$HELM_RELEASE_NAME")")
-  --volumes   Volumes to make the backup for. Uses all k8s volumes if not specified. Specify volumes divided by comma
+  -h, --help    Show help message
+  -p, --path    Path where backups are store (default "$R8S_BACKUPS_PATH/$(get_helm_release_version "$HELM_RELEASE_NAME")")
+  --volumes     Volumes to make the backup for. Uses all k8s volumes if not specified. Specify volumes divided by comma
+  --secrets     K8s secrets to backup. Specify secrets names divided by comma. Specify 'all' to backup all Syndicate Rule Engine secrets
+  --helm-values Specify this flag to include helm values into backup
 EOF
 }
 
@@ -192,11 +233,52 @@ Options
   --volumes      Volumes to make the backup for. Uses all k8s volumes if not specified. Specify volumes divided by comma
 EOF
 }
+cmd_health_usage() {
+  cat <<EOF
+Checks installation health
+
+Description:
+  Command that verifies different aspects of installation. Returns 1 in case something is wrong
+
+Examples:
+  $PROGRAM $COMMAND
+
+Options
+  -h, --help  Show this message and exit
+EOF
+}
+cmd_doctor_usage() {
+  cat <<EOF
+Usage:
+  $PROGRAM doctor [OPTIONS]
+  $PROGRAM check [OPTIONS]
+
+Checks local environment and RightSizer CLI installation compatibility.
+
+Options:
+  --release <version>    Check compatibility against a specific local release
+  -h, --help             Show this help message
+
+Environment variables:
+  R8S_PYTHON_BIN         Optional Python interpreter used to install RightSizer CLI applications.
+  R8S_PYTHON_COMPAT_MODE Compatibility behavior when Python requirement is not satisfied.
+                         Supported values: warn, error
+EOF
+}
 
 
 cmd_version() { echo "$VERSION"; }
 die() { echo "Error:" "$@" >&2; exit 1; }
+die_with_support() {
+  echo "Error:" "$@" >&2
+  echo "Please contact our support team at $SUPPORT_EMAIL for further assistance." >&2
+  exit 1
+}
 warn() { echo "Warning:" "$@" >&2; }
+_debug() {
+  [ -z "$R8S_INIT_DEBUG" ] && return 0
+  echo "Debug:" "$@" >&2
+}
 cmd_unrecognized() {
   cat <<EOF
 Error: unrecognized command \`$PROGRAM $COMMAND\`
@@ -206,13 +288,161 @@ EOF
 
 
 # helper functions
-get_latest_local_release() { ls "$R8S_RELEASES_PATH" | sort -r | head -n 1; }
+get_latest_local_release() { ls "$R8S_RELEASES_PATH" | sort -Vr | head -n 1; }
 get_helm_release_version() {
   # currently the version of rightsizer chart corresponds to the version of app inside
-  helm get metadata "$1" -o json | jq -r '.version'
+  helm get metadata "$1" -o json 2>/dev/null | jq -r '.version'
 }
-get_latest_release_tag() {
-  curl -fLs "https://api.github.com/repos/$GITHUB_REPO/releases/latest" | jq -r '.tag_name' || die "no latest release for $GITHUB_REPO found"
+github_api_get() {
+  # Retries on GitHub rate-limit (HTTP 429/403) with exponential back-off; prints body to stdout
+  local attempt max_attempts=4 wait=5 http_code tmp
+  tmp="$(mktemp)"
+  for attempt in $(seq 1 "$max_attempts"); do
+    http_code=$(curl -Ls -w '%{http_code}' -o "$tmp" "$@")
+    if [ "$http_code" -eq 200 ]; then
+      cat "$tmp"; rm -f "$tmp"; return 0
+    fi
+    if [ "$attempt" -lt "$max_attempts" ] && { [ "$http_code" -eq 429 ] || [ "$http_code" -eq 403 ]; }; then
+      warn "GitHub API throttled (HTTP $http_code); retrying in ${wait}s (attempt $attempt/$max_attempts)..."
+      sleep "$wait"
+      wait=$((wait * 2))
+    else
+      rm -f "$tmp"; return 1
+    fi
+  done
+  rm -f "$tmp"; return 1
+}
+iter_github_releases() {
+  # iterates only over released versions by default. --prerelease flag includes pre-releases to output. --draft includes drafts
+  local opts draft=0 prerelease=0 per_page=${GITHUB_PER_PAGE:-30} filter
+  opts="$(getopt -o "" --long "draft,prerelease,per-page:," -n iter_github_releases -- "$@")"
+  eval set -- "$opts"
+  while true; do
+    case "$1" in
+      --draft) draft=1; shift ;;
+      --prerelease) prerelease=1; shift ;;
+      --per-page) per_page="$2"; shift 2 ;;
+      '--') shift; break ;;
+    esac
+  done
+  if [ "$draft" -eq 1 ] && [ "$prerelease" -eq 1 ]; then
+    filter='.[]'
+  elif [ "$draft" -eq 0 ] && [ "$prerelease" -eq 1 ]; then
+    filter='.[] | select(.draft == false)'
+  elif [ "$draft" -eq 1 ] && [ "$prerelease" -eq 0 ]; then
+    filter='.[] | select(.prerelease == false)'
+  else
+    filter='.[] | select(.prerelease == false and .draft == false)'
+  fi
+  github_api_get -H 'Accept: application/vnd.github+json' "${GITHUB_CURL_HEADERS[@]}" "https://api.github.com/repos/$GITHUB_REPO/releases?per_page=$per_page" | jq -c "$filter" || die "Could not make request to GitHub. Probably rate limit exceeded"
+}
+get_github_release_by_tag() {
+  local tag_name
+  while IFS= read -r item; do
+    tag_name=$(jq -r '.tag_name' <<<"$item")
+    if [ "$1" = "$tag_name" ]; then
+      echo "$item"
+      return
+    fi
+  done < <(iter_github_releases --prerelease --draft)
+  return 1
+}
+get_new_github_release() {
+  # requires one parameter -> current release
+  local current_release="$1" tag_name result
+  shift # all other parameters are passed to iter_github_releases
+
+  while IFS= read -r item; do
+    tag_name=$(jq -r '.tag_name' <<<"$item")
+    if dpkg --compare-versions "$tag_name" gt "$current_release"; then
+      result="$item"
+    elif [ -n "$result" ]; then
+      echo "$result"
+      return 0
+    else
+      break
+    fi
+  done < <(iter_github_releases "$@")
+  return 1
+}
+get_release_type() {
+  if [ "$(jq '.draft' <<<"$1")" = 'true' ]; then
+    echo 'draft'
+  elif [ "$(jq '.prerelease' <<<"$1")" = 'true' ]; then
+    echo 'prerelease'
+  else
+    echo 'release'
+  fi
+}
+colorize() {
+  local color
+  case "$1" in
+    GREEN) color="\033[32m" ;;
+    RED) color="\033[31m" ;;
+    YELLOW) color="\033[33m" ;;
+    *) color="" ;;
+  esac
+  printf "%b" "$color"
+  cat -
+  printf "\033[0m"
+}
+check_asset_digest() {
+  # accepts path to file and asset json
+  local digest
+  if [ ! -f "$1" ]; then
+    return 1
+  fi
+  digest="$(jq -r '.digest' <<<"$2" | sed 's/^sha256://')"
+  if [ "$(sha256sum "$1" | awk '{print $1}')" != "$digest" ]; then
+    return 1
+  fi
+}
+download_from_github_url() {
+  # accepts two parameters: destination path and url
+  local tmp_file
+  tmp_file="$(mktemp -t r8s-init.XXXXXX)"
+
+  if curl -fLs "${GITHUB_CURL_HEADERS[@]}" -o "$tmp_file" -H "Accept: application/octet-stream" "$2"; then
+    mv "$tmp_file" "$1"
+    return 0
+  else
+    rm -f "$tmp_file"
+    return 1
+  fi
+}
+pull_artifact() {
+  # accepts two parameters: destination folder and github's asset json
+  local name destination digest url tmp_file
+
+  name="$(jq -r '.name' <<<"$2")"
+  destination="$1/$name"
+
+  if [ -f "$destination" ]; then
+    if ! check_asset_digest "$destination" "$2"; then
+      _debug "Artifact $name already exists but has different digest. Going to download it again"
+    else
+      _debug "Artifact $name already exists and has the same digest. Skipping download"
+      return 0
+    fi
+  fi
+
+  url="$(jq -r '.url' <<<"$2")"
+  if download_from_github_url "$destination" "$url"; then
+    _debug "Downloaded $name to $destination"
+    return 0
+  else
+    warn "could not download $name from release from $url"
+    return 1
+  fi
+}
+find_asset_by_name() {
+  # accepts release data returned by github api and asset name. Returns asset json if found
+  local asset
+  asset="$(jq --arg name "$2" '.assets[] | select(.name == $name)' <<<"$1")"
+  if [ -z "$asset" ]; then
+    return 1
+  fi
+  echo "$asset"
 }
 ensure_in_path() {
   if [[ ":$PATH:" != *":$1:"* ]]; then
@@ -281,6 +511,134 @@ resolve_customer_name() {
     echo CUSTOMER_1
   fi
 }
+resolve_python_bin() {
+  if [ -n "$R8S_PYTHON_BIN" ]; then
+    if command -v "$R8S_PYTHON_BIN" >/dev/null 2>&1; then
+      command -v "$R8S_PYTHON_BIN"
+      return 0
+    fi
+    if [ -x "$R8S_PYTHON_BIN" ]; then
+      echo "$R8S_PYTHON_BIN"
+      return 0
+    fi
+    die "Requested Python interpreter '$R8S_PYTHON_BIN' was not found or is not executable"
+  fi
+  for candidate in python3.14 /usr/local/bin/python3.14 /opt/python/3.14/bin/python3.14; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      command -v "$candidate"
+      return 0
+    fi
+    if [ -x "$candidate" ]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  command -v python3 || die "python3 was not found"
+}
+python_version() {
+  "$1" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")'
+}
+python_satisfies() {
+  "$1" - "$2" <<'PY'
+import sys
+required = tuple(map(int, sys.argv[1].split(".")[:2]))
+current = sys.version_info[:2]
+sys.exit(0 if current >= required else 1)
+PY
+}
+release_metadata_path() {
+  echo "$R8S_RELEASES_PATH/$1/$R8S_RELEASE_METADATA_NAME"
+}
+release_metadata_exists() {
+  [ -f "$(release_metadata_path "$1")" ]
+}
+get_release_metadata_value() {
+  local metadata_file
+  metadata_file="$(release_metadata_path "$1")"
+  [ -f "$metadata_file" ] || return 1
+  jq -er "$2" "$metadata_file" 2>/dev/null
+}
+get_modular_cli_min_python() {
+  if ! release_metadata_exists "$1"; then
+    echo "${R8S_LEGACY_MODULAR_CLI_MIN_PYTHON:-3.10}"
+    return 0
+  fi
+  get_release_metadata_value "$1" '.components.modular_cli.python_min_version' \
+    || echo "$R8S_DEFAULT_MODULAR_CLI_MIN_PYTHON"
+}
+get_modular_cli_compat_mode() {
+  if ! release_metadata_exists "$1"; then
+    echo "${R8S_LEGACY_PYTHON_COMPAT_MODE:-warn}"
+    return 0
+  fi
+  get_release_metadata_value "$1" '.components.modular_cli.compatibility_mode' \
+    || echo "$R8S_PYTHON_COMPAT_MODE"
+}
+get_modular_cli_compat_message() {
+  if ! release_metadata_exists "$1"; then
+    echo "Legacy release metadata is missing. Using backward-compatible Python requirements."
+    return 0
+  fi
+  get_release_metadata_value "$1" '.components.modular_cli.message' \
+    || echo "Modular CLI requires Python $(get_modular_cli_min_python "$1") or later."
+}
+check_modular_cli_python_compatibility() {
+  # prints resolved python_bin to stdout; warns/errors if version unsatisfied
+  local release="$1"
+  local python_bin required_version current_version compat_mode message
+
+  python_bin="$(resolve_python_bin)"
+  required_version="$(get_modular_cli_min_python "$release")"
+  current_version="$(python_version "$python_bin")"
+  compat_mode="$(get_modular_cli_compat_mode "$release")"
+  message="$(get_modular_cli_compat_message "$release")"
+
+  if python_satisfies "$python_bin" "$required_version"; then
+    echo "$python_bin"
+    return 0
+  fi
+
+  cat >&2 <<EOF
+Warning: Python compatibility change detected.
+
+$message
+
+Required: Python $required_version or later
+Detected: Python $current_version
+Interpreter: $python_bin
+
+To avoid installation or update failures, install Python $required_version+ and explicitly pass it:
+
+  R8S_PYTHON_BIN=/usr/local/bin/python${required_version} r8s-init ...
+
+Do not replace the system default /usr/bin/python3, as it may break OS-level tools.
+EOF
+
+  if [ "$compat_mode" = "warn" ]; then
+    echo "$python_bin"
+    return 0
+  fi
+
+  if [ -t 0 ]; then
+    yesno "Continue anyway?"
+    echo "$python_bin"
+    return 0
+  fi
+
+  die "Unsupported Python version for Modular CLI installation"
+}
+pip_install_artifact() {
+  # $1=python_bin $2=artifact_path; remaining args forwarded to pip (e.g. --upgrade)
+  local python_bin="$1" artifact_path="$2"
+  shift 2
+  echo "Installing '$(basename "$artifact_path")' using Python interpreter: $python_bin"
+  MODULAR_CLI_ENTRY_POINT=$MODULAR_CLI_ENTRY_POINT "$python_bin" -m pip install --user --break-system-packages "$@" "$artifact_path"
+}
+validate_cli_artifacts() {
+  local release_path="$R8S_RELEASES_PATH/$1"
+  [ -f "$release_path/$MODULAR_CLI_ARTIFACT_NAME" ] \
+    || die_with_support "Modular CLI artifact was not found: $release_path/$MODULAR_CLI_ARTIFACT_NAME"
+}
 
 initialize_system() {
   # creates:
@@ -294,10 +652,14 @@ initialize_system() {
 
   ensure_in_path "$HOME/.local/bin"
   sleep 5m # todo temporary
+  local latest_release python_bin
+  latest_release="$(get_latest_local_release)"
+  validate_cli_artifacts "$latest_release"
+  python_bin="$(check_modular_cli_python_compatibility "$latest_release")"
 #  echo "Installing obfuscation manager"
-#  pip3 install --user --break-system-packages --upgrade "$R8S_RELEASES_PATH/$(get_latest_local_release)/${OBFUSCATOR_ARTIFACT_NAME}[xlsx]"
+#  pip_install_artifact "$python_bin" "$R8S_RELEASES_PATH/$latest_release/${OBFUSCATOR_ARTIFACT_NAME}[xlsx]" --upgrade
   echo "Installing modular-cli"
-  MODULAR_CLI_ENTRY_POINT=$MODULAR_CLI_ENTRY_POINT pip3 install --user --break-system-packages --upgrade "$R8S_RELEASES_PATH/$(get_latest_local_release)/$MODULAR_CLI_ARTIFACT_NAME"
+  pip_install_artifact "$python_bin" "$R8S_RELEASES_PATH/$latest_release/$MODULAR_CLI_ARTIFACT_NAME" --upgrade
 
   echo "Updating modular admin policy"
   update_modular_api_policy
@@ -347,14 +709,9 @@ initialize_system() {
     syndicate r8s setting client add --key_id "$(echo "$lm_response" | jq ".private_key.key_id" -r)" --algorithm "$(echo "$lm_response" | jq ".private_key.algorithm" -r)" --private_key "$(echo "$lm_response" | jq ".private_key.value" -r)" --format "PEM" --b64encoded --json
   fi
 
-  echo "Creating rightsizer customer policy"
-  syndicate r8s policy add --policy_name customer_admin_policy --permissions_admin --effect allow --customer "$customer_name" --tenant "*" --json
-
-  echo "Creating rightsizer customer role"
-  role_expiration=$(date -d "+1 year" +"%Y-%m-%dT%H:%M:%S")
-  syndicate r8s role add --name customer_admin_role --policies customer_admin_policy --customer "$customer_name" --expiration "$role_expiration" --json
-
-  echo "Creating rightsizer customer user"
+  echo "Creating rightsizer customer users"
+  syndicate r8s policy add --policy_name customer_admin_policy --permissions_admin --customer "$customer_name"
+  syndicate r8s role add --name customer_admin_role --policies customer_admin_policy --customer "$customer_name" --expiration "$(date -u -d '+2 years' +'%Y-%m-%dT%H:%M:%S')"
   syndicate r8s register --username "$RIGHTSIZER_USERNAME" --password "$rightsizer_password" --role_name customer_admin_role --customer_id "$customer_name" --tenant "*" --json
 
   echo "Logging in as customer users"
@@ -395,11 +752,7 @@ initialize_system() {
   fi
 
   echo "Getting Defect dojo token"
-  local _dojo_deadline=$(( $(date +%s) + 900 ))
   while [ -z "$dojo_token" ]; do
-    if [ "$(date +%s)" -ge "$_dojo_deadline" ]; then
-      die_with_support "Timed out waiting for Defect Dojo token after 15 minutes"
-    fi
     sleep 2
     dojo_token=$(curl -X POST -H 'content-type: application/json' "http://$mip:32107/api/v2/api-token-auth/" -d "{\"username\":\"admin\",\"password\":\"$(get_kubectl_secret "$DEFECTDOJO_SECRET_NAME" system-password)\"}" | jq ".token" -r || true)
   done
@@ -482,10 +835,14 @@ cmd_init() {
     chmod 600 .ssh/authorized_keys
 EOF
   fi
+  local latest_release python_bin
+  latest_release="$(get_latest_local_release)"
+  validate_cli_artifacts "$latest_release"
+  python_bin="$(check_modular_cli_python_compatibility "$latest_release")"
   echo "Installing CLIs for $target_user"
   sudo su - "$target_user" <<EOF >/dev/null
-  # pip3 install --user --break-system-packages "$R8S_RELEASES_PATH/$(get_latest_local_release)/${OBFUSCATOR_ARTIFACT_NAME}[xlsx]"
-  MODULAR_CLI_ENTRY_POINT=$MODULAR_CLI_ENTRY_POINT pip3 install --user --break-system-packages "$R8S_RELEASES_PATH/$(get_latest_local_release)/$MODULAR_CLI_ARTIFACT_NAME"
+  # "$python_bin" -m pip install --user --break-system-packages "$R8S_RELEASES_PATH/$latest_release/${OBFUSCATOR_ARTIFACT_NAME}[xlsx]"
+  MODULAR_CLI_ENTRY_POINT=$MODULAR_CLI_ENTRY_POINT "$python_bin" -m pip install --user --break-system-packages "$R8S_RELEASES_PATH/$latest_release/$MODULAR_CLI_ARTIFACT_NAME"
 EOF
 
   local err=0
@@ -525,64 +882,330 @@ EOF
 }
 
 pull_artifacts() {
-  # downloads all necessary files from the given github release tag. Make sure the release exists
-  mkdir -p "$R8S_RELEASES_PATH/$1"
-  wget -q -O "$R8S_RELEASES_PATH/$1/$MODULAR_CLI_ARTIFACT_NAME" "https://github.com/$GITHUB_REPO/releases/download/$1/$MODULAR_CLI_ARTIFACT_NAME" || warn "could not download $MODULAR_CLI_ARTIFACT_NAME from release $1"
-#  wget -q -O "$R8S_RELEASES_PATH/$1/$OBFUSCATOR_ARTIFACT_NAME" "https://github.com/$GITHUB_REPO/releases/download/$1/$OBFUSCATOR_ARTIFACT_NAME" || warn "could not download $OBFUSCATOR_ARTIFACT_NAME from release $1"
-  wget -q -O "$R8S_RELEASES_PATH/$1/$R8S_INIT_ARTIFACT_NAME" "https://github.com/$GITHUB_REPO/releases/download/$1/$R8S_INIT_ARTIFACT_NAME" || warn "could not download $R8S_INIT_ARTIFACT_NAME from release $1"
+  local tag
+  tag="$(jq -r '.tag_name' <<<"$1")"
+  mkdir -p "$R8S_RELEASES_PATH/$tag"
+
+  while IFS= read -r asset; do
+    if pull_artifact "$R8S_RELEASES_PATH/$tag" "$asset"; then
+      echo "Pulled artifact $(jq -r '.name' <<<"$asset") for release $tag"
+    else
+      warn "could not pull artifact $(jq -r '.name' <<<"$asset") for release $tag"
+    fi
+  done < <(jq -c '.assets[]' <<<"$1")
 }
 update_r8s_init() {
   # assuming that the target version already exists locally
-  local err=0
-  sudo cp "$R8S_RELEASES_PATH/$1/$R8S_INIT_ARTIFACT_NAME" /usr/local/bin/r8s-init || err=1
-  if [ "$err" -eq 0 ]; then
-    sudo chmod +x /usr/local/bin/r8s-init
-  else
-    echo "Could not update r8s-init"
+  sudo ln -sf "$R8S_RELEASES_PATH/$1/$R8S_INIT_ARTIFACT_NAME" /usr/local/bin/r8s-init || {
+    warn "Could not link r8s-init to /usr/local/bin/r8s-init"
+    return 1
+  }
+  if [ ! -x "$R8S_RELEASES_PATH/$1/$R8S_INIT_ARTIFACT_NAME" ]; then
+    sudo chmod +x "$R8S_RELEASES_PATH/$1/$R8S_INIT_ARTIFACT_NAME" || {
+      warn "Could not add x permission to r8s-init"
+      return 1
+    }
   fi
+}
+perform_self_update() {
+  local tag asset new_version
+  tag="$(jq -r '.tag_name' <<<"$1")"
+
+  if ! asset="$(find_asset_by_name "$1" "$R8S_INIT_ARTIFACT_NAME")"; then
+    return 1
+  fi
+  if check_asset_digest "$SELF_PATH" "$asset"; then
+    return 0
+  fi
+
+  pull_artifact "$R8S_RELEASES_PATH/$tag" "$asset" || {
+    warn "could not pull self update artifact $R8S_INIT_ARTIFACT_NAME"
+    return 1
+  }
+  update_r8s_init "$tag" || {
+    warn "could not update r8s-init to $tag"
+    return 1
+  }
+  new_version=$("$SELF_PATH" --version)
+  echo "Automatically updated r8s-init from $VERSION to $new_version"
+  exec "$SELF_PATH" "${_ORIGINAL_ARGS[@]}"
+}
+warn_if_update_available() {
+  local current_release release_data
+  current_release="$(get_helm_release_version "$HELM_RELEASE_NAME")" || return 1
+  if release_data="$(get_new_github_release "$current_release")"; then
+    warn "new $(get_release_type "$release_data") $(jq -r '.tag_name' <<<"$release_data") is available. Use 'r8s-init update'"
+  fi
+}
+make_update_notification() {
+  if [ ! -f "$UPDATE_NOTIFICATION_FILE" ]; then
+    warn_if_update_available || return 1
+    echo "$UPDATE_NOTIFICATION_PERIOD:$(($(date +%s) / UPDATE_NOTIFICATION_PERIOD))" >"$UPDATE_NOTIFICATION_FILE"
+    return
+  fi
+  local period passed
+  IFS=':' read -r period passed <"$UPDATE_NOTIFICATION_FILE"
+  if [ "$(($(date +%s) / period))" -ne "$passed" ]; then
+    warn_if_update_available || return 1
+    echo "$UPDATE_NOTIFICATION_PERIOD:$(($(date +%s) / UPDATE_NOTIFICATION_PERIOD))" >"$UPDATE_NOTIFICATION_FILE"
+  fi
+}
+verify_installation() {
+  if [ -f "$R8S_LOCAL_PATH/.success" ]; then
+    return 0
+  fi
+  local passed=""
+  if [ -f "$LOG_PATH" ]; then
+    passed="$(($(date +%s) - $(stat --format "%W" "$LOG_PATH")))"
+  fi
+  if [ -z "$passed" ] || [ "$passed" -gt "$INSTALLATION_PERIOD_THRESHOLD" ]; then
+    echo "RightSizer does not appear to be initialized. Check $LOG_PATH for details." >&2
+    exit 1
+  fi
+  echo "RightSizer is being initialized for the first time. Please wait. Approximately $(date -d@"$(("$INSTALLATION_PERIOD_THRESHOLD" - "$passed"))" -u "+%M minute(s) %S second(s)") left" >&2
+  exit 1
 }
 
 cmd_update() {
-  local opts auto_yes=0 r_name=$HELM_RELEASE_NAME r_version latest_tag backup_name=""
-  opts="$(getopt -o "hy" --long "help,yes,helm-release-name:,backup-name:" -n "$PROGRAM" -- "$@")"
+  local opts auto_yes=0 r_name=$HELM_RELEASE_NAME r_version release_data latest_tag backup_name="" iter_params=() check=0 same_version=0 do_backup=1 update_defectdojo=0
+  opts="$(getopt -o "hy" --long "help,yes,check,no-backup,defectdojo,allow-prereleases,same-version,backup-name:,helm-release-name:" -n "$PROGRAM" -- "$@")"
   eval set -- "$opts"
   while true; do
     case "$1" in
       '-h'|'--help') cmd_update_usage; exit 0 ;;
       '-y'|'--yes') auto_yes=1; shift ;;
+      '--check') check=1; shift ;;
+      '--no-backup') do_backup=0; shift ;;
+      '--allow-prereleases') iter_params=(--prerelease --draft); shift ;;
+      '--same-version') same_version=1; shift ;;
+      '--defectdojo') update_defectdojo=1; shift ;;
       '--helm-release-name') r_name="$2"; shift 2 ;;
       '--backup-name') backup_name="$2"; shift 2 ;;
       '--') shift; break ;;
     esac
   done
-  r_version="$(get_helm_release_version "$r_name")"
-  echo "The current helm chart release is $r_version"
-  latest_tag="$(get_latest_release_tag)"
-  echo "Latest release available is $latest_tag"
-  if [[ ! "$r_version" < "$latest_tag" ]]; then
-    echo "Rightsizer chart is up-to-date"
+
+  if [ "$update_defectdojo" -eq 1 ]; then
+    [ "$check" -eq 1 ] && die "--check is currently not supported for Defect Dojo"
+    echo "Going to update Defect Dojo chart"
+    if [ "$do_backup" -eq 1 ]; then
+      [ -z "$backup_name" ] && backup_name="$AUTO_BACKUP_PREFIX$(date +%s)"
+      echo "Making backup $backup_name"
+      cmd_backup_create --name "$backup_name" --volumes=defectdojo-cache,defectdojo-data,defectdojo-media
+    fi
+    helm repo update syndicate
+    if ! helm upgrade "$DEFECTDOJO_HELM_RELEASE_NAME" syndicate/defectdojo --wait; then
+      warn "helm upgrade failed. Rolling back to the previous version..."
+      helm rollback "$DEFECTDOJO_HELM_RELEASE_NAME" 0 --wait || die "Helm rollback failed"
+      exit 1
+    else
+      echo "helm upgrade was successful"
+    fi
     exit 0
   fi
-  echo "New release $latest_tag is available."
+
+  r_version="$(get_helm_release_version "$r_name")"
+  if [ "$same_version" -eq 1 ]; then
+    release_data="$(get_github_release_by_tag "$r_version")" || warn "could not get release by tag $r_version"
+    latest_tag="$r_version"
+  else
+    if ! release_data="$(get_new_github_release "$r_version" "${iter_params[@]}")"; then
+      echo "Up-to-date"
+      exit 0
+    fi
+    latest_tag="$(jq -r '.tag_name' <<<"$release_data")"
+  fi
+
+  if [ "$check" -eq 1 ]; then
+    warn "new $(get_release_type "$release_data") $latest_tag is available. Use 'r8s-init update'"
+    exit 1
+  fi
+  # TODO Delete && [ "$same_version" -eq 0 ] from condition
+  if [ -n "$release_data" ] && [ -z "$FORBID_SELF_UPDATE" ] && [ "$same_version" -eq 0 ]; then
+    perform_self_update "$release_data" || true
+  fi
+
+  echo "The current installed version is $r_version"
+  echo "New github $(get_release_type "$release_data") $latest_tag is available"
+  echo "Going to update to $latest_tag"
   [[ $auto_yes -eq 1 ]] || yesno "Do you want to update?"
   echo "Updating to $latest_tag"
-  [ -z "$backup_name" ] && backup_name="$AUTO_BACKUP_PREFIX$(date +%s)"
-  echo "Making backup $backup_name"
-  cmd_backup_create --name "$backup_name" --volumes=minio,mongo,vault
-  echo "Pulling new artifacts"
-  pull_artifacts "$latest_tag"
+  if [ -n "$release_data" ]; then
+    echo "Pulling new artifacts"
+    # TODO: check artifacts from previous release? and copy if totally the same
+    pull_artifacts "$release_data"
+  fi
+
+  if [ -f "$R8S_RELEASES_PATH/$latest_tag/$MODULAR_CLI_ARTIFACT_NAME" ]; then
+    check_modular_cli_python_compatibility "$latest_tag" >/dev/null
+  fi
+
+  if [ "$do_backup" -eq 1 ]; then
+    [ -z "$backup_name" ] && backup_name="$AUTO_BACKUP_PREFIX$(date +%s)"
+    echo "Making backup $backup_name"
+    cmd_backup_create --name "$backup_name" --volumes=minio,mongo,vault
+  fi
   echo "Updating helm repo"
-  helm repo update syndicate
+  helm repo update syndicate || die_with_support "helm repo update failed"
   helm search repo syndicate/rightsizer --version "$latest_tag" --fail-on-no-result >/dev/null 2>&1 || die "$latest_tag version of $r_name chart not found. Cannot update"
   echo "Upgrading $r_name chart to $latest_tag version"
-  helm upgrade "$HELM_RELEASE_NAME" syndicate/rightsizer --version "$latest_tag"
+  if ! helm upgrade "$HELM_RELEASE_NAME" syndicate/rightsizer --version "$latest_tag" --wait; then
+    warn "helm upgrade failed. Rolling back to the previous version..."
+    helm rollback "$HELM_RELEASE_NAME" 0 --wait || die "Helm rollback failed"
+    exit 1
+  else
+    echo "helm upgrade was successful"
+  fi
+  local cli_python_bin=""
+  cli_python_bin="$(check_modular_cli_python_compatibility "$latest_tag")"
 #  echo "Upgrading obfuscation manager"
 #  pip3 install --user --break-system-packages --upgrade "$R8S_RELEASES_PATH/$latest_tag/${OBFUSCATOR_ARTIFACT_NAME}[xlsx]" >/dev/null
-  echo "Upgrading modular CLI"
-  MODULAR_CLI_ENTRY_POINT=$MODULAR_CLI_ENTRY_POINT pip3 install --user --break-system-packages --upgrade "$R8S_RELEASES_PATH/$latest_tag/${MODULAR_CLI_ARTIFACT_NAME}" >/dev/null
-  echo "Trying to update r8s-init"
-  update_r8s_init "$latest_tag"
+  if [ -f "$R8S_RELEASES_PATH/$latest_tag/$MODULAR_CLI_ARTIFACT_NAME" ]; then
+    echo "Upgrading modular CLI"
+    local python_bin
+    python_bin="$(check_modular_cli_python_compatibility "$latest_tag")"
+    pip_install_artifact "$python_bin" "$R8S_RELEASES_PATH/$latest_tag/$MODULAR_CLI_ARTIFACT_NAME" --upgrade >/dev/null
+  fi
+  if [ -f "$R8S_RELEASES_PATH/$latest_tag/$R8S_INIT_ARTIFACT_NAME" ]; then
+    echo "Updating r8s-init"
+    update_r8s_init "$latest_tag" || true
+  fi
   echo "Done"
+}
+
+cmd_update_list() {
+  local opts iter_params=()
+  opts="$(getopt -o "h" --long "help,allow-prereleases" -n "$PROGRAM" -- "$@")"
+  eval set -- "$opts"
+  while true; do
+    case "$1" in
+      -h|--help) cmd_update_list_usage; exit 0 ;;
+      --allow-prereleases) iter_params=(--prerelease --draft); shift ;;
+      '--') shift; break ;;
+    esac
+  done
+
+  local tag_name current_release
+  current_release="$(get_helm_release_version "$HELM_RELEASE_NAME")"
+  while IFS= read -r item; do
+    tag_name=$(jq -r '.tag_name' <<<"$item")
+    if [[ "$current_release" == "$tag_name" ]]; then
+      jq -rj '"\(.tag_name)* \(.published_at) \(.html_url) \(.prerelease) \(.draft)"' <<<"$item" | colorize GREEN
+    fi
+    if dpkg --compare-versions "$tag_name" le "$current_release" 2>/dev/null; then
+      break
+    fi
+    jq -rj '"\(.tag_name) \(.published_at) \(.html_url) \(.prerelease) \(.draft)\n"' <<<"$item"
+  done < <(iter_github_releases "${iter_params[@]}") | column --table --table-columns RELEASE,DATE,URL,PRERELEASE,DRAFT
+}
+
+cmd_health() {
+  local opts
+  opts="$(getopt -o "h" --long "help" -n "$PROGRAM" -- "$@")"
+  eval set -- "$opts"
+  while true; do
+    case "$1" in
+      -h|--help) cmd_health_usage; exit 0 ;;
+      '--') shift; break ;;
+    esac
+  done
+  declare -A checks
+  checks["1:RightSizer initialized"]="test -f $R8S_LOCAL_PATH/.success"
+  checks["2:RightSizer helm release"]="helm get metadata $HELM_RELEASE_NAME"
+  checks["3:Syndicate entrypoint"]="syndicate version"
+  checks["4:RightSizer health check"]="syndicate r8s health_check"
+  checks["5:Defect Dojo helm release"]="helm get metadata $DEFECTDOJO_HELM_RELEASE_NAME"
+
+  while IFS= read -r key; do
+    IFS=":" read -r order name <<<"$key"
+    if ${checks[$key]} >/dev/null 2>&1; then
+      printf "%s|%s|ok\n" "$order" "$name" | colorize GREEN
+    else
+      printf "%s|%s|failed\n" "$order" "$name" | colorize RED
+      exit 1
+    fi
+  done < <(printf "%s\n" "${!checks[@]}" | sort) | column --table -s "|" --table-columns "№,CHECK,STATUS"
+}
+
+cmd_doctor() {
+  local opts release="" latest_local_release="" release_path=""
+  local python_bin="" required_version="" current_version=""
+  local status=0
+
+  opts="$(getopt -o "h" --long "help,release:" -n "$PROGRAM doctor" -- "$@")" \
+    || die "$(cmd_unrecognized)"
+  eval set -- "$opts"
+  while true; do
+    case "$1" in
+      -h|--help) cmd_doctor_usage; exit 0 ;;
+      --release) release="$2"; shift 2 ;;
+      '--') shift; break ;;
+    esac
+  done
+
+  if [ -n "$release" ]; then
+    latest_local_release="$release"
+  else
+    latest_local_release="$(get_latest_local_release 2>/dev/null || true)"
+  fi
+
+  echo "r8s-init environment check"
+  echo
+
+  if [ -n "$latest_local_release" ]; then
+    release_path="$R8S_RELEASES_PATH/$latest_local_release"
+    echo "[OK] Local release resolved: $latest_local_release"
+
+    if release_metadata_exists "$latest_local_release"; then
+      echo "[OK] Release metadata found: $(release_metadata_path "$latest_local_release")"
+    else
+      echo "[WARN] Release metadata not found. Treating release as legacy."
+    fi
+
+    if [ -d "$release_path" ]; then
+      echo "[OK] Release directory found: $release_path"
+    else
+      echo "[ERROR] Release directory was not found: $release_path"
+      status=1
+    fi
+
+    if [ -f "$release_path/$MODULAR_CLI_ARTIFACT_NAME" ]; then
+      echo "[OK] Modular CLI artifact found"
+    else
+      echo "[ERROR] Modular CLI artifact not found: $release_path/$MODULAR_CLI_ARTIFACT_NAME"
+      status=1
+    fi
+
+    required_version="$(get_modular_cli_min_python "$latest_local_release")"
+    echo "[INFO] Modular CLI Python requirement: >=$required_version"
+  else
+    echo "[WARN] Could not resolve latest local release from $R8S_RELEASES_PATH"
+    required_version="$R8S_DEFAULT_MODULAR_CLI_MIN_PYTHON"
+    status=1
+  fi
+
+  python_bin="$(resolve_python_bin 2>/dev/null || true)"
+
+  if [ -n "$python_bin" ]; then
+    current_version="$(python_version "$python_bin")"
+    echo "[INFO] Resolved Python interpreter: $python_bin"
+    echo "[INFO] Resolved Python version: $current_version"
+
+    if python_satisfies "$python_bin" "$required_version"; then
+      echo "[OK] Python requirement satisfied"
+    else
+      echo "[WARN] Python requirement is not satisfied"
+      echo
+      echo "Recommended command:"
+      echo "  R8S_PYTHON_BIN=/usr/local/bin/python${required_version} $PROGRAM init --user <username>"
+      status=1
+    fi
+  else
+    echo "[ERROR] Could not resolve Python interpreter"
+    status=1
+  fi
+
+  return "$status"
 }
 
 cmd_nginx() {
@@ -626,6 +1249,15 @@ cmd_nginx_disable() {
   exit 1
 }
 
+scale_for_volume() {
+  # accepts volume name as one parameter and number of replicas as the second one
+  [ ! -v PV_TO_DEPLOYMENTS["$1"] ] && return
+  local deploy
+  while read -r -d ',' deploy; do
+    kubectl scale deployment "$deploy" --replicas="$2"
+  done <<<"${PV_TO_DEPLOYMENTS["$1"]}," # comma added here to make sure read catches the last segment
+}
+
 make_backup() {
   # accepts k8s persistent volume name as first parameter and destination folder as second parameter.
   local host_path
@@ -657,6 +1289,45 @@ restore_backup() {
   sha256sum "$2/$1.sha256" --check || return 1
   minikube cp "$2/$1.tar.gz" "$HELM_RELEASE_NAME:/tmp/$1.tar.gz"
   minikube ssh "sudo rm -rf $host_path; sudo mkdir -p $host_path ; sudo tar --same-owner --overwrite -xzf /tmp/$1.tar.gz -C $host_path"
+}
+make_secrets_backup() {
+  # accepts target file as a first parameter and secrets names as other parameters
+  local target_file="$1"
+  shift
+  if ! kubectl get secrets -o json --ignore-not-found=false "$@" | jq -c >"$target_file" 2>/dev/null; then
+    warn "Could not dump secrets to $target_file"
+    return 1
+  fi
+  sha256sum "$target_file" >"$target_file.sha256"
+  chmod 440 "$target_file" "$target_file.sha256"
+}
+restore_secrets_backup() {
+  local target_file="$1"
+  if ! sha256sum --check "$target_file.sha256"; then
+    warn "Could not verify sha256 for secrets file"
+    return 1
+  fi
+  kubectl replace --force -f "$target_file" 2>/dev/null
+}
+make_helm_values_backup() {
+  local target_file="$1"
+  if ! helm get values -o json "$HELM_RELEASE_NAME" >"$target_file" 2>/dev/null; then
+    warn "Could not dump helm values to $target_file"
+    return 1
+  fi
+  sha256sum "$target_file" >"$target_file.sha256"
+  chmod 440 "$target_file" "$target_file.sha256"
+}
+restore_helm_values_backup() {
+  local target_file="$1"
+  if ! sha256sum --check "$target_file.sha256"; then
+    warn "Could not verify sha256 for helm values file"
+    return 1
+  fi
+  warn 'helm values will not be restored automatically. Use the following command to restore them: '
+  cat <<EOF
+helm upgrade -f "$target_file" "$HELM_RELEASE_NAME" syndicate/rule-engine --version "$(get_helm_release_version "$HELM_RELEASE_NAME")"
+EOF
 }
 cmd_backup() {
   case "$1" in
@@ -731,39 +1402,108 @@ cmd_backup_rm() {
 }
 
 cmd_backup_create() {
-  local opts path="" name="" volumes="" vol
-  opts="$(getopt -o "n:hp:" --long "name:,help,path:,volumes:" -n "$PROGRAM" -- "$@")"
+  local opts path="" name="" volumes="" secrets="" vol sec items=() items_secrets=() helm_values=""
+
+  opts="$(getopt -o "n:hp:" --long "name:,help,path:,volumes:,secrets:,helm-values" -n "$PROGRAM" -- "$@")"
   eval set -- "$opts"
+
   while true; do
     case "$1" in
-      -h|--help) cmd_backup_create_usage; exit 0 ;;
-      -p|--path) path="$2"; shift 2 ;;
-      -n|--name) name="$2"; shift 2 ;;
-      --volumes) volumes="$2"; shift 2 ;;
-      '--') shift; break ;;
+      -h|--help)
+        cmd_backup_create_usage
+        exit 0
+        ;;
+      -p|--path)
+        path="$2"
+        shift 2
+        ;;
+      -n|--name)
+        name="$2"
+        shift 2
+        ;;
+      --volumes)
+        volumes="$2"
+        shift 2
+        ;;
+      --secrets)
+        secrets="$2"
+        shift 2
+        ;;
+      --helm-values)
+        helm_values="y"
+        shift 1
+        ;;
+      '--')
+        shift
+        break
+        ;;
     esac
   done
+
   [ -z "$name" ] && die "--name is required"
-  [ -z "$path" ] && path="$R8S_BACKUPS_PATH/$(get_helm_release_version "$HELM_RELEASE_NAME")"
-  [ -d "$path/$name" ] && die "'$name' already exists"
-  mkdir -p "$path/$name"
-  if [ -z "$volumes" ]; then
-    for vol in $(kubectl get pv -o=jsonpath="{.items[*].metadata.name}"); do
-      echo "Making backup for volume $vol"
-      make_backup "$vol" "$path/$name" || warn "could not make backup"
-    done
-  else
-    local items
-    IFS=',' read -ra items <<< "$volumes"
-    for vol in "${items[@]}"; do
-      if ! kubectl get pv "$vol" >/dev/null 2>&1; then
-        warn "'$vol' volume does not exist" >&2
-        continue
-      fi
-      echo "Making backup for volume '$vol'"
-      make_backup "$vol" "$path/$name" || warn "could not make backup"
-    done
+
+  if [ -z "$path" ]; then
+    path="$R8S_BACKUPS_PATH/$(get_helm_release_version "$HELM_RELEASE_NAME")" || die "cannot resolve current version"
   fi
+
+  [ -d "$path/$name" ] && die "'$name' already exists"
+
+  # checking secrets
+  if [ "$secrets" = "all" ]; then
+    items_secrets+=("${ALL_SECRETS[@]}")
+  elif [ -n "$secrets" ]; then
+    while read -r -d ',' sec; do
+      [ -z "$sec" ] && continue
+
+      if ! kubectl get secret "$sec" >/dev/null 2>&1; then
+        die "'$sec' secret does not exist"
+      fi
+
+      items_secrets+=("$sec")
+    done <<<"$secrets,"
+  fi
+  # By here we have an array of secrets names to make a backup
+
+  # checking volumes
+  if [ "$volumes" = "all" ]; then
+    for vol in $(kubectl get pv -o=jsonpath="{.items[*].metadata.name}" 2>/dev/null); do
+      items+=("$vol")
+    done
+  elif [ -n "$volumes" ]; then
+    while read -r -d ',' vol; do
+      [ -z "$vol" ] && continue
+
+      if ! kubectl get pv "$vol" >/dev/null 2>&1; then
+        die "'$vol' volume does not exist"
+      fi
+
+      items+=("$vol")
+    done <<<"$volumes,"
+  fi
+  # By here we have an array of volumes names to make a backup
+
+  if [ "${#items[@]}" -eq 0 ] && [ "${#items_secrets[@]}" -eq 0 ] && [ -z "$helm_values" ]; then
+    die "nothing to backup"
+  fi
+
+  mkdir -p "$path/$name"
+
+  if [ "${#items_secrets[@]}" -ne 0 ]; then
+    echo "Making backup of secrets"
+    make_secrets_backup "$path/$name/$BACKUP_SECRETS_FILENAME" "${items_secrets[@]}"
+  fi
+
+  if [ -n "$helm_values" ]; then
+    echo "Making backup of helm values"
+    make_helm_values_backup "$path/$name/$BACKUP_HELM_VALUES_FILENAME"
+  fi
+
+  for vol in "${items[@]}"; do
+    echo "Making backup of volume $vol"
+    scale_for_volume "$vol" 0
+    make_backup "$vol" "$path/$name" || warn "could not make backup"
+    scale_for_volume "$vol" 1
+  done
 }
 cmd_backup_restore() {
   local opts path="" name="" volumes="" version="" force=0 current_release vol
@@ -771,80 +1511,186 @@ cmd_backup_restore() {
   eval set -- "$opts"
   while true; do
     case "$1" in
-      -h|--help) cmd_backup_restore_usage; exit 0 ;;
-      -p|--path) path="$2"; shift 2 ;;
-      -v|--version) version="$2"; shift 2 ;;
-      -n|--name) name="$2"; shift 2 ;;
-      -f|--force) force=1; shift ;;
-      --volumes) volumes="$2"; shift 2 ;;
-      '--') shift; break ;;
+      -h|--help)
+        cmd_backup_restore_usage
+        exit 0
+        ;;
+      -p|--path)
+        path="$2"
+        shift 2
+        ;;
+      -v|--version)
+        version="$2"
+        shift 2
+        ;;
+      -n|--name)
+        name="$2"
+        shift 2
+        ;;
+      -f|--force)
+        force=1
+        shift
+        ;;
+      --volumes)
+        volumes="$2"
+        shift 2
+        ;;
+      '--')
+        shift
+        break
+        ;;
     esac
   done
   [ -z "$name" ] && die "--name is required"
-  current_release="$(get_helm_release_version "$HELM_RELEASE_NAME")"
-  [ "$force" -eq 0 ] && [ -n "$version" ] && [ "$version" != "$current_release" ] && die "current release $current_release does not match to the backup version $version. Specify --force if you really want to restore backup"
+
+  current_release="$(get_helm_release_version "$HELM_RELEASE_NAME")" || die "cannot resolve current version"
+
+  [ "$force" -eq 0 ] && \
+    [ -n "$version" ] && \
+    [ "$version" != "$current_release" ] && \
+    die "current release $current_release does not match to the backup version $version. Specify --force if you really want to restore backup"
+
   path="$(resolve_backup_path "$path" "$version")"
+
   [ ! -d "$path/$name" ] && die "backup '$name' (from $path) not found"
 
   declare -a items
+
   if [ -z "$volumes" ]; then
     while IFS= read -r -d ''; do
       items+=("$(basename --suffix='.tar.gz' "$REPLY")")
     done < <(find "$path/$name" -name '*.tar.gz' -type f -print0)
   else
-    IFS=',' read -ra items <<< "$volumes"
+    IFS=',' read -ra items <<<"$volumes"
   fi
-  echo "${items[@]}"
+
+  # TODO add some input flags to control whether secrets are restored
+  if [ -f "$path/$name/$BACKUP_SECRETS_FILENAME" ]; then
+    echo "Restoring secrets"
+    restore_secrets_backup "$path/$name/$BACKUP_SECRETS_FILENAME" || warn "could not restore secrets"
+  fi
 
   for vol in "${items[@]}"; do
+    [ -z "$vol" ] && continue
+
     if ! kubectl get pv "$vol" >/dev/null 2>&1; then
-      warn "'$vol' volume does not exist" >&2
+      warn "'$vol' volume does not exist"
       continue
     fi
+
     echo "Restoring volume '$vol'"
-    restore_backup "$vol" "$path/$name" || die "could not restore backup"
+    scale_for_volume "$vol" 0
+    restore_backup "$vol" "$path/$name" || warn "could not restore backup"
+    scale_for_volume "$vol" 1
   done
+
+  # TODO add some input flags to control whether helm values are restored
+  if [ -f "$path/$name/$BACKUP_HELM_VALUES_FILENAME" ]; then
+    echo "Restoring helm values"
+    restore_helm_values_backup "$path/$name/$BACKUP_HELM_VALUES_FILENAME" || warn "could not restore helm values"
+  fi
 }
 
 # Start
-VERSION="1.0.1"
+VERSION="1.2.0"
 PROGRAM="${0##*/}"
 COMMAND="$1"
+SELF_PATH=/usr/local/bin/r8s-init
+readonly _ORIGINAL_ARGS=("$@")
 
-# Some global constants
-R8S_LOCAL_PATH=/usr/local/r8s
-R8S_RELEASES_PATH=$R8S_LOCAL_PATH/releases
-R8S_BACKUPS_PATH=$R8S_LOCAL_PATH/backups
-GITHUB_REPO=epam/r8s
-HELM_RELEASE_NAME=rightsizer
-MODULAR_SERVICE_USERNAME="customer_admin"
-RIGHTSIZER_USERNAME="customer_admin"
-CURRENT_ACCOUNT_TENANT_NAME="CURRENT_ACCOUNT"
+# Some variables that configure how cli behaves
+R8S_PYTHON_BIN="${R8S_PYTHON_BIN:-}"
+R8S_RELEASE_METADATA_NAME="${R8S_RELEASE_METADATA_NAME:-release.json}"
+# Defaults for new releases when release.json exists but some fields are missing
+R8S_DEFAULT_MODULAR_CLI_MIN_PYTHON="${R8S_DEFAULT_MODULAR_CLI_MIN_PYTHON:-3.14}"
+R8S_PYTHON_COMPAT_MODE="${R8S_PYTHON_COMPAT_MODE:-error}"
+# Defaults for old releases without release.json
+R8S_LEGACY_MODULAR_CLI_MIN_PYTHON="${R8S_LEGACY_MODULAR_CLI_MIN_PYTHON:-3.10}"
+R8S_LEGACY_PYTHON_COMPAT_MODE="${R8S_LEGACY_PYTHON_COMPAT_MODE:-warn}"
+R8S_LOCAL_PATH="${R8S_LOCAL_PATH:-/usr/local/r8s}"
+R8S_RELEASES_PATH="${R8S_RELEASES_PATH:-$R8S_LOCAL_PATH/releases}"
+R8S_BACKUPS_PATH="${R8S_BACKUPS_PATH:-$R8S_LOCAL_PATH/backups}"
+GITHUB_REPO="${GITHUB_REPO:-epam/r8s}"
+HELM_RELEASE_NAME="${HELM_RELEASE_NAME:-rightsizer}"
+DEFECTDOJO_HELM_RELEASE_NAME="${DEFECTDOJO_HELM_RELEASE_NAME:-defectdojo}"
+MODULAR_SERVICE_USERNAME="${MODULAR_SERVICE_USERNAME:-customer_admin}"
+RIGHTSIZER_USERNAME="${RIGHTSIZER_USERNAME:-customer_admin}"
+CURRENT_ACCOUNT_TENANT_NAME="${CURRENT_ACCOUNT_TENANT_NAME:-CURRENT_ACCOUNT}"
+AUTO_BACKUP_PREFIX="${AUTO_BACKUP_PREFIX:-autobackup-}"
+FORBID_SELF_UPDATE="${FORBID_SELF_UPDATE:-}"
 # regions that will be allowed to activate
-AWS_REGIONS="us-east-1 us-east-2 us-west-1 us-west-2 af-south-1 ap-east-1 ap-south-2 ap-southeast-3 ap-southeast-4 ap-south-1 ap-northeast-3 ap-northeast-2 ap-southeast-1 ap-southeast-2 ap-northeast-1 ca-central-1 ca-west-1 eu-central-1 eu-west-1 eu-west-2 eu-south-1 eu-west-3 eu-south-2 eu-north-1 eu-central-2 il-central-1 me-south-1 me-central-1 sa-east-1 us-gov-east-1 us-gov-west-1"
-AUTO_BACKUP_PREFIX="autobackup-"
+AWS_REGIONS="${AWS_REGIONS:-us-east-1 us-east-2 us-west-1 us-west-2 af-south-1 ap-east-1 ap-south-2 ap-southeast-3 ap-southeast-4 ap-south-1 ap-northeast-3 ap-northeast-2 ap-southeast-1 ap-southeast-2 ap-northeast-1 ca-central-1 ca-west-1 eu-central-1 eu-west-1 eu-west-2 eu-south-1 eu-west-3 eu-south-2 eu-north-1 eu-central-2 il-central-1 me-south-1 me-central-1 sa-east-1 us-gov-east-1 us-gov-west-1}"
 
-RIGHTSIZER_SECRET_NAME=rightsizer-secret
-MODULAR_API_SECRET_NAME=modular-api-secret
-MODULAR_SERVICE_SECRET_NAME=modular-service-secret
-DEFECTDOJO_SECRET_NAME=defectdojo-secret
+# All variables below are constants and should not be changed
+readonly DEFECTDOJO_SECRET_NAME=defectdojo-secret
+readonly LM_DATA_SECRET_NAME=lm-data
+readonly MINIO_SECRET_NAME=minio-secret
+readonly MODULAR_API_SECRET_NAME=modular-api-secret
+readonly MODULAR_SERVICE_SECRET_NAME=modular-service-secret
+readonly MONGO_SECRET_NAME=mongo-secret
+readonly RIGHTSIZER_SECRET_NAME=rightsizer-secret
+readonly VAULT_SECRET_NAME=vault-secret
 
-MODULAR_CLI_ARTIFACT_NAME=modular_cli.tar.gz
-#OBFUSCATOR_ARTIFACT_NAME=r8s_obfuscator.tar.gz
-R8S_INIT_ARTIFACT_NAME=r8s-init.sh
+readonly ALL_SECRETS=("$DEFECTDOJO_SECRET_NAME" "$LM_DATA_SECRET_NAME" "$MINIO_SECRET_NAME" "$MODULAR_API_SECRET_NAME" "$MODULAR_SERVICE_SECRET_NAME" "$MONGO_SECRET_NAME" "$RIGHTSIZER_SECRET_NAME" "$VAULT_SECRET_NAME")
+
+readonly BACKUP_SECRETS_FILENAME=${BACKUP_SECRETS_FILENAME:-_k8s_secrets}
+readonly BACKUP_HELM_VALUES_FILENAME=${BACKUP_HELM_VALUES_FILENAME:-_helm_values}
+
+
 MODULAR_CLI_ENTRY_POINT=syndicate
+
+# FOR backups to scale up/down
+declare -rA PV_TO_DEPLOYMENTS=(
+  ["minio"]="minio"
+  ["vault"]="vault"
+  ["mongo"]="mongo"
+  ["defectdojo-cache"]="defectdojo-redis"
+  ["defectdojo-data"]="defectdojo-postgres"
+  ["defectdojo-media"]="defectdojo-nginx,defectdojo-uwsgi,defectdojo-celeryworker"
+)
+
+GITHUB_CURL_HEADERS=('-H' 'X-GitHub-Api-Version: 2022-11-28')
+if [ -n "$GITHUB_TOKEN" ]; then
+  GITHUB_CURL_HEADERS+=('-H' "Authorization: Bearer $GITHUB_TOKEN")
+fi
+readonly GITHUB_CURL_HEADERS
+
+readonly MODULAR_CLI_ARTIFACT_NAME=modular_cli.tar.gz
+# readonly OBFUSCATOR_ARTIFACT_NAME=r8s_obfuscator.tar.gz
+readonly R8S_INIT_ARTIFACT_NAME=r8s-init.sh
+
 MODULAR_ADMIN_POLICY='[{"Description": "Admin policy", "Module": "*", "Effect": "Allow", "Resources": ["*"]}, {"Effect": "Deny", "Description": "Prohibited commands", "Module": "r8s", "Resources": ["algorithm:add", "algorithm:update_clustering_settings", "algorithm:update_general_settings", "algorithm:update_metric_format", "algorithm:update_recommendation_settings", "report:initiate_tenant_mail_report"]}]'
-FIRST_USER=$(getent passwd 1000 | cut -d : -f 1)
+FIRST_USER="${FIRST_USER:-$(getent passwd 1000 | cut -d : -f 1)}"
 
 DO_NOT_ACTIVATE_LICENSE="${DO_NOT_ACTIVATE_LICENSE:-}"
 DO_NOT_ACTIVATE_TENANT="${DO_NOT_ACTIVATE_TENANT:-}"
 DO_NOT_ACTIVATE_STORAGE="${DO_NOT_ACTIVATE_STORAGE:-}"
 
+# NOTE: Keep in sync with ami-initialize.sh
+readonly SUPPORT_EMAIL="SupportSyndicateTeam@epam.com"
+
+# in seconds
+readonly INSTALLATION_PERIOD_THRESHOLD="${INSTALLATION_PERIOD_THRESHOLD:-900}"
+readonly LOG_PATH="${LOG_PATH:-/var/log/r8s-init.log}"
+
+# in seconds
+readonly UPDATE_NOTIFICATION_PERIOD="${UPDATE_NOTIFICATION_PERIOD:-3600}"
+readonly UPDATE_NOTIFICATION_FILE="$R8S_LOCAL_PATH/.update-notification"
+
+if [ ! "$1" = "init" ] && [ ! "$1" = '--system' ] && [ ! "$1" = '--user' ]; then
+  verify_installation
+fi
+
+make_update_notification || true
+
 case "$1" in
   backup) shift; cmd_backup "$@" ;;
+  check|doctor) shift; cmd_doctor "$@" ;;
+  health) shift; cmd_health "$@" ;;
   help|-h|--help) shift; cmd_usage "$@" ;;
   version|--version) shift; cmd_version "$@" ;;
   update) shift; cmd_update "$@" ;;
+  list) shift; cmd_update_list "$@" ;;
   init) shift; cmd_init "$@" ;;
   nginx) shift; cmd_nginx "$@" ;;
   --system|--user) cmd_init "$@" ;;  # redirect to init as default one

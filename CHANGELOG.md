@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.15.0] - 2026-08-18
+## [3.15.0] - 2026-08-20
 - Added 15-minute deadline to DefectDojo token polling loop to prevent infinite hang on initialization failure
 - Fixed metric placeholder values (-1) being included in statistical calculations when mixed with real values, causing incorrect under-sizing recommendations.
 - Added generation-aware shape filtering: resize recommendations now exclude older-generation instance types when newer ones are available for the same family (e.g. t2 is excluded when t3 exists). 
@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DefectDojo integration now tags the product with the tenant name and ensures `enable_product_tag_inheritance` is enabled, so all findings inherit the tenant tag automatically.
 - AWS Shapes data will be reloaded on RightSizer container start if it was written less than 1 day ago
 - Migrated runtime to Python 3.14; updated `modular-sdk` to 8.1.0 with `[jwt]` extra
+- Updated Rightsizer initialization scripts
 
 ## [3.14.0] - 2026-06-02
 * Implement tenant-level RBAC permissions:
