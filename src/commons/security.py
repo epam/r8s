@@ -43,7 +43,10 @@ class AbstractTokenEncoder(ABC):
     @abstractmethod
     def product(self):
         message = 'Could not produce a Token, due to improper {} attribute.'
-        for key, required_type in self.__annotations__.items():
+        all_annotations = {}
+        for cls in reversed(type(self).__mro__):
+            all_annotations.update(getattr(cls, '__annotations__', {}))
+        for key, required_type in all_annotations.items():
             obj = getattr(self, key, None)
             assert isinstance(obj, required_type), message.format(key)
 
