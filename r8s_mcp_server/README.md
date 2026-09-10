@@ -36,6 +36,13 @@ This installs the `r8s-mcp` console script and the importable package `r8s_mcp`.
 
 You can override these with CLI flags `--r8s-api-base-url`, `--username`, and `--password`.
 
+If `R8S_USERNAME`/`R8S_PASSWORD` are unset, credentials fall back to the `username`/`password`
+fields of a secret resolved via [`modular-sdk`](https://pypi.org/project/modular-sdk/)'s secrets
+backend (Vault or AWS SSM, selected by the `MODULAR_SDK_SECRETS_BACKEND` environment variable).
+This is intended for when the server runs as a module embedded inside a modular-mcp host, which
+provisions the secrets backend connection; standalone/stdio usage with `R8S_USERNAME`/`R8S_PASSWORD`
+set is unaffected.
+
 ### Optional
 
 | Variable                      | Default    | Description                                                                                                                                                 |
@@ -49,6 +56,7 @@ You can override these with CLI flags `--r8s-api-base-url`, `--username`, and `-
 | `LOG_LEVEL`                   | `DEBUG`    | Logging level.                                                                                                                                              |
 | `R8S_MCP_SECRET_API_KEY_HASH` | unset      | If set, SHA-256 hex digest of the shared secret; HTTP requests must send `X-R8S-MCP-SECRET-API-KEY` matching that secret. If unset, this check is disabled. |
 | `R8S_DEMO_TENAT_NAMES`        | unset      | A comma-separated list of tenant names marked as demo projects.                                                                                             |
+| `R8S_SECRET_VAULT_PATH`       | `r8s-mcp/r8s_secret` | Path/name of the `modular-sdk` secrets-backend secret to fall back to for `username`/`password` when `R8S_USERNAME`/`R8S_PASSWORD` are unset.    |
 
 ### Resources path
 

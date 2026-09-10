@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional
 
 from r8s_mcp.commons.constants import MCPEnv
+from r8s_mcp.services import secret_manager
 
 
 def _default_resource_path() -> str:
@@ -51,18 +52,30 @@ class Config:
                 'or R8S_API_URL environment variable'
             )
 
-        api_username = username or MCPEnv.R8S_USERNAME.get()
+        vault_path = MCPEnv.R8S_SECRET_VAULT_PATH.as_str()
+
+        api_username = username or secret_manager.get_secret_field(
+            vault_path, 'username',
+            env_fallback=MCPEnv.R8S_USERNAME,
+            required=False,
+        )
         if not api_username:
             raise ValueError(
-                'Username must be provided via --username '
-                'or R8S_USERNAME environment variable'
+                'Username must be provided via --username, the '
+                'R8S_USERNAME environment variable, or the '
+                f'{vault_path!r} secret in the configured secrets backend'
             )
 
-        api_password = password or MCPEnv.R8S_PASSWORD.get()
+        api_password = password or secret_manager.get_secret_field(
+            vault_path, 'password',
+            env_fallback=MCPEnv.R8S_PASSWORD,
+            required=False,
+        )
         if not api_password:
             raise ValueError(
-                'Password must be provided via --password '
-                'or R8S_PASSWORD environment variable'
+                'Password must be provided via --password, the '
+                'R8S_PASSWORD environment variable, or the '
+                f'{vault_path!r} secret in the configured secrets backend'
             )
 
         resource_path = MCPEnv.R8S_MCP_RESOURCE_PATH.get() or _default_resource_path()
