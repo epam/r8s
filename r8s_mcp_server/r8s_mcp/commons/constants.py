@@ -182,6 +182,9 @@ class MCPEnv(EnvEnum):
     # Comma-separated tenant names treated as shared demos
     R8S_DEMO_TENANT_NAMES = 'R8S_DEMO_TENANT_NAMES', ()
     R8S_MCP_RESOURCE_PATH = 'R8S_MCP_RESOURCE_PATH', ()
+    R8S_SECRET_VAULT_PATH = (
+        'R8S_SECRET_VAULT_PATH', (), 'r8s-mcp/r8s_secret'
+    )
     R8S_API_TIMEOUT = 'R8S_API_TIMEOUT', (), '30.0'
     R8S_API_MAX_RETRIES = 'R8S_API_MAX_RETRIES', (), '3'
     R8S_OUTPUT_FORMAT = 'SRE_OUTPUT_FORMAT', (), 'markdown'
