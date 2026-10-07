@@ -89,7 +89,6 @@ class RecommendationSettings(EmbeddedDocument):
     analysis_price = EnumField(AnalysisPriceEnum,
                                default=AnalysisPriceEnum.DEFAULT)
     allowed_actions = ListField(StringField(null=True))
-    ignore_actions = ListField(StringField(null=True))
     discard_initial_zeros = BooleanField(default=True)
     target_timezone_name = StringField(default="Europe/London")
     forbid_change_series = BooleanField(default=False)
