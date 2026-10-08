@@ -115,9 +115,10 @@ sudo usermod -aG docker "$FIRST_USER" || true
 # unattended-upgrades + needrestart would restart this service in the middle of initialization
 log "Pausing apt timers and applying pending OS updates"
 sudo systemctl stop apt-daily.timer apt-daily-upgrade.timer || true
-export NEEDRESTART_SUSPEND=1 DEBIAN_FRONTEND=noninteractive
-sudo -E apt-get -o DPkg::Lock::Timeout=600 update -y
-sudo -E apt-get -o DPkg::Lock::Timeout=600 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold full-upgrade -y
+# sudo-rs (Ubuntu 26.04) ignores -E, so the environment is passed explicitly
+APT_ENV=(env NEEDRESTART_SUSPEND=1 DEBIAN_FRONTEND=noninteractive)
+sudo "${APT_ENV[@]}" apt-get -o DPkg::Lock::Timeout=600 update -y
+sudo "${APT_ENV[@]}" apt-get -o DPkg::Lock::Timeout=600 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold full-upgrade -y
 
 sudo mkdir -p "$R8S_LOCAL_PATH"
 if [ -f /var/run/reboot-required ] && [ ! -f "$R8S_LOCAL_PATH/.rebooted" ]; then
@@ -130,7 +131,7 @@ if [ -f /var/run/reboot-required ] && [ ! -f "$R8S_LOCAL_PATH/.rebooted" ]; then
 fi
 
 log "Installing jq and curl"
-sudo -E apt-get -o DPkg::Lock::Timeout=600 install -y jq curl
+sudo "${APT_ENV[@]}" apt-get -o DPkg::Lock::Timeout=600 install -y jq curl
 
 if [ -z "$RIGHTSIZER_RELEASE" ]; then
   log "Going to resolve latest release from GitHub api"
@@ -183,18 +184,35 @@ fi
 } 2>&1 | sudo tee -a "$LOG_PATH" >/dev/null
 rm "$ami_initialize"
 
+# classic sudo keeps the environment with -E; sudo-rs (Ubuntu 26.04) ignores -E, so variables are passed explicitly
+if sudo --version 2>&1 | head -n 1 | grep -qi 'sudo-rs'; then
+  SUDO_ENV_FLAGS=(-H)
+else
+  SUDO_ENV_FLAGS=(-EH)
+fi
+FIRST_USER_ENV=()
+for _v in R8S_LOCAL_PATH LOG_PATH GITHUB_REPO HELM_RELEASE_NAME DEFECTDOJO_HELM_RELEASE_NAME \
+  DO_NOT_ACTIVATE_LICENSE DO_NOT_ACTIVATE_TENANT DO_NOT_ACTIVATE_STORAGE \
+  ADMIN_EMAILS CUSTOMER_NAME AWS_REGIONS MODULAR_SERVICE_USERNAME RIGHTSIZER_USERNAME CURRENT_ACCOUNT_TENANT_NAME \
+  R8S_PYTHON_BIN R8S_PYTHON_COMPAT_MODE FORBID_SELF_UPDATE R8S_INIT_DEBUG FIRST_USER \
+  KUBECONFIG HTTP_PROXY HTTPS_PROXY NO_PROXY http_proxy https_proxy no_proxy; do
+  if [ -n "${!_v:-}" ]; then
+    FIRST_USER_ENV+=("$_v=${!_v}")
+  fi
+done
+
 modular_api_pod_name=$(
-  sudo -EH -u "$FIRST_USER" kubectl get pods -n default \
+  sudo "${SUDO_ENV_FLAGS[@]}" -u "$FIRST_USER" env "${FIRST_USER_ENV[@]}" kubectl get pods -n default \
     -l app.kubernetes.io/name=modular-api \
     -o jsonpath='{.items[0].metadata.name}'
 )
 
 log "Waiting for modular api pod to be Ready: ${modular_api_pod_name}"
-sudo -EH -u "$FIRST_USER" kubectl wait -n default --for=condition=ready --timeout=300s \
+sudo "${SUDO_ENV_FLAGS[@]}" -u "$FIRST_USER" env "${FIRST_USER_ENV[@]}" kubectl wait -n default --for=condition=ready --timeout=300s \
   "pod/${modular_api_pod_name}"
 
 log "Executing r8s-init --system"
-sudo -EH -u "$FIRST_USER" r8s-init --system 2>&1 | sudo tee -a "$LOG_PATH" >/dev/null
+sudo "${SUDO_ENV_FLAGS[@]}" -u "$FIRST_USER" env "${FIRST_USER_ENV[@]}" r8s-init --system 2>&1 | sudo tee -a "$LOG_PATH" >/dev/null
 
 send_cf_signal "SUCCESS"
 log "Creating $R8S_LOCAL_PATH/success"
