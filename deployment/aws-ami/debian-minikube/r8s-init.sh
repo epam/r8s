@@ -83,6 +83,10 @@ Options:
   --defectdojo         Specify this flag to update Defect Dojo chart instead of RightSizer
   --helm-release-name  RightSizer helm release name (default "$HELM_RELEASE_NAME")
   --backup-name        Backup name to make before the update (default "$AUTO_BACKUP_PREFIX\$timestamp")
+  --confirm-migration-token
+                       Required together with -y/--yes when the target release requires a mandatory MongoDB
+                       major version migration. Run without this flag in interactive mode to see the exact
+                       token and the migration plan first
 EOF
 }
 cmd_update_list_usage() {
@@ -293,6 +297,9 @@ get_helm_release_version() {
   # currently the version of rightsizer chart corresponds to the version of app inside
   helm get metadata "$1" -o json 2>/dev/null | jq -r '.version'
 }
+get_helm_release_revision() {
+  helm get metadata "$1" -o json 2>/dev/null | jq -er '.revision'
+}
 github_api_get() {
   # Retries on GitHub rate-limit (HTTP 429/403) with exponential back-off; prints body to stdout
   local attempt max_attempts=4 wait=5 http_code tmp
@@ -466,6 +473,7 @@ get_imds_token () {
 }
 account_id() { curl -s curl -s -H "X-aws-ec2-metadata-token: $(get_imds_token)" http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r ".accountId"; }
 user_exists() { id "$1" &>/dev/null; }
+is_initialized() { [ -f "$R8S_LOCAL_PATH/success" ] || [ -f "$R8S_LOCAL_PATH/.success" ]; }
 get_kubectl_secret() {
   kubectl get secret "$1" -o jsonpath="{.data.$2}" | base64 --decode
 }
@@ -627,17 +635,232 @@ EOF
 
   die "Unsupported Python version for Modular CLI installation"
 }
-pip_install_artifact() {
-  # $1=python_bin $2=artifact_path; remaining args forwarded to pip (e.g. --upgrade)
-  local python_bin="$1" artifact_path="$2"
-  shift 2
-  echo "Installing '$(basename "$artifact_path")' using Python interpreter: $python_bin"
-  MODULAR_CLI_ENTRY_POINT=$MODULAR_CLI_ENTRY_POINT "$python_bin" -m pip install --user --break-system-packages "$@" "$artifact_path"
+cli_install_artifact() {
+  # $1=python_bin $2=app name $3=artifact path. Uses pipx when available, falls back to pip --user for older setups
+  local python_bin="$1" app_name="$2" artifact_path="$3" py
+  if command -v pipx >/dev/null 2>&1; then
+    echo "Installing '$app_name' with pipx using Python interpreter: $python_bin"
+    pipx uninstall "$app_name" >/dev/null 2>&1 || true
+    # a legacy pip --user install would keep its entrypoint in ~/.local/bin and block the pipx one
+    for py in "$python_bin" python3; do
+      "$py" -m pip uninstall -y --break-system-packages "$app_name" >/dev/null 2>&1 || true
+    done
+    pipx install --force --python "$python_bin" "$artifact_path"
+  else
+    echo "pipx was not found. Installing '$app_name' with pip using Python interpreter: $python_bin" >&2
+    "$python_bin" -m pip install --user --break-system-packages --upgrade "$artifact_path"
+  fi
 }
 validate_cli_artifacts() {
   local release_path="$R8S_RELEASES_PATH/$1"
   [ -f "$release_path/$MODULAR_CLI_ARTIFACT_NAME" ] \
     || die_with_support "Modular CLI artifact was not found: $release_path/$MODULAR_CLI_ARTIFACT_NAME"
+}
+
+# --- MongoDB migration (component: mongodb_migration in release.json) ---
+
+get_mongodb_migration_compat_mode() {
+  release_metadata_exists "$1" || { echo "warn"; return 0; }
+  get_release_metadata_value "$1" '.components.mongodb_migration.compatibility_mode' || echo "warn"
+}
+get_mongodb_migration_message() {
+  release_metadata_exists "$1" || { echo ""; return 0; }
+  get_release_metadata_value "$1" '.components.mongodb_migration.message' || echo ""
+}
+mongodb_migration_defined() {
+  # true if the release declares a non-empty mongodb_migration.steps list
+  local count
+  release_metadata_exists "$1" || return 1
+  count="$(get_release_metadata_value "$1" '.components.mongodb_migration.steps | length' 2>/dev/null)" || return 1
+  [ -n "$count" ] && [ "$count" -gt 0 ]
+}
+iter_mongodb_migration_steps() {
+  # outputs one base64-encoded {"image_tag":...,"fcv":...} object per line, in order
+  get_release_metadata_value "$1" '.components.mongodb_migration.steps[] | @base64'
+}
+mongodb_migration_step_field() {
+  # $1 = base64-encoded step object, $2 = jq filter
+  echo "$1" | base64 --decode | jq -r "$2"
+}
+get_mongodb_migration_target_fcv() {
+  get_release_metadata_value "$1" '.components.mongodb_migration.steps[-1].fcv'
+}
+mongo_credentials() {
+  # prints "username password" separated by a single space
+  local username password
+  username="$(get_kubectl_secret "$MONGO_SECRET_NAME" username)" || return 1
+  password="$(get_kubectl_secret "$MONGO_SECRET_NAME" password)" || return 1
+  printf '%s %s' "$username" "$password"
+}
+mongo_eval() {
+  # evaluates mongosh expression $1 against the mongo deployment, retrying on transient exec/connectivity errors
+  local creds username password attempt max_attempts="${MONGO_EVAL_MAX_ATTEMPTS:-3}" delay="${MONGO_EVAL_RETRY_DELAY:-2}" out rc
+  creds="$(mongo_credentials)" || { warn "could not resolve MongoDB credentials"; return 1; }
+  read -r username password <<<"$creds"
+  for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+    if out="$(kubectl exec deployment/mongo -- mongosh --quiet -u "$username" -p "$password" --authenticationDatabase admin --eval "$1" 2>&1)"; then
+      printf '%s\n' "$out"
+      return 0
+    fi
+    rc=$?
+    _debug "mongo_eval attempt $attempt/$max_attempts failed (rc=$rc): $out"
+    [ "$attempt" -lt "$max_attempts" ] && sleep "$delay"
+  done
+  echo "$out" >&2
+  return "$rc"
+}
+get_mongo_db_version() { mongo_eval 'db.version()' 2>/dev/null; }
+get_mongo_fcv() { mongo_eval 'db.adminCommand({getParameter:1, featureCompatibilityVersion:1}).featureCompatibilityVersion.version' 2>/dev/null; }
+wait_for_mongo_ready() {
+  # rollout status may report Ready before mongod accepts connections (e.g. while upgrading on-disk metadata)
+  local timeout="${MONGO_READY_TIMEOUT:-180}" interval="${MONGO_READY_POLL_INTERVAL:-5}" waited=0
+  while [ "$waited" -lt "$timeout" ]; do
+    if mongo_eval 'db.adminCommand({ping:1})' >/dev/null 2>&1; then
+      return 0
+    fi
+    _debug "MongoDB not accepting connections yet, waited ${waited}s/${timeout}s"
+    sleep "$interval"
+    waited=$((waited + interval))
+  done
+  return 1
+}
+mongodb_migration_required() {
+  # true if current MongoDB FCV is behind the migration target FCV declared for the release
+  local release="$1" target_fcv current_fcv
+  mongodb_migration_defined "$release" || return 1
+  target_fcv="$(get_mongodb_migration_target_fcv "$release")" || return 1
+  [ -z "$target_fcv" ] && return 1
+  current_fcv="$(get_mongo_fcv)"
+  if [ -z "$current_fcv" ]; then
+    warn "could not determine current MongoDB FCV. Assuming migration is required"
+    return 0
+  fi
+  dpkg --compare-versions "$current_fcv" lt "$target_fcv"
+}
+print_mongodb_migration_plan() {
+  local release="$1" backup_name="$2" message current_version current_fcv step image_tag fcv i=1
+  message="$(get_mongodb_migration_message "$release")"
+  current_version="$(get_mongo_db_version)"
+  current_fcv="$(get_mongo_fcv)"
+  cat <<EOF
+
+===========================================================================
+ MongoDB migration required to update to $release
+===========================================================================
+${message:+$message
+}
+Current MongoDB version: ${current_version:-unknown}
+Current MongoDB FCV:     ${current_fcv:-unknown}
+
+This step causes temporary write downtime for: ${MONGO_MIGRATION_WRITER_DEPLOYMENTS[*]}
+Backup ${backup_name:-"(none created)"} will be used to restore data automatically should anything fail.
+
+Migration steps:
+EOF
+  while IFS= read -r step; do
+    image_tag="$(mongodb_migration_step_field "$step" '.image_tag')"
+    fcv="$(mongodb_migration_step_field "$step" '.fcv')"
+    echo "  $i) upgrade MongoDB image to $image_tag, then set featureCompatibilityVersion to $fcv"
+    ((i++))
+  done < <(iter_mongodb_migration_steps "$release")
+  echo ""
+}
+confirm_mongodb_migration() {
+  # $1=auto_yes(0/1) $2=compat_mode $3=provided confirmation token
+  local auto_yes="$1" compat_mode="$2" confirm_token="$3"
+  if [ "$auto_yes" -eq 1 ]; then
+    if [ "$confirm_token" = "$MONGODB_MIGRATION_CONFIRM_TOKEN" ]; then
+      return 0
+    fi
+    if [ "$compat_mode" = "error" ]; then
+      die "Non-interactive update includes a mandatory MongoDB migration. Re-run with --confirm-migration-token $MONGODB_MIGRATION_CONFIRM_TOKEN to proceed"
+    fi
+    warn "Skipping optional MongoDB migration in non-interactive mode (compatibility_mode=$compat_mode). Pass --confirm-migration-token $MONGODB_MIGRATION_CONFIRM_TOKEN to run it"
+    return 1
+  fi
+  yesno "Proceed with MongoDB migration now?"
+  return 0
+}
+scale_mongo_migration_writers() {
+  # accepts target replica count as the only parameter
+  local deploy
+  for deploy in "${MONGO_MIGRATION_WRITER_DEPLOYMENTS[@]}"; do
+    kubectl get deployment "$deploy" >/dev/null 2>&1 || continue
+    kubectl scale deployment "$deploy" --replicas="$1" || warn "could not scale deployment $deploy to $1 replicas"
+  done
+}
+run_mongodb_migration_step() {
+  local image_tag="$1" fcv="$2" confirm_arg="" actual_version actual_fcv mongo_repo
+  echo "Upgrading MongoDB image to $image_tag"
+  # patch only the mongo deployment: a full helm upgrade per step would bring scaled-down writers back up
+  mongo_repo="$(kubectl get deployment mongo -o jsonpath='{.spec.template.spec.containers[?(@.name=="mongodb")].image}')" || return 1
+  mongo_repo="${mongo_repo%%:*}"
+  kubectl set image deployment/mongo "mongodb=${mongo_repo}:${image_tag}" || return 1
+  kubectl rollout status deployment/mongo --timeout="${HELM_UPGRADE_TIMEOUT}s" || return 1
+
+  echo "Waiting for MongoDB to accept connections after the image upgrade"
+  wait_for_mongo_ready || {
+    warn "MongoDB did not start accepting connections within ${MONGO_READY_TIMEOUT:-180}s after upgrading to $image_tag"
+    return 1
+  }
+
+  echo "Setting MongoDB featureCompatibilityVersion to $fcv"
+  # confirm:true is required by MongoDB for FCV transitions from 7.0 onward
+  dpkg --compare-versions "$fcv" ge "7.0" && confirm_arg=", confirm: true"
+  mongo_eval "db.adminCommand({setFeatureCompatibilityVersion: \"$fcv\"$confirm_arg})" || return 1
+
+  actual_version="$(get_mongo_db_version)"
+  actual_fcv="$(get_mongo_fcv)"
+  if [[ "$actual_version" != "$image_tag"* ]]; then
+    warn "MongoDB version verification failed: expected version starting with $image_tag, got '$actual_version'"
+    return 1
+  fi
+  if [ "$actual_fcv" != "$fcv" ]; then
+    warn "MongoDB FCV verification failed: expected $fcv, got '$actual_fcv'"
+    return 1
+  fi
+  echo "Step succeeded: MongoDB version=$actual_version, FCV=$actual_fcv"
+}
+run_mongodb_migration() {
+  # $1=target release, $2=confirm token, $3=auto_yes(0/1), $4=backup name (may be empty)
+  # returns: 0 success, 1 failure (needs rollback+restore), 2 skipped (nothing was changed)
+  local release="$1" confirm_token="$2" auto_yes="$3" backup_name="$4" compat_mode step image_tag fcv failed=0
+  mongodb_migration_required "$release" || return 2
+
+  compat_mode="$(get_mongodb_migration_compat_mode "$release")"
+  print_mongodb_migration_plan "$release" "$backup_name"
+  confirm_mongodb_migration "$auto_yes" "$compat_mode" "$confirm_token" || return 2
+
+  echo "Scaling down writer workloads before MongoDB migration"
+  scale_mongo_migration_writers 0
+  while IFS= read -r step; do
+    image_tag="$(mongodb_migration_step_field "$step" '.image_tag')"
+    fcv="$(mongodb_migration_step_field "$step" '.fcv')"
+    if ! run_mongodb_migration_step "$image_tag" "$fcv"; then
+      failed=1
+      break
+    fi
+  done < <(iter_mongodb_migration_steps "$release")
+  echo "Scaling writer workloads back up"
+  scale_mongo_migration_writers 1
+
+  if [ "$failed" -eq 1 ]; then
+    warn "MongoDB migration failed"
+    return 1
+  fi
+  echo "MongoDB migration completed successfully"
+}
+rollback_and_restore() {
+  # $1=helm revision to roll back to (0 = previous), $2=backup name to restore (may be empty)
+  if [ -z "$2" ]; then
+    helm rollback "$HELM_RELEASE_NAME" "$1" --wait --timeout "${HELM_UPGRADE_TIMEOUT}s" || die_with_support "Helm rollback failed"
+    return 0
+  fi
+  # no --wait: an older mongo binary cannot start on data migrated to a newer FCV until the backup is restored
+  helm rollback "$HELM_RELEASE_NAME" "$1" || die_with_support "Helm rollback failed"
+  echo "Restoring backup $2"
+  cmd_backup_restore --name "$2"
+  kubectl rollout status deployment/mongo --timeout="${HELM_UPGRADE_TIMEOUT}s" || warn "MongoDB did not become ready after restoring backup $2"
 }
 
 initialize_system() {
@@ -657,9 +880,10 @@ initialize_system() {
   validate_cli_artifacts "$latest_release"
   python_bin="$(check_modular_cli_python_compatibility "$latest_release")"
 #  echo "Installing obfuscation manager"
-#  pip_install_artifact "$python_bin" "$R8S_RELEASES_PATH/$latest_release/${OBFUSCATOR_ARTIFACT_NAME}[xlsx]" --upgrade
+#  cli_install_artifact "$python_bin" "r8s-obfuscator" "$R8S_RELEASES_PATH/$latest_release/${OBFUSCATOR_ARTIFACT_NAME}[xlsx]"
   echo "Installing modular-cli"
-  pip_install_artifact "$python_bin" "$R8S_RELEASES_PATH/$latest_release/$MODULAR_CLI_ARTIFACT_NAME" --upgrade
+  MODULAR_CLI_ENTRY_POINT=$MODULAR_CLI_ENTRY_POINT cli_install_artifact "$python_bin" "$MODULAR_CLI_APP_NAME" "$R8S_RELEASES_PATH/$latest_release/$MODULAR_CLI_ARTIFACT_NAME" \
+    || die_with_support "Failed to install modular-cli"
 
   echo "Updating modular admin policy"
   update_modular_api_policy
@@ -794,7 +1018,7 @@ cmd_init() {
     if [ "$FIRST_USER" != "$(whoami)" ]; then
       die "system configuration can be performed only by '$FIRST_USER' user"
     fi
-    if [ -f "$R8S_LOCAL_PATH/success" ]; then
+    if is_initialized; then
       die "RightSizer was already initialized. Cannot do that again"
     fi
     echo "Initializing RightSizer for the first time"
@@ -840,9 +1064,11 @@ EOF
   validate_cli_artifacts "$latest_release"
   python_bin="$(check_modular_cli_python_compatibility "$latest_release")"
   echo "Installing CLIs for $target_user"
-  sudo su - "$target_user" <<EOF >/dev/null
-  # "$python_bin" -m pip install --user --break-system-packages "$R8S_RELEASES_PATH/$latest_release/${OBFUSCATOR_ARTIFACT_NAME}[xlsx]"
-  MODULAR_CLI_ENTRY_POINT=$MODULAR_CLI_ENTRY_POINT "$python_bin" -m pip install --user --break-system-packages "$R8S_RELEASES_PATH/$latest_release/$MODULAR_CLI_ARTIFACT_NAME"
+  sudo su - "$target_user" <<EOF >/dev/null || die_with_support "Failed to install CLIs for user $target_user"
+  set -e
+  $(declare -f cli_install_artifact)
+  # cli_install_artifact "$python_bin" "r8s-obfuscator" "$R8S_RELEASES_PATH/$latest_release/${OBFUSCATOR_ARTIFACT_NAME}[xlsx]"
+  MODULAR_CLI_ENTRY_POINT=$MODULAR_CLI_ENTRY_POINT cli_install_artifact "$python_bin" "$MODULAR_CLI_APP_NAME" "$R8S_RELEASES_PATH/$latest_release/$MODULAR_CLI_ARTIFACT_NAME"
 EOF
 
   local err=0
@@ -863,7 +1089,7 @@ EOF
   fi
 
 
-  if [ -n "$re_username" ]; then
+  if [ -n "$r8s_username" ]; then
     echo "Logging in to RightSizer"
     sudo su - "$target_user" <<EOF
     ~/.local/bin/syndicate r8s configure --api_link http://rightsizer:8000/r8s
@@ -908,27 +1134,31 @@ update_r8s_init() {
   fi
 }
 perform_self_update() {
-  local tag asset new_version
+  # returns 0 if already current, 2 if the release ships no r8s-init artifact, 1 on failure; execs the new script on success
+  local tag asset new_version max_attempts delay attempt err
   tag="$(jq -r '.tag_name' <<<"$1")"
 
   if ! asset="$(find_asset_by_name "$1" "$R8S_INIT_ARTIFACT_NAME")"; then
-    return 1
+    return 2
   fi
   if check_asset_digest "$SELF_PATH" "$asset"; then
     return 0
   fi
 
-  pull_artifact "$R8S_RELEASES_PATH/$tag" "$asset" || {
-    warn "could not pull self update artifact $R8S_INIT_ARTIFACT_NAME"
-    return 1
-  }
-  update_r8s_init "$tag" || {
-    warn "could not update r8s-init to $tag"
-    return 1
-  }
-  new_version=$("$SELF_PATH" --version)
-  echo "Automatically updated r8s-init from $VERSION to $new_version"
-  exec "$SELF_PATH" "${_ORIGINAL_ARGS[@]}"
+  mkdir -p "$R8S_RELEASES_PATH/$tag"
+  max_attempts="${R8S_SELF_UPDATE_MAX_ATTEMPTS:-3}"
+  delay="${R8S_SELF_UPDATE_RETRY_DELAY:-5}"
+  for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+    if err="$(pull_artifact "$R8S_RELEASES_PATH/$tag" "$asset" 2>&1)" \
+      && err="$(update_r8s_init "$tag" 2>&1)"; then
+      new_version=$("$SELF_PATH" --version)
+      echo "Automatically updated r8s-init from $VERSION to $new_version"
+      exec "$SELF_PATH" "${_ORIGINAL_ARGS[@]}"
+    fi
+    warn "r8s-init self-update to $tag failed (attempt $attempt/$max_attempts): ${err:-unknown error}"
+    [ "$attempt" -lt "$max_attempts" ] && sleep "$delay"
+  done
+  return 1
 }
 warn_if_update_available() {
   local current_release release_data
@@ -937,21 +1167,35 @@ warn_if_update_available() {
     warn "new $(get_release_type "$release_data") $(jq -r '.tag_name' <<<"$release_data") is available. Use 'r8s-init update'"
   fi
 }
+_write_update_notification() {
+  echo "$UPDATE_NOTIFICATION_PERIOD:$(($(date +%s) / UPDATE_NOTIFICATION_PERIOD))" >"$UPDATE_NOTIFICATION_FILE"
+}
+_reset_update_notification() {
+  rm -f "$UPDATE_NOTIFICATION_FILE"
+  warn_if_update_available || return 1
+  _write_update_notification
+}
 make_update_notification() {
   if [ ! -f "$UPDATE_NOTIFICATION_FILE" ]; then
-    warn_if_update_available || return 1
-    echo "$UPDATE_NOTIFICATION_PERIOD:$(($(date +%s) / UPDATE_NOTIFICATION_PERIOD))" >"$UPDATE_NOTIFICATION_FILE"
+    _reset_update_notification
     return
   fi
   local period passed
-  IFS=':' read -r period passed <"$UPDATE_NOTIFICATION_FILE"
+  IFS=':' read -r period passed <"$UPDATE_NOTIFICATION_FILE" || {
+    _reset_update_notification
+    return
+  }
+  if ! [[ "$period" =~ ^[1-9][0-9]*$ ]] || ! [[ "$passed" =~ ^[0-9]+$ ]]; then
+    _reset_update_notification
+    return
+  fi
   if [ "$(($(date +%s) / period))" -ne "$passed" ]; then
     warn_if_update_available || return 1
-    echo "$UPDATE_NOTIFICATION_PERIOD:$(($(date +%s) / UPDATE_NOTIFICATION_PERIOD))" >"$UPDATE_NOTIFICATION_FILE"
+    _write_update_notification
   fi
 }
 verify_installation() {
-  if [ -f "$R8S_LOCAL_PATH/.success" ]; then
+  if is_initialized; then
     return 0
   fi
   local passed=""
@@ -967,8 +1211,8 @@ verify_installation() {
 }
 
 cmd_update() {
-  local opts auto_yes=0 r_name=$HELM_RELEASE_NAME r_version release_data latest_tag backup_name="" iter_params=() check=0 same_version=0 do_backup=1 update_defectdojo=0
-  opts="$(getopt -o "hy" --long "help,yes,check,no-backup,defectdojo,allow-prereleases,same-version,backup-name:,helm-release-name:" -n "$PROGRAM" -- "$@")"
+  local opts auto_yes=0 r_name=$HELM_RELEASE_NAME r_version release_data latest_tag backup_name="" iter_params=() check=0 same_version=0 do_backup=1 update_defectdojo=0 confirm_migration_token=""
+  opts="$(getopt -o "hy" --long "help,yes,check,no-backup,defectdojo,allow-prereleases,same-version,backup-name:,helm-release-name:,confirm-migration-token:" -n "$PROGRAM" -- "$@")"
   eval set -- "$opts"
   while true; do
     case "$1" in
@@ -981,6 +1225,7 @@ cmd_update() {
       '--defectdojo') update_defectdojo=1; shift ;;
       '--helm-release-name') r_name="$2"; shift 2 ;;
       '--backup-name') backup_name="$2"; shift 2 ;;
+      '--confirm-migration-token') confirm_migration_token="$2"; shift 2 ;;
       '--') shift; break ;;
     esac
   done
@@ -996,7 +1241,11 @@ cmd_update() {
     helm repo update syndicate
     if ! helm upgrade "$DEFECTDOJO_HELM_RELEASE_NAME" syndicate/defectdojo --wait; then
       warn "helm upgrade failed. Rolling back to the previous version..."
-      helm rollback "$DEFECTDOJO_HELM_RELEASE_NAME" 0 --wait || die "Helm rollback failed"
+      helm rollback "$DEFECTDOJO_HELM_RELEASE_NAME" 0 --wait || die_with_support "Helm rollback failed"
+      if [ "$do_backup" -eq 1 ]; then
+        echo "Restoring backup $backup_name"
+        cmd_backup_restore --name "$backup_name"
+      fi
       exit 1
     else
       echo "helm upgrade was successful"
@@ -1020,9 +1269,21 @@ cmd_update() {
     warn "new $(get_release_type "$release_data") $latest_tag is available. Use 'r8s-init update'"
     exit 1
   fi
+
+  # fail fast before any destructive step (backup, self-update, MongoDB migration)
+  echo "Verifying that necessary helm chart exists"
+  helm repo update syndicate || die_with_support "helm repo update failed"
+  helm search repo syndicate/rightsizer --version "$latest_tag" --fail-on-no-result >/dev/null 2>&1 || die_with_support "$latest_tag version of $r_name chart not found. Cannot update"
+
   # TODO Delete && [ "$same_version" -eq 0 ] from condition
   if [ -n "$release_data" ] && [ -z "$FORBID_SELF_UPDATE" ] && [ "$same_version" -eq 0 ]; then
-    perform_self_update "$release_data" || true
+    # the new script may contain mandatory migration logic, so a failed self-update must not be ignored
+    local self_update_rc=0
+    perform_self_update "$release_data" || self_update_rc=$?
+    case "$self_update_rc" in
+      0|2) : ;;
+      *) die_with_support "r8s-init self-update to $latest_tag failed after retries. Aborting so the update does not run with an outdated script that may miss mandatory migration steps. Fix connectivity/permissions and re-run, or set FORBID_SELF_UPDATE=1 to bypass at your own risk" ;;
+    esac
   fi
 
   echo "The current installed version is $r_version"
@@ -1040,18 +1301,49 @@ cmd_update() {
     check_modular_cli_python_compatibility "$latest_tag" >/dev/null
   fi
 
+  local mongo_migration_needed=0 mongo_migrated=0 mongo_migration_pre_revision mongo_migration_rc helm_values restore_backup_name=""
+  if mongodb_migration_defined "$latest_tag" && mongodb_migration_required "$latest_tag"; then
+    mongo_migration_needed=1
+    if [ "$do_backup" -eq 0 ]; then
+      warn "Ignoring --no-backup: a MongoDB migration is required for this update and needs a backup for safe rollback"
+      do_backup=1
+    fi
+  fi
+
   if [ "$do_backup" -eq 1 ]; then
     [ -z "$backup_name" ] && backup_name="$AUTO_BACKUP_PREFIX$(date +%s)"
     echo "Making backup $backup_name"
     cmd_backup_create --name "$backup_name" --volumes=minio,mongo,vault
+    restore_backup_name="$backup_name"
   fi
-  echo "Updating helm repo"
+
+  if [ "$mongo_migration_needed" -eq 1 ]; then
+    # captured before migration so a failure can roll back to the exact pre-migration state
+    mongo_migration_pre_revision="$(get_helm_release_revision "$HELM_RELEASE_NAME")" \
+      || die_with_support "could not resolve current helm revision before starting MongoDB migration"
+    mongo_migration_rc=0
+    run_mongodb_migration "$latest_tag" "$confirm_migration_token" "$auto_yes" "$backup_name" || mongo_migration_rc=$?
+    case "$mongo_migration_rc" in
+      0) mongo_migrated=1 ;;
+      1)
+        warn "MongoDB migration failed. Rolling back to revision $mongo_migration_pre_revision (the state before the migration started)..."
+        rollback_and_restore "$mongo_migration_pre_revision" "$restore_backup_name"
+        exit 1
+        ;;
+      2) warn "Skipping MongoDB migration for this update" ;;
+    esac
+  fi
+
   helm repo update syndicate || die_with_support "helm repo update failed"
-  helm search repo syndicate/rightsizer --version "$latest_tag" --fail-on-no-result >/dev/null 2>&1 || die "$latest_tag version of $r_name chart not found. Cannot update"
-  echo "Upgrading $r_name chart to $latest_tag version"
-  if ! helm upgrade "$HELM_RELEASE_NAME" syndicate/rightsizer --version "$latest_tag" --wait; then
+  echo "Upgrading $r_name chart to $latest_tag version. It should not take more than $((HELM_UPGRADE_TIMEOUT / 60)) minutes"
+  helm_values="$(helm get values "$HELM_RELEASE_NAME" -o json)" # preserve only user-set values
+  if [ "$mongo_migrated" -eq 1 ]; then
+    # let the chart default drive the mongo image tag again
+    helm_values="$(echo "$helm_values" | jq 'if .mongo.image then .mongo.image |= del(.tag) else . end')"
+  fi
+  if ! helm upgrade "$HELM_RELEASE_NAME" syndicate/rightsizer --version "$latest_tag" --timeout "${HELM_UPGRADE_TIMEOUT}s" --wait --wait-for-jobs --reset-values --values <(echo "$helm_values"); then
     warn "helm upgrade failed. Rolling back to the previous version..."
-    helm rollback "$HELM_RELEASE_NAME" 0 --wait || die "Helm rollback failed"
+    rollback_and_restore 0 "$restore_backup_name"
     exit 1
   else
     echo "helm upgrade was successful"
@@ -1059,12 +1351,11 @@ cmd_update() {
   local cli_python_bin=""
   cli_python_bin="$(check_modular_cli_python_compatibility "$latest_tag")"
 #  echo "Upgrading obfuscation manager"
-#  pip3 install --user --break-system-packages --upgrade "$R8S_RELEASES_PATH/$latest_tag/${OBFUSCATOR_ARTIFACT_NAME}[xlsx]" >/dev/null
+#  cli_install_artifact "$cli_python_bin" "r8s-obfuscator" "$R8S_RELEASES_PATH/$latest_tag/${OBFUSCATOR_ARTIFACT_NAME}[xlsx]" >/dev/null
   if [ -f "$R8S_RELEASES_PATH/$latest_tag/$MODULAR_CLI_ARTIFACT_NAME" ]; then
     echo "Upgrading modular CLI"
-    local python_bin
-    python_bin="$(check_modular_cli_python_compatibility "$latest_tag")"
-    pip_install_artifact "$python_bin" "$R8S_RELEASES_PATH/$latest_tag/$MODULAR_CLI_ARTIFACT_NAME" --upgrade >/dev/null
+    MODULAR_CLI_ENTRY_POINT=$MODULAR_CLI_ENTRY_POINT cli_install_artifact "$cli_python_bin" "$MODULAR_CLI_APP_NAME" "$R8S_RELEASES_PATH/$latest_tag/$MODULAR_CLI_ARTIFACT_NAME" >/dev/null \
+      || die_with_support "Failed to upgrade modular CLI"
   fi
   if [ -f "$R8S_RELEASES_PATH/$latest_tag/$R8S_INIT_ARTIFACT_NAME" ]; then
     echo "Updating r8s-init"
@@ -1110,7 +1401,7 @@ cmd_health() {
     esac
   done
   declare -A checks
-  checks["1:RightSizer initialized"]="test -f $R8S_LOCAL_PATH/.success"
+  checks["1:RightSizer initialized"]="is_initialized"
   checks["2:RightSizer helm release"]="helm get metadata $HELM_RELEASE_NAME"
   checks["3:Syndicate entrypoint"]="syndicate version"
   checks["4:RightSizer health check"]="syndicate r8s health_check"
@@ -1167,6 +1458,12 @@ cmd_doctor() {
     else
       echo "[ERROR] Release directory was not found: $release_path"
       status=1
+    fi
+
+    if command -v pipx >/dev/null 2>&1; then
+      echo "[OK] pipx found: $(command -v pipx)"
+    else
+      echo "[WARN] pipx was not found. CLIs will be installed with pip --user"
     fi
 
     if [ -f "$release_path/$MODULAR_CLI_ARTIFACT_NAME" ]; then
@@ -1618,6 +1915,7 @@ RIGHTSIZER_USERNAME="${RIGHTSIZER_USERNAME:-customer_admin}"
 CURRENT_ACCOUNT_TENANT_NAME="${CURRENT_ACCOUNT_TENANT_NAME:-CURRENT_ACCOUNT}"
 AUTO_BACKUP_PREFIX="${AUTO_BACKUP_PREFIX:-autobackup-}"
 FORBID_SELF_UPDATE="${FORBID_SELF_UPDATE:-}"
+HELM_UPGRADE_TIMEOUT="${HELM_UPGRADE_TIMEOUT:-1200}"
 # regions that will be allowed to activate
 AWS_REGIONS="${AWS_REGIONS:-us-east-1 us-east-2 us-west-1 us-west-2 af-south-1 ap-east-1 ap-south-2 ap-southeast-3 ap-southeast-4 ap-south-1 ap-northeast-3 ap-northeast-2 ap-southeast-1 ap-southeast-2 ap-northeast-1 ca-central-1 ca-west-1 eu-central-1 eu-west-1 eu-west-2 eu-south-1 eu-west-3 eu-south-2 eu-north-1 eu-central-2 il-central-1 me-south-1 me-central-1 sa-east-1 us-gov-east-1 us-gov-west-1}"
 
@@ -1649,6 +1947,11 @@ declare -rA PV_TO_DEPLOYMENTS=(
   ["defectdojo-media"]="defectdojo-nginx,defectdojo-uwsgi,defectdojo-celeryworker"
 )
 
+# Deployments that write to MongoDB and must be paused during a mongodb_migration run
+readonly MONGO_MIGRATION_WRITER_DEPLOYMENTS=(rightsizer modular-service modular-api metric-collector)
+# Must be passed via --confirm-migration-token together with -y/--yes to run a mandatory MongoDB migration non-interactively
+readonly MONGODB_MIGRATION_CONFIRM_TOKEN="${MONGODB_MIGRATION_CONFIRM_TOKEN:-MIGRATE_MONGODB}"
+
 GITHUB_CURL_HEADERS=('-H' 'X-GitHub-Api-Version: 2022-11-28')
 if [ -n "$GITHUB_TOKEN" ]; then
   GITHUB_CURL_HEADERS+=('-H' "Authorization: Bearer $GITHUB_TOKEN")
@@ -1656,6 +1959,7 @@ fi
 readonly GITHUB_CURL_HEADERS
 
 readonly MODULAR_CLI_ARTIFACT_NAME=modular_cli.tar.gz
+readonly MODULAR_CLI_APP_NAME=modular-cli
 # readonly OBFUSCATOR_ARTIFACT_NAME=r8s_obfuscator.tar.gz
 readonly R8S_INIT_ARTIFACT_NAME=r8s-init.sh
 
