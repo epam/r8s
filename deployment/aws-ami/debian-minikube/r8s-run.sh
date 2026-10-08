@@ -2,6 +2,10 @@
 
 set -eo pipefail
 
+# LOG_PATH can be overridden by user-data
+log() { echo "[INFO] $(date) $1" >>"${LOG_PATH:-/var/log/r8s-init.log}"; }
+log_err() { echo "[ERROR] $(date) $1" >>"${LOG_PATH:-/var/log/r8s-init.log}"; }
+
 get_imds_token() { curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 300"; }
 get_from_metadata() {
   local token="$2"
@@ -69,9 +73,16 @@ on_exit() {
   fi
 }
 trap on_exit EXIT
+on_signal() {
+  log_err "Initialization was interrupted by SIG$1 (shutdown/reboot or service stop)"
+  # the service may be restarted and succeed, so an interruption is not reported as FAILURE
+  trap - EXIT
+  sudo systemctl start apt-daily.timer apt-daily-upgrade.timer >/dev/null 2>&1 || true
+  exit 143
+}
 for _sig in TERM INT HUP; do
   # shellcheck disable=SC2064
-  trap "log_err 'Initialization was interrupted by SIG$_sig (shutdown/reboot or service stop)'; exit 143" "$_sig"
+  trap "on_signal $_sig" "$_sig"
 done
 
 # here we load possible envs provided from outside.
@@ -86,9 +97,6 @@ export R8S_LOCAL_PATH="${R8S_LOCAL_PATH:-/usr/local/r8s}"
 export LOG_PATH="${LOG_PATH:-/var/log/r8s-init.log}"
 export FIRST_USER="${FIRST_USER:-$(getent passwd 1000 | cut -d: -f1)}"
 export LM_API_LINK="${LM_API_LINK:-https://lm.syndicate.team}"
-
-log() { echo "[INFO] $(date) $1" >>"$LOG_PATH"; }
-log_err() { echo "[ERROR] $(date) $1" >>"$LOG_PATH"; }
 
 if [ -f "$R8S_LOCAL_PATH/success" ]; then
   log "Syndicate RightSizer was already initialized. Skipping"
