@@ -10,7 +10,8 @@ ERROR_LOG_PATH="${ERROR_LOG_PATH:-$LOG_PATH}"
 SYNDICATE_HELM_REPOSITORY="${SYNDICATE_HELM_REPOSITORY:-https://charts-repository.s3.eu-west-1.amazonaws.com/syndicate/}"
 HELM_RELEASE_NAME="${HELM_RELEASE_NAME:-rightsizer}"
 DEFECTDOJO_HELM_RELEASE_NAME="${DEFECTDOJO_HELM_RELEASE_NAME:-defectdojo}"
-DOCKER_VERSION="${DOCKER_VERSION:-5:29.5.3-1~${ID}.${VERSION_ID}~${VERSION_CODENAME}}"
+# major.minor (latest patch is picked), major.minor.patch, or an exact apt version like 5:29.5.3-1~ubuntu.24.04~noble
+DOCKER_VERSION="${DOCKER_VERSION:-29.5}"
 MINIKUBE_VERSION="${MINIKUBE_VERSION:-v1.33.1}"
 KUBERNETES_VERSION="${KUBERNETES_VERSION:-v1.30.0}"
 KUBECTL_VERSION="${KUBECTL_VERSION:-v1.30.3}"
@@ -117,11 +118,30 @@ install_docker() {
     "deb [arch=$(sys_arch) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/${ID} \
     ${VERSION_CODENAME} stable" |
     sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
-  sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
-  if ! sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce="$1" docker-ce-cli="$1" containerd.io 2>/dev/null; then
-    log_err "Docker version '$1' not found in repository, falling back to latest available version"
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io
+  sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 update -y
+
+  local version apt_out
+  version="$(resolve_docker_version "$1")"
+  if [ -z "$version" ]; then
+    log_err "No docker-ce version matching '$1' found in repository, falling back to latest available version"
+    sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 install -y docker-ce docker-ce-cli containerd.io
+    return
   fi
+  log "Resolved docker version '$1' -> '$version'"
+  if ! apt_out="$(sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 install -y --allow-downgrades \
+      docker-ce="$version" docker-ce-cli="$version" containerd.io 2>&1)"; then
+    log_err "Failed to install docker-ce=$version: $apt_out"
+    exit 1
+  fi
+}
+resolve_docker_version() {
+  # Prints the newest docker-ce apt version matching $1 (prefix) or $1 itself if it is already exact
+  if [[ "$1" == *:* ]]; then
+    echo "$1"
+    return 0
+  fi
+  apt-cache madison docker-ce | awk -F'|' '{gsub(/ /, "", $2); print $2}' \
+    | grep -E "^[0-9]+:${1//./\\.}[.-]" | sort -V | tail -n1 || true
 }
 install_minikube() {
   # https://minikube.sigs.k8s.io/docs/start

@@ -1,5 +1,7 @@
 [Unit]
 Description=r8s-run script running at bootstrap
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 ExecStart=/usr/local/bin/r8s-run.sh

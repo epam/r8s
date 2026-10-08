@@ -62,9 +62,17 @@ trap 'handle_error $? $LINENO' ERR
 
 on_exit() {
   local status=$?
-  [ "$status" -ne 0 ] && send_cf_signal "FAILURE"
+  sudo systemctl start apt-daily.timer apt-daily-upgrade.timer >/dev/null 2>&1 || true
+  if [ "$status" -ne 0 ]; then
+    log_err "r8s-run exited with status $status"
+    send_cf_signal "FAILURE"
+  fi
 }
 trap on_exit EXIT
+for _sig in TERM INT HUP; do
+  # shellcheck disable=SC2064
+  trap "log_err 'Initialization was interrupted by SIG$_sig (shutdown/reboot or service stop)'; exit 143" "$_sig"
+done
 
 # here we load possible envs provided from outside.
 if user_data="$(get_from_metadata /user-data/)"; then
@@ -96,8 +104,25 @@ log "Adding user $FIRST_USER to docker group"
 sudo groupadd docker || true
 sudo usermod -aG docker "$FIRST_USER" || true
 
+# unattended-upgrades + needrestart would restart this service in the middle of initialization
+log "Pausing apt timers and applying pending OS updates"
+sudo systemctl stop apt-daily.timer apt-daily-upgrade.timer || true
+export NEEDRESTART_SUSPEND=1 DEBIAN_FRONTEND=noninteractive
+sudo -E apt-get -o DPkg::Lock::Timeout=600 update -y
+sudo -E apt-get -o DPkg::Lock::Timeout=600 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold full-upgrade -y
+
+sudo mkdir -p "$R8S_LOCAL_PATH"
+if [ -f /var/run/reboot-required ] && [ ! -f "$R8S_LOCAL_PATH/.rebooted" ]; then
+  log "Reboot is required after OS updates. Rebooting; initialization will continue after boot"
+  sudo touch "$R8S_LOCAL_PATH/.rebooted"
+  # planned reboot is not a failure: do not send FAILURE signal to CloudFormation
+  trap - EXIT TERM INT HUP
+  sudo systemctl reboot
+  exit 0
+fi
+
 log "Installing jq and curl"
-sudo apt update -y && sudo apt install -y jq curl
+sudo -E apt-get -o DPkg::Lock::Timeout=600 install -y jq curl
 
 if [ -z "$RIGHTSIZER_RELEASE" ]; then
   log "Going to resolve latest release from GitHub api"

@@ -1,6 +1,9 @@
 #!/bin/bash
 
-set -eo pipefail
+set -eEo pipefail
+trap '_rc=$?; echo "Error: [$(date)] \`$BASH_COMMAND\` failed with exit code $_rc in ${FUNCNAME[0]:-main}() at line $LINENO" >&2' ERR
+# python CLIs block-buffer stdout when piped to tee, so output is lost if the process is killed
+export PYTHONUNBUFFERED=1
 
 cmd_usage() {
   cat <<EOF
@@ -652,6 +655,7 @@ initialize_system() {
   mip="$(minikube_ip)"
 
   ensure_in_path "$HOME/.local/bin"
+  echo "Waiting 5 minutes for services to settle"
   sleep 5m # todo temporary
   local latest_release python_bin
   latest_release="$(get_latest_local_release)"

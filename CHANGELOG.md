@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.15.2] - 2026-10-09
+
+### Fixed
+- AMI init: `DOCKER_VERSION` accepts `major.minor` (default `29.5`) and resolves the latest matching patch; apt errors are logged instead of being hidden
+- AMI init: pending OS updates are applied before initialization (apt timers paused, `needrestart` suspended) with a single reboot if required, so unattended-upgrades no longer restarts `r8s-run.service` mid-initialization
+- AMI init: improved logging of failures and interruptions in `r8s-run.sh` and `r8s-init.sh`
+
 ## [3.15.1] - 2026-10-08
 
 ### Fixed
