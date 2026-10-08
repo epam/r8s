@@ -503,7 +503,7 @@ build_multiple_params() {
     if [ -n "$3" ] && [ "$counter" -eq "$3" ]; then return; fi
     [ -z "$item" ] && continue
     printf "%s %s " "$1" "$item"
-    ((counter++))
+    counter=$((counter + 1))
   done
 }
 
@@ -1597,7 +1597,7 @@ cmd_backup_restore() {
 }
 
 # Start
-VERSION="1.2.0"
+VERSION="1.2.1"
 PROGRAM="${0##*/}"
 COMMAND="$1"
 SELF_PATH=/usr/local/bin/r8s-init
