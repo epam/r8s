@@ -4879,13 +4879,6 @@
                 },
                 "description": "Allowed actions"
               },
-              "ignore_actions": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "description": "Ignored actions"
-              },
               "discard_initial_zeros": {
                 "type": "boolean",
                 "description": "Discard initial zeros"
@@ -5183,13 +5176,6 @@
                   "type": "string"
                 },
                 "description": "Allowed actions"
-              },
-              "ignore_actions": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "description": "Ignored actions"
               },
               "discard_initial_zeros": {
                 "type": "boolean",

@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.16.0] - 2026-10-09
+- Removed optional parameter `ignore_action` from `POST /algorithms` and `PATCH /algorithms` endpoints
+- Updated dev requirements:
+  - from `modular-sdk>=6.0.0,<7.0.0` to `modular-sdk>=8.0.0,<9`
+  - from `matplotlib==3.6.2` to `matplotlib>=3.11.0`
+  - from `pytest==7.1.2` to `pytest>=9.0.2`
+  - from `pytest-cov==3.0.0` to `pytest-cov>=6`
+  - from `coverage==6.4.4` to `coverage>=7.5.0`
+- Updated test requirements:
+  - from `pytest==7.1.2` to `pytest>=9.0.2`
+  - from `pytest-cov==3.0.0` to `pytest-cov>=6`
+  - from `coverage==6.4.4` to `coverage>=7.5.0`
+  - from `coverage==6.4.4` to `coverage>=7.5.0`
+
+## [3.15.1] - 2026-10-08
+
+### Fixed
+- Replaced unsupported quay.io MinIO image with public.ecr.aws mirror before migration on other service
+
 ## [3.15.0] - 2026-08-20
 - Added 15-minute deadline to DefectDojo token polling loop to prevent infinite hang on initialization failure
 - Fixed metric placeholder values (-1) being included in statistical calculations when mixed with real values, causing incorrect under-sizing recommendations.

@@ -203,7 +203,7 @@ class TestsAlgorithmDelete(TestAlgorithmHandler):
 
         response_message = response.get('body').get('message')
         self.assertEqual(response_message,
-                         f'Algorithm  with name \'{event.get("name")}\' '
+                         f'Algorithm with name \'{event.get("name")}\' '
                          f'has been deleted')
 
     def test_delete_success_id(self):

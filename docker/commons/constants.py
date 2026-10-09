@@ -110,7 +110,6 @@ SHAPE_SORTING_ATTR = 'shape_sorting'
 USE_PAST_RECOMMENDATIONS_ATTR = 'use_past_recommendations'
 USE_INSTANCE_TAGS_ATTR = 'use_instance_tags'
 ANALYSIS_PRICE_ATTR = 'analysis_price'
-IGNORE_ACTIONS_ATTR = 'ignore_actions'
 TARGET_TIMEZONE_NAME_ATTR = 'target_timezone_name'
 
 RECOMMENDATION_SETTINGS_ATTRS = [

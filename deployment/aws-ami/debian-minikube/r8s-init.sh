@@ -466,6 +466,7 @@ get_imds_token () {
 }
 account_id() { curl -s curl -s -H "X-aws-ec2-metadata-token: $(get_imds_token)" http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r ".accountId"; }
 user_exists() { id "$1" &>/dev/null; }
+is_initialized() { [ -f "$R8S_LOCAL_PATH/success" ] || [ -f "$R8S_LOCAL_PATH/.success" ]; }
 get_kubectl_secret() {
   kubectl get secret "$1" -o jsonpath="{.data.$2}" | base64 --decode
 }
@@ -794,7 +795,7 @@ cmd_init() {
     if [ "$FIRST_USER" != "$(whoami)" ]; then
       die "system configuration can be performed only by '$FIRST_USER' user"
     fi
-    if [ -f "$R8S_LOCAL_PATH/success" ]; then
+    if is_initialized; then
       die "RightSizer was already initialized. Cannot do that again"
     fi
     echo "Initializing RightSizer for the first time"
@@ -951,7 +952,7 @@ make_update_notification() {
   fi
 }
 verify_installation() {
-  if [ -f "$R8S_LOCAL_PATH/.success" ]; then
+  if is_initialized; then
     return 0
   fi
   local passed=""
@@ -1110,7 +1111,7 @@ cmd_health() {
     esac
   done
   declare -A checks
-  checks["1:RightSizer initialized"]="test -f $R8S_LOCAL_PATH/.success"
+  checks["1:RightSizer initialized"]="is_initialized"
   checks["2:RightSizer helm release"]="helm get metadata $HELM_RELEASE_NAME"
   checks["3:Syndicate entrypoint"]="syndicate version"
   checks["4:RightSizer health check"]="syndicate r8s health_check"
