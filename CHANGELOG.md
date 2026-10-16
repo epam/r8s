@@ -4,10 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.17.0] - 2026-XX-XX
-- Updated metric timestamp parsing to support integer and floating-point Unix timestamps in seconds or milliseconds
-
-## [3.16.0] - 2026-10-09
+## [3.16.0] - 2026-10-16
 - Removed optional parameter `ignore_action` from `POST /algorithms` and `PATCH /algorithms` endpoints
 - Updated dev requirements:
   - from `modular-sdk>=6.0.0,<7.0.0` to `modular-sdk>=8.0.0,<9`
@@ -20,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - from `pytest-cov==3.0.0` to `pytest-cov>=6`
   - from `coverage==6.4.4` to `coverage>=7.5.0`
   - from `coverage==6.4.4` to `coverage>=7.5.0`
+- Updated metric timestamp parsing to support integer and floating-point Unix timestamps in seconds or milliseconds
 
 ## [3.15.1] - 2026-10-08
 
