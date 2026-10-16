@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 from commons.constants import (PASSWORD_ATTR, ID_TOKEN_ATTR,
                                REFRESH_TOKEN_ATTR, AUTHORIZATION_PARAM)
@@ -22,8 +22,9 @@ def get_iso_timestamp():
 
 def dateparse(time_in_secs):
     if len(str(time_in_secs)) > 10:  # if timestamp in milliseconds
-        time_in_secs = time_in_secs[0:-3]
-    dt = datetime.utcfromtimestamp(float(time_in_secs))
+        time_in_secs = str(time_in_secs)[0:-3]
+
+    dt = datetime.fromtimestamp(float(time_in_secs), UTC)
     dt = dt.replace(tzinfo=timezone.utc)
     return dt
 
