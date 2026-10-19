@@ -900,17 +900,21 @@ pull_artifacts() {
   done < <(jq -c '.assets[]' <<<"$1")
 }
 update_r8s_init() {
-  # assuming that the target version already exists locally
-  sudo ln -sf "$R8S_RELEASES_PATH/$1/$R8S_INIT_ARTIFACT_NAME" /usr/local/bin/r8s-init || {
-    warn "Could not link r8s-init to /usr/local/bin/r8s-init"
+  local init_path="$R8S_RELEASES_PATH/$1/$R8S_INIT_ARTIFACT_NAME"
+  if [ ! -f "$init_path" ]; then
+    warn "Could not find r8s-init artifact at $init_path"
     return 1
-  }
-  if [ ! -x "$R8S_RELEASES_PATH/$1/$R8S_INIT_ARTIFACT_NAME" ]; then
-    sudo chmod +x "$R8S_RELEASES_PATH/$1/$R8S_INIT_ARTIFACT_NAME" || {
+  fi
+  if [ ! -x "$init_path" ]; then
+    sudo chmod +x "$init_path" || {
       warn "Could not add x permission to r8s-init"
       return 1
     }
   fi
+  sudo ln -sf "$init_path" /usr/local/bin/r8s-init || {
+    warn "Could not link r8s-init to /usr/local/bin/r8s-init"
+    return 1
+  }
 }
 perform_self_update() {
   local tag asset new_version
@@ -923,6 +927,10 @@ perform_self_update() {
     return 0
   fi
 
+  mkdir -p "$R8S_RELEASES_PATH/$tag" || {
+    warn "Could not create release directory $R8S_RELEASES_PATH/$tag"
+    return 1
+  }
   pull_artifact "$R8S_RELEASES_PATH/$tag" "$asset" || {
     warn "could not pull self update artifact $R8S_INIT_ARTIFACT_NAME"
     return 1
@@ -933,7 +941,7 @@ perform_self_update() {
   }
   new_version=$("$SELF_PATH" --version)
   echo "Automatically updated r8s-init from $VERSION to $new_version"
-  exec "$SELF_PATH" "${_ORIGINAL_ARGS[@]}"
+  exec "$SELF_PATH" "${_ORIGINAL_ARGS[0]}" --yes "${_ORIGINAL_ARGS[@]:1}"
 }
 warn_if_update_available() {
   local current_release release_data
@@ -1025,15 +1033,20 @@ cmd_update() {
     warn "new $(get_release_type "$release_data") $latest_tag is available. Use 'r8s-init update'"
     exit 1
   fi
-  # TODO Delete && [ "$same_version" -eq 0 ] from condition
-  if [ -n "$release_data" ] && [ -z "$FORBID_SELF_UPDATE" ] && [ "$same_version" -eq 0 ]; then
-    perform_self_update "$release_data" || true
-  fi
+
+  echo "Verifying that necessary helm chart exists"
+  helm repo update syndicate || die_with_support "helm repo update failed"
+  helm search repo syndicate/rightsizer --version "$latest_tag" --fail-on-no-result >/dev/null 2>&1 || die_with_support "$latest_tag version $r_name chart not found. Cannot update"
 
   echo "The current installed version is $r_version"
   echo "New github $(get_release_type "$release_data") $latest_tag is available"
   echo "Going to update to $latest_tag"
   [[ $auto_yes -eq 1 ]] || yesno "Do you want to update?"
+
+  # TODO Delete && [ "$same_version" -eq 0 ] from condition
+  if [ -n "$release_data" ] && [ -z "$FORBID_SELF_UPDATE" ] && [ "$same_version" -eq 0 ]; then
+    perform_self_update "$release_data" || true
+  fi
   echo "Updating to $latest_tag"
   if [ -n "$release_data" ]; then
     echo "Pulling new artifacts"
@@ -1050,9 +1063,6 @@ cmd_update() {
     echo "Making backup $backup_name"
     cmd_backup_create --name "$backup_name" --volumes=minio,mongo,vault
   fi
-  echo "Updating helm repo"
-  helm repo update syndicate || die_with_support "helm repo update failed"
-  helm search repo syndicate/rightsizer --version "$latest_tag" --fail-on-no-result >/dev/null 2>&1 || die "$latest_tag version of $r_name chart not found. Cannot update"
   echo "Upgrading $r_name chart to $latest_tag version"
   if ! helm upgrade "$HELM_RELEASE_NAME" syndicate/rightsizer --version "$latest_tag" --wait; then
     warn "helm upgrade failed. Rolling back to the previous version..."
