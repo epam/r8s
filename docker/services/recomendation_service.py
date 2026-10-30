@@ -277,7 +277,7 @@ class RecommendationService:
                     schedule=schedule,
                     recommended_shapes=recommended_sizes,
                     current_instance_type=instance_type,
-                    savings=savings,
+                    savings=savings or {},
                     actions=general_action,
                     instance_meta=instance_meta,
                     last_metric_capture_date=df.index.max().date()

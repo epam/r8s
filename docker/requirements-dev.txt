@@ -2,13 +2,14 @@
 -r requirements.txt
 
 # Install modular-sdk
-modular-sdk>=6.0.0,<7.0.0
+modular-sdk>=8.0.0,<9
 
 # Install tests requirements
-matplotlib==3.6.2
-pytest==7.1.2
+matplotlib>=3.11.0
+pytest>=9.0.2
 mongomock==4.3.0
-pytest-cov==3.0.0
+pytest-cov>=6
 pyflakes==2.4.0
-coverage==6.4.4
+coverage>=7.5.0
 tox==4.4.6
+pandas>=2.2,<3

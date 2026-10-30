@@ -4,22 +4,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.16.0] - 2026-10-08
+## [3.16.0] - 2026-11-02
+- Removed optional parameter `ignore_action` from `POST /algorithms` and `PATCH /algorithms` endpoints
+- Updated dev requirements:
+  - from `modular-sdk>=6.0.0,<7.0.0` to `modular-sdk>=8.0.0,<9`
+  - from `matplotlib==3.6.2` to `matplotlib>=3.11.0`
+  - from `pytest==7.1.2` to `pytest>=9.0.2`
+  - from `pytest-cov==3.0.0` to `pytest-cov>=6`
+  - from `coverage==6.4.4` to `coverage>=7.5.0`
+- Updated test requirements:
+  - from `pytest==7.1.2` to `pytest>=9.0.2`
+  - from `pytest-cov==3.0.0` to `pytest-cov>=6`
+  - from `coverage==6.4.4` to `coverage>=7.5.0`
+  - from `coverage==6.4.4` to `coverage>=7.5.0`
+- Updated r8s-init:
+  - `r8s-init update`: helm chart availability is verified before backup/self-update; backup is forced when MongoDB migration is required
+  - `r8s-init update`: helm upgrade uses `--reset-values` with preserved user values, `--timeout` (`HELM_UPGRADE_TIMEOUT`) and `--wait-for-jobs`
+  - `r8s-init`: self-update retries 3 times and aborts the update on failure (bypass with `FORBID_SELF_UPDATE`)
+  - `r8s-init`: more robust update notification file handling
+  - `r8s-init update`: MongoDB major version migration driven by `components.mongodb_migration` in `release.json` (step-by-step image upgrade + FCV bump, writers scaled down, `--confirm-migration-token` for non-interactive runs)
+  - `r8s-init update`: automatic rollback with backup restore on failed MongoDB migration or helm upgrade
+  - `r8s-init`: CLIs are installed via `pipx` with fallback to `pip --user` when `pipx` is not available; `doctor` reports `pipx` presence
+  - `r8s-init init --user`: RightSizer login was skipped due to a wrong variable (`re_username` -> `r8s_username`)
+- Added `pipx ensurepath` for the first user in the `ami-initialize.sh`
+- Updated versions of dependencies:
+  - `mongo` from `5.0.32` to `8.0.28`
+  - `vault` from `1.19.5` to `1.21.4`
+
+## [3.15.2] - 2026-10-16
+- Updated metric timestamp parsing to support integer and floating-point Unix timestamps in seconds or milliseconds
+
+## [3.15.1] - 2026-10-08
 
 ### Fixed
-- `r8s-init init --user`: RightSizer login was skipped due to a wrong variable (`re_username` -> `r8s_username`)
-
-### Added
-- `r8s-init update`: MongoDB major version migration driven by `components.mongodb_migration` in `release.json` (step-by-step image upgrade + FCV bump, writers scaled down, `--confirm-migration-token` for non-interactive runs)
-- `r8s-init update`: automatic rollback with backup restore on failed MongoDB migration or helm upgrade
-- `r8s-init`: CLIs are installed via `pipx` with fallback to `pip --user` when `pipx` is not available; `doctor` reports `pipx` presence
-- `ami-initialize.sh`: `pipx ensurepath` for the first user
-
-### Changed
-- `r8s-init update`: helm chart availability is verified before backup/self-update; backup is forced when MongoDB migration is required
-- `r8s-init update`: helm upgrade uses `--reset-values` with preserved user values, `--timeout` (`HELM_UPGRADE_TIMEOUT`) and `--wait-for-jobs`
-- `r8s-init`: self-update retries 3 times and aborts the update on failure (bypass with `FORBID_SELF_UPDATE`)
-- `r8s-init`: more robust update notification file handling
+- Replaced unsupported quay.io MinIO image with public.ecr.aws mirror before migration on other service
 
 ## [3.15.0] - 2026-08-20
 - Added 15-minute deadline to DefectDojo token polling loop to prevent infinite hang on initialization failure
