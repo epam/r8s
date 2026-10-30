@@ -79,6 +79,7 @@ Options:
   --allow-prereleases  Include pre-release versions when checking for updates
   --check              Checks whether update is available but do not try to update
   --no-backup          Do not do backup before updating
+  --no-patch           Do not run data patches (pre-upgrade job) as part of the update
   --same-version       Fetches artifacts for the version currently installed and reinstalls
   --defectdojo         Specify this flag to update Defect Dojo chart instead of RightSizer
   --helm-release-name  RightSizer helm release name (default "$HELM_RELEASE_NAME")
@@ -657,212 +658,6 @@ validate_cli_artifacts() {
     || die_with_support "Modular CLI artifact was not found: $release_path/$MODULAR_CLI_ARTIFACT_NAME"
 }
 
-# --- MongoDB migration (component: mongodb_migration in release.json) ---
-
-get_mongodb_migration_compat_mode() {
-  release_metadata_exists "$1" || { echo "warn"; return 0; }
-  get_release_metadata_value "$1" '.components.mongodb_migration.compatibility_mode' || echo "warn"
-}
-get_mongodb_migration_message() {
-  release_metadata_exists "$1" || { echo ""; return 0; }
-  get_release_metadata_value "$1" '.components.mongodb_migration.message' || echo ""
-}
-mongodb_migration_defined() {
-  # true if the release declares a non-empty mongodb_migration.steps list
-  local count
-  release_metadata_exists "$1" || return 1
-  count="$(get_release_metadata_value "$1" '.components.mongodb_migration.steps | length' 2>/dev/null)" || return 1
-  [ -n "$count" ] && [ "$count" -gt 0 ]
-}
-iter_mongodb_migration_steps() {
-  # outputs one base64-encoded {"image_tag":...,"fcv":...} object per line, in order
-  get_release_metadata_value "$1" '.components.mongodb_migration.steps[] | @base64'
-}
-mongodb_migration_step_field() {
-  # $1 = base64-encoded step object, $2 = jq filter
-  echo "$1" | base64 --decode | jq -r "$2"
-}
-get_mongodb_migration_target_fcv() {
-  get_release_metadata_value "$1" '.components.mongodb_migration.steps[-1].fcv'
-}
-mongo_credentials() {
-  # prints "username password" separated by a single space
-  local username password
-  username="$(get_kubectl_secret "$MONGO_SECRET_NAME" username)" || return 1
-  password="$(get_kubectl_secret "$MONGO_SECRET_NAME" password)" || return 1
-  printf '%s %s' "$username" "$password"
-}
-mongo_eval() {
-  # evaluates mongosh expression $1 against the mongo deployment, retrying on transient exec/connectivity errors
-  local creds username password attempt max_attempts="${MONGO_EVAL_MAX_ATTEMPTS:-3}" delay="${MONGO_EVAL_RETRY_DELAY:-2}" out rc
-  creds="$(mongo_credentials)" || { warn "could not resolve MongoDB credentials"; return 1; }
-  read -r username password <<<"$creds"
-  for ((attempt = 1; attempt <= max_attempts; attempt++)); do
-    if out="$(kubectl exec deployment/mongo -- mongosh --quiet -u "$username" -p "$password" --authenticationDatabase admin --eval "$1" 2>&1)"; then
-      printf '%s\n' "$out"
-      return 0
-    fi
-    rc=$?
-    _debug "mongo_eval attempt $attempt/$max_attempts failed (rc=$rc): $out"
-    [ "$attempt" -lt "$max_attempts" ] && sleep "$delay"
-  done
-  echo "$out" >&2
-  return "$rc"
-}
-get_mongo_db_version() { mongo_eval 'db.version()' 2>/dev/null; }
-get_mongo_fcv() { mongo_eval 'db.adminCommand({getParameter:1, featureCompatibilityVersion:1}).featureCompatibilityVersion.version' 2>/dev/null; }
-wait_for_mongo_ready() {
-  # rollout status may report Ready before mongod accepts connections (e.g. while upgrading on-disk metadata)
-  local timeout="${MONGO_READY_TIMEOUT:-180}" interval="${MONGO_READY_POLL_INTERVAL:-5}" waited=0
-  while [ "$waited" -lt "$timeout" ]; do
-    if mongo_eval 'db.adminCommand({ping:1})' >/dev/null 2>&1; then
-      return 0
-    fi
-    _debug "MongoDB not accepting connections yet, waited ${waited}s/${timeout}s"
-    sleep "$interval"
-    waited=$((waited + interval))
-  done
-  return 1
-}
-mongodb_migration_required() {
-  # true if current MongoDB FCV is behind the migration target FCV declared for the release
-  local release="$1" target_fcv current_fcv
-  mongodb_migration_defined "$release" || return 1
-  target_fcv="$(get_mongodb_migration_target_fcv "$release")" || return 1
-  [ -z "$target_fcv" ] && return 1
-  current_fcv="$(get_mongo_fcv)"
-  if [ -z "$current_fcv" ]; then
-    warn "could not determine current MongoDB FCV. Assuming migration is required"
-    return 0
-  fi
-  dpkg --compare-versions "$current_fcv" lt "$target_fcv"
-}
-print_mongodb_migration_plan() {
-  local release="$1" backup_name="$2" message current_version current_fcv step image_tag fcv i=1
-  message="$(get_mongodb_migration_message "$release")"
-  current_version="$(get_mongo_db_version)"
-  current_fcv="$(get_mongo_fcv)"
-  cat <<EOF
-
-===========================================================================
- MongoDB migration required to update to $release
-===========================================================================
-${message:+$message
-}
-Current MongoDB version: ${current_version:-unknown}
-Current MongoDB FCV:     ${current_fcv:-unknown}
-
-This step causes temporary write downtime for: ${MONGO_MIGRATION_WRITER_DEPLOYMENTS[*]}
-Backup ${backup_name:-"(none created)"} will be used to restore data automatically should anything fail.
-
-Migration steps:
-EOF
-  while IFS= read -r step; do
-    image_tag="$(mongodb_migration_step_field "$step" '.image_tag')"
-    fcv="$(mongodb_migration_step_field "$step" '.fcv')"
-    echo "  $i) upgrade MongoDB image to $image_tag, then set featureCompatibilityVersion to $fcv"
-    ((i++))
-  done < <(iter_mongodb_migration_steps "$release")
-  echo ""
-}
-confirm_mongodb_migration() {
-  # $1=auto_yes(0/1) $2=compat_mode $3=provided confirmation token
-  local auto_yes="$1" compat_mode="$2" confirm_token="$3"
-  if [ "$auto_yes" -eq 1 ]; then
-    if [ "$confirm_token" = "$MONGODB_MIGRATION_CONFIRM_TOKEN" ]; then
-      return 0
-    fi
-    if [ "$compat_mode" = "error" ]; then
-      die "Non-interactive update includes a mandatory MongoDB migration. Re-run with --confirm-migration-token $MONGODB_MIGRATION_CONFIRM_TOKEN to proceed"
-    fi
-    warn "Skipping optional MongoDB migration in non-interactive mode (compatibility_mode=$compat_mode). Pass --confirm-migration-token $MONGODB_MIGRATION_CONFIRM_TOKEN to run it"
-    return 1
-  fi
-  yesno "Proceed with MongoDB migration now?"
-  return 0
-}
-scale_mongo_migration_writers() {
-  # accepts target replica count as the only parameter
-  local deploy
-  for deploy in "${MONGO_MIGRATION_WRITER_DEPLOYMENTS[@]}"; do
-    kubectl get deployment "$deploy" >/dev/null 2>&1 || continue
-    kubectl scale deployment "$deploy" --replicas="$1" || warn "could not scale deployment $deploy to $1 replicas"
-  done
-}
-run_mongodb_migration_step() {
-  local image_tag="$1" fcv="$2" confirm_arg="" actual_version actual_fcv mongo_repo
-  echo "Upgrading MongoDB image to $image_tag"
-  # patch only the mongo deployment: a full helm upgrade per step would bring scaled-down writers back up
-  mongo_repo="$(kubectl get deployment mongo -o jsonpath='{.spec.template.spec.containers[?(@.name=="mongodb")].image}')" || return 1
-  mongo_repo="${mongo_repo%%:*}"
-  kubectl set image deployment/mongo "mongodb=${mongo_repo}:${image_tag}" || return 1
-  kubectl rollout status deployment/mongo --timeout="${HELM_UPGRADE_TIMEOUT}s" || return 1
-
-  echo "Waiting for MongoDB to accept connections after the image upgrade"
-  wait_for_mongo_ready || {
-    warn "MongoDB did not start accepting connections within ${MONGO_READY_TIMEOUT:-180}s after upgrading to $image_tag"
-    return 1
-  }
-
-  echo "Setting MongoDB featureCompatibilityVersion to $fcv"
-  # confirm:true is required by MongoDB for FCV transitions from 7.0 onward
-  dpkg --compare-versions "$fcv" ge "7.0" && confirm_arg=", confirm: true"
-  mongo_eval "db.adminCommand({setFeatureCompatibilityVersion: \"$fcv\"$confirm_arg})" || return 1
-
-  actual_version="$(get_mongo_db_version)"
-  actual_fcv="$(get_mongo_fcv)"
-  if [[ "$actual_version" != "$image_tag"* ]]; then
-    warn "MongoDB version verification failed: expected version starting with $image_tag, got '$actual_version'"
-    return 1
-  fi
-  if [ "$actual_fcv" != "$fcv" ]; then
-    warn "MongoDB FCV verification failed: expected $fcv, got '$actual_fcv'"
-    return 1
-  fi
-  echo "Step succeeded: MongoDB version=$actual_version, FCV=$actual_fcv"
-}
-run_mongodb_migration() {
-  # $1=target release, $2=confirm token, $3=auto_yes(0/1), $4=backup name (may be empty)
-  # returns: 0 success, 1 failure (needs rollback+restore), 2 skipped (nothing was changed)
-  local release="$1" confirm_token="$2" auto_yes="$3" backup_name="$4" compat_mode step image_tag fcv failed=0
-  mongodb_migration_required "$release" || return 2
-
-  compat_mode="$(get_mongodb_migration_compat_mode "$release")"
-  print_mongodb_migration_plan "$release" "$backup_name"
-  confirm_mongodb_migration "$auto_yes" "$compat_mode" "$confirm_token" || return 2
-
-  echo "Scaling down writer workloads before MongoDB migration"
-  scale_mongo_migration_writers 0
-  while IFS= read -r step; do
-    image_tag="$(mongodb_migration_step_field "$step" '.image_tag')"
-    fcv="$(mongodb_migration_step_field "$step" '.fcv')"
-    if ! run_mongodb_migration_step "$image_tag" "$fcv"; then
-      failed=1
-      break
-    fi
-  done < <(iter_mongodb_migration_steps "$release")
-  echo "Scaling writer workloads back up"
-  scale_mongo_migration_writers 1
-
-  if [ "$failed" -eq 1 ]; then
-    warn "MongoDB migration failed"
-    return 1
-  fi
-  echo "MongoDB migration completed successfully"
-}
-rollback_and_restore() {
-  # $1=helm revision to roll back to (0 = previous), $2=backup name to restore (may be empty)
-  if [ -z "$2" ]; then
-    helm rollback "$HELM_RELEASE_NAME" "$1" --wait --timeout "${HELM_UPGRADE_TIMEOUT}s" || die_with_support "Helm rollback failed"
-    return 0
-  fi
-  # no --wait: an older mongo binary cannot start on data migrated to a newer FCV until the backup is restored
-  helm rollback "$HELM_RELEASE_NAME" "$1" || die_with_support "Helm rollback failed"
-  echo "Restoring backup $2"
-  cmd_backup_restore --name "$2"
-  kubectl rollout status deployment/mongo --timeout="${HELM_UPGRADE_TIMEOUT}s" || warn "MongoDB did not become ready after restoring backup $2"
-}
-
 initialize_system() {
   # creates:
   # - non-system admin users for RightSizer & Modular Service
@@ -1144,19 +939,27 @@ perform_self_update() {
   if check_asset_digest "$SELF_PATH" "$asset"; then
     return 0
   fi
+  # already re-executed once: a missing/mismatched digest must not cause an endless exec loop
+  if [ -n "$_R8S_SELF_UPDATED" ]; then
+    _debug "r8s-init was already self-updated in this run, skipping"
+    return 0
+  fi
 
+  # self-update runs before pull_artifacts, so the release folder may not exist yet
   mkdir -p "$R8S_RELEASES_PATH/$tag"
   max_attempts="${R8S_SELF_UPDATE_MAX_ATTEMPTS:-3}"
   delay="${R8S_SELF_UPDATE_RETRY_DELAY:-5}"
-  for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+  attempt=1
+  while [ "$attempt" -le "$max_attempts" ]; do
     if err="$(pull_artifact "$R8S_RELEASES_PATH/$tag" "$asset" 2>&1)" \
       && err="$(update_r8s_init "$tag" 2>&1)"; then
       new_version=$("$SELF_PATH" --version)
       echo "Automatically updated r8s-init from $VERSION to $new_version"
-      exec "$SELF_PATH" "${_ORIGINAL_ARGS[@]}"
+      _R8S_SELF_UPDATED=1 exec "$SELF_PATH" "${_ORIGINAL_ARGS[@]}"
     fi
     warn "r8s-init self-update to $tag failed (attempt $attempt/$max_attempts): ${err:-unknown error}"
-    [ "$attempt" -lt "$max_attempts" ] && sleep "$delay"
+    attempt=$((attempt + 1))
+    [ "$attempt" -le "$max_attempts" ] && sleep "$delay"
   done
   return 1
 }
@@ -1210,9 +1013,248 @@ verify_installation() {
   exit 1
 }
 
+# --- MongoDB migration (component: mongodb_migration in release.json) ---
+
+get_mongodb_migration_compat_mode() {
+  release_metadata_exists "$1" || {
+    echo "warn"
+    return 0
+  }
+  get_release_metadata_value "$1" '.components.mongodb_migration.compatibility_mode' || echo "warn"
+}
+get_mongodb_migration_message() {
+  release_metadata_exists "$1" || {
+    echo ""
+    return 0
+  }
+  get_release_metadata_value "$1" '.components.mongodb_migration.message' || echo ""
+}
+mongodb_migration_defined() {
+  # true if this release declares a non-empty mongodb_migration.steps list
+  local count
+  release_metadata_exists "$1" || return 1
+  count="$(get_release_metadata_value "$1" '.components.mongodb_migration.steps | length' 2>/dev/null)" || return 1
+  [ -n "$count" ] && [ "$count" -gt 0 ]
+}
+iter_mongodb_migration_steps() {
+  # one base64-encoded {"image_tag":...,"fcv":...} object per line, in order
+  get_release_metadata_value "$1" '.components.mongodb_migration.steps[] | @base64'
+}
+mongodb_migration_step_field() {
+  # $1 = base64-encoded step object, $2 = jq filter
+  echo "$1" | base64 --decode | jq -r "$2"
+}
+get_mongodb_migration_target_fcv() {
+  get_release_metadata_value "$1" '.components.mongodb_migration.steps[-1].fcv'
+}
+
+mongo_eval() {
+  # evaluates a mongosh javascript expression (first parameter) inside the mongo deployment.
+  # Retries to ride out transient kubectl exec/mongosh blips (e.g. pod not Ready yet)
+  local username password attempt max_attempts="${MONGO_EVAL_MAX_ATTEMPTS:-3}" delay="${MONGO_EVAL_RETRY_DELAY:-2}" out rc=1
+  username="$(get_kubectl_secret "$MONGO_SECRET_NAME" username)" || { warn "could not resolve MongoDB credentials"; return 1; }
+  password="$(get_kubectl_secret "$MONGO_SECRET_NAME" password)" || { warn "could not resolve MongoDB credentials"; return 1; }
+  for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+    if out="$(kubectl exec deployment/mongo -- mongosh --quiet -u "$username" -p "$password" --authenticationDatabase admin --eval "$1" 2>&1)"; then
+      printf '%s\n' "$out"
+      return 0
+    else
+      rc=$?
+    fi
+    _debug "mongo_eval attempt $attempt/$max_attempts failed (rc=$rc): $out"
+    [ "$attempt" -lt "$max_attempts" ] && sleep "$delay"
+  done
+  echo "$out" >&2
+  return "$rc"
+}
+get_mongo_db_version() { mongo_eval 'db.version()' 2>/dev/null; }
+get_mongo_fcv() { mongo_eval 'db.adminCommand({getParameter:1, featureCompatibilityVersion:1}).featureCompatibilityVersion.version' 2>/dev/null; }
+
+wait_for_mongo_ready() {
+  # rollout status can report the pod Ready before mongod accepts connections (e.g. it is still upgrading on-disk metadata)
+  local timeout="${MONGO_READY_TIMEOUT:-180}" interval="${MONGO_READY_POLL_INTERVAL:-5}" waited=0
+  while [ "$waited" -lt "$timeout" ]; do
+    if mongo_eval 'db.adminCommand({ping:1})' >/dev/null 2>&1; then
+      return 0
+    fi
+    _debug "MongoDB not accepting connections yet, waited ${waited}s/${timeout}s"
+    sleep "$interval"
+    waited=$((waited + interval))
+  done
+  return 1
+}
+
+mongodb_migration_required() {
+  # true (0) if current MongoDB FCV is behind the migration target FCV declared for the release
+  local target_fcv current_fcv
+  mongodb_migration_defined "$1" || return 1
+  target_fcv="$(get_mongodb_migration_target_fcv "$1")" || return 1
+  [ -z "$target_fcv" ] && return 1
+
+  current_fcv="$(get_mongo_fcv)"
+  if [ -z "$current_fcv" ]; then
+    warn "could not determine current MongoDB FCV. Assuming migration is required"
+    return 0
+  fi
+  dpkg --compare-versions "$current_fcv" lt "$target_fcv"
+}
+
+print_mongodb_migration_plan() {
+  local release="$1" backup_name="$2" message current_version current_fcv step image_tag fcv i=1
+
+  message="$(get_mongodb_migration_message "$release")"
+  current_version="$(get_mongo_db_version)"
+  current_fcv="$(get_mongo_fcv)"
+
+  cat <<EOF
+
+===========================================================================
+ MongoDB migration required to update to $release
+===========================================================================
+${message:+$message
+}
+Current MongoDB version: ${current_version:-unknown}
+Current MongoDB FCV:     ${current_fcv:-unknown}
+
+This step causes temporary write downtime for: ${MONGO_MIGRATION_WRITER_DEPLOYMENTS[*]}
+Backup ${backup_name:-"(none created)"} will be used to restore data automatically should anything fail.
+
+Migration steps:
+EOF
+  while IFS= read -r step; do
+    image_tag="$(mongodb_migration_step_field "$step" '.image_tag')"
+    fcv="$(mongodb_migration_step_field "$step" '.fcv')"
+    echo "  $i) upgrade MongoDB image to $image_tag, then set featureCompatibilityVersion to $fcv"
+    i=$((i + 1))
+  done < <(iter_mongodb_migration_steps "$release")
+  echo ""
+}
+
+confirm_mongodb_migration() {
+  # $1=auto_yes(0/1) $2=compat_mode $3=provided confirmation token
+  if [ "$1" -eq 1 ]; then
+    if [ "$3" = "$MONGODB_MIGRATION_CONFIRM_TOKEN" ]; then
+      return 0
+    fi
+    if [ "$2" = "error" ]; then
+      die "Non-interactive update includes a mandatory MongoDB migration. Re-run with --confirm-migration-token $MONGODB_MIGRATION_CONFIRM_TOKEN to proceed"
+    fi
+    warn "Skipping optional MongoDB migration in non-interactive mode (compatibility_mode=$2). Pass --confirm-migration-token $MONGODB_MIGRATION_CONFIRM_TOKEN to run it"
+    return 1
+  fi
+  yesno "Proceed with MongoDB migration now?"
+  return 0
+}
+
+scale_mongo_migration_writers() {
+  # accepts target replica count
+  local deploy
+  for deploy in "${MONGO_MIGRATION_WRITER_DEPLOYMENTS[@]}"; do
+    kubectl get deployment "$deploy" >/dev/null 2>&1 || continue
+    kubectl scale deployment "$deploy" --replicas="$1" || warn "could not scale deployment $deploy to $1 replicas"
+  done
+}
+
+run_mongodb_migration_step() {
+  local image_tag="$1" fcv="$2" confirm_arg="" actual_version actual_fcv mongo_repo
+
+  echo "Upgrading MongoDB image to $image_tag"
+  # patch only the mongo deployment: a full helm upgrade per step would bring the scaled-down writers back up
+  mongo_repo="$(kubectl get deployment mongo -o jsonpath='{.spec.template.spec.containers[?(@.name=="mongodb")].image}')" || return 1
+  mongo_repo="${mongo_repo%%:*}"
+  kubectl set image deployment/mongo "mongodb=${mongo_repo}:${image_tag}" || return 1
+  kubectl rollout status deployment/mongo --timeout="${HELM_UPGRADE_TIMEOUT}s" || return 1
+
+  echo "Waiting for MongoDB to accept connections after the image upgrade"
+  wait_for_mongo_ready || {
+    warn "MongoDB did not start accepting connections within ${MONGO_READY_TIMEOUT:-180}s after upgrading to $image_tag"
+    return 1
+  }
+
+  echo "Setting MongoDB featureCompatibilityVersion to $fcv"
+  # confirm:true is required by MongoDB for FCV transitions from 7.0 onward
+  dpkg --compare-versions "$fcv" ge "7.0" && confirm_arg=", confirm: true"
+  mongo_eval "db.adminCommand({setFeatureCompatibilityVersion: \"$fcv\"$confirm_arg})" || return 1
+
+  actual_version="$(get_mongo_db_version)"
+  actual_fcv="$(get_mongo_fcv)"
+  if [[ "$actual_version" != "$image_tag"* ]]; then
+    warn "MongoDB version verification failed: expected version starting with $image_tag, got '$actual_version'"
+    return 1
+  fi
+  if [ "$actual_fcv" != "$fcv" ]; then
+    warn "MongoDB FCV verification failed: expected $fcv, got '$actual_fcv'"
+    return 1
+  fi
+  echo "Step succeeded: MongoDB version=$actual_version, FCV=$actual_fcv"
+}
+
+run_mongodb_migration() {
+  # $1=target release, $2=confirm token, $3=auto_yes(0/1), $4=backup name (may be empty)
+  # returns: 0 success, 1 failure (needs rollback+restore), 2 skipped (nothing was changed)
+  local release="$1" compat_mode step image_tag fcv failed=0
+
+  mongodb_migration_defined "$release" || return 2
+  if ! mongodb_migration_required "$release"; then
+    _debug "MongoDB migration is not required: current FCV already satisfies the target for $release"
+    return 2
+  fi
+
+  compat_mode="$(get_mongodb_migration_compat_mode "$release")"
+  print_mongodb_migration_plan "$release" "$4"
+  confirm_mongodb_migration "$3" "$compat_mode" "$2" || return 2
+
+  echo "Scaling down writer workloads before MongoDB migration"
+  scale_mongo_migration_writers 0
+
+  while IFS= read -r step; do
+    image_tag="$(mongodb_migration_step_field "$step" '.image_tag')"
+    fcv="$(mongodb_migration_step_field "$step" '.fcv')"
+    if ! run_mongodb_migration_step "$image_tag" "$fcv"; then
+      failed=1
+      break
+    fi
+  done < <(iter_mongodb_migration_steps "$release")
+
+  echo "Scaling writer workloads back up"
+  scale_mongo_migration_writers 1
+
+  if [ "$failed" -eq 1 ]; then
+    warn "MongoDB migration failed"
+    return 1
+  fi
+  echo "MongoDB migration completed successfully"
+}
+
+rollback_and_restore() {
+  # $1=helm revision to roll back to (0 = previous), $2=backup name to restore (may be empty)
+  if [ -z "$2" ]; then
+    helm rollback "$HELM_RELEASE_NAME" "$1" --wait --timeout "${HELM_UPGRADE_TIMEOUT}s" || die_with_support "Helm rollback failed"
+    return 0
+  fi
+  # no --wait: an older mongo binary cannot start on data migrated to a newer FCV until the backup is restored
+  helm rollback "$HELM_RELEASE_NAME" "$1" || die_with_support "Helm rollback failed"
+  echo "Restoring backup $2"
+  cmd_backup_restore --name "$2"
+  kubectl rollout status deployment/mongo --timeout="${HELM_UPGRADE_TIMEOUT}s" || warn "MongoDB did not become ready after restoring backup $2"
+}
+
+follow_patch_job_logs() {
+  # runs in background: waits for the pre-upgrade hook job and streams its logs to console and to file $1.
+  # The job is deleted by helm on success, so this is the only place where its logs are kept
+  local job="${HELM_RELEASE_NAME}-patch" waited=0
+  # kubectl logs fails while the job/pod does not exist yet or the container is still being created, so retry
+  while [ "$waited" -lt "$HELM_UPGRADE_TIMEOUT" ]; do
+    kubectl logs -f "job/$job" 2>/dev/null | tee -a "$1" | awk 'NR == 1 { print "\n----- patch job logs -----" } { print "  [patch] " $0; fflush() }' && return 0
+    sleep 2
+    waited=$((waited + 2))
+  done
+  return 0
+}
+
 cmd_update() {
-  local opts auto_yes=0 r_name=$HELM_RELEASE_NAME r_version release_data latest_tag backup_name="" iter_params=() check=0 same_version=0 do_backup=1 update_defectdojo=0 confirm_migration_token=""
-  opts="$(getopt -o "hy" --long "help,yes,check,no-backup,defectdojo,allow-prereleases,same-version,backup-name:,helm-release-name:,confirm-migration-token:" -n "$PROGRAM" -- "$@")"
+  local opts auto_yes=0 r_name=$HELM_RELEASE_NAME r_version release_data latest_tag backup_name="" iter_params=() check=0 same_version=0 do_backup=1 do_patch='true' update_defectdojo=0 confirm_migration_token=""
+  opts="$(getopt -o "hy" --long "help,yes,check,no-backup,no-patch,defectdojo,allow-prereleases,same-version,backup-name:,helm-release-name:,confirm-migration-token:" -n "$PROGRAM" -- "$@")"
   eval set -- "$opts"
   while true; do
     case "$1" in
@@ -1220,6 +1262,7 @@ cmd_update() {
       '-y'|'--yes') auto_yes=1; shift ;;
       '--check') check=1; shift ;;
       '--no-backup') do_backup=0; shift ;;
+      '--no-patch') do_patch='false'; shift ;;
       '--allow-prereleases') iter_params=(--prerelease --draft); shift ;;
       '--same-version') same_version=1; shift ;;
       '--defectdojo') update_defectdojo=1; shift ;;
@@ -1270,20 +1313,18 @@ cmd_update() {
     exit 1
   fi
 
-  # fail fast before any destructive step (backup, self-update, MongoDB migration)
+  # fail fast before any destructive step (backup, self-update, MongoDB migration), if the target release cannot be installed via helm
   echo "Verifying that necessary helm chart exists"
   helm repo update syndicate || die_with_support "helm repo update failed"
   helm search repo syndicate/rightsizer --version "$latest_tag" --fail-on-no-result >/dev/null 2>&1 || die_with_support "$latest_tag version of $r_name chart not found. Cannot update"
 
-  # TODO Delete && [ "$same_version" -eq 0 ] from condition
-  if [ -n "$release_data" ] && [ -z "$FORBID_SELF_UPDATE" ] && [ "$same_version" -eq 0 ]; then
-    # the new script may contain mandatory migration logic, so a failed self-update must not be ignored
+  if [ -n "$release_data" ] && [ -z "$FORBID_SELF_UPDATE" ]; then
+    # self-update swaps this script for the target one (via exec) so newly added logic (e.g. MongoDB migration) actually runs
     local self_update_rc=0
     perform_self_update "$release_data" || self_update_rc=$?
-    case "$self_update_rc" in
-      0|2) : ;;
-      *) die_with_support "r8s-init self-update to $latest_tag failed after retries. Aborting so the update does not run with an outdated script that may miss mandatory migration steps. Fix connectivity/permissions and re-run, or set FORBID_SELF_UPDATE=1 to bypass at your own risk" ;;
-    esac
+    if [ "$self_update_rc" -eq 1 ]; then
+      die_with_support "r8s-init self-update to $latest_tag failed after retries. Aborting so the update does not run with an outdated script that may miss mandatory migration steps. Fix connectivity/permissions and re-run, or set FORBID_SELF_UPDATE=1 to bypass at your own risk"
+    fi
   fi
 
   echo "The current installed version is $r_version"
@@ -1301,11 +1342,11 @@ cmd_update() {
     check_modular_cli_python_compatibility "$latest_tag" >/dev/null
   fi
 
-  local mongo_migration_needed=0 mongo_migrated=0 mongo_migration_pre_revision mongo_migration_rc helm_values restore_backup_name=""
+  local mongo_migration_needed=0 mongo_migrated=0
   if mongodb_migration_defined "$latest_tag" && mongodb_migration_required "$latest_tag"; then
     mongo_migration_needed=1
     if [ "$do_backup" -eq 0 ]; then
-      warn "Ignoring --no-backup: a MongoDB migration is required for this update and needs a backup for safe rollback"
+      warn "Ignoring --no-backup: a mandatory MongoDB migration is required for this update and needs a backup for safe rollback"
       do_backup=1
     fi
   fi
@@ -1314,35 +1355,59 @@ cmd_update() {
     [ -z "$backup_name" ] && backup_name="$AUTO_BACKUP_PREFIX$(date +%s)"
     echo "Making backup $backup_name"
     cmd_backup_create --name "$backup_name" --volumes=minio,mongo,vault
-    restore_backup_name="$backup_name"
   fi
 
   if [ "$mongo_migration_needed" -eq 1 ]; then
-    # captured before migration so a failure can roll back to the exact pre-migration state
+    # captured BEFORE any migration step so a failure can roll back to the exact pre-migration state
+    local mongo_migration_pre_revision mongo_rc=0
     mongo_migration_pre_revision="$(get_helm_release_revision "$HELM_RELEASE_NAME")" \
       || die_with_support "could not resolve current helm revision before starting MongoDB migration"
-    mongo_migration_rc=0
-    run_mongodb_migration "$latest_tag" "$confirm_migration_token" "$auto_yes" "$backup_name" || mongo_migration_rc=$?
-    case "$mongo_migration_rc" in
+
+    run_mongodb_migration "$latest_tag" "$confirm_migration_token" "$auto_yes" "$backup_name" || mongo_rc=$?
+    case "$mongo_rc" in
       0) mongo_migrated=1 ;;
       1)
-        warn "MongoDB migration failed. Rolling back to revision $mongo_migration_pre_revision (the state before the migration started)..."
-        rollback_and_restore "$mongo_migration_pre_revision" "$restore_backup_name"
+        warn "MongoDB migration failed. Rolling back to revision $mongo_migration_pre_revision (the exact state before the migration started)..."
+        rollback_and_restore "$mongo_migration_pre_revision" "$backup_name"
         exit 1
         ;;
       2) warn "Skipping MongoDB migration for this update" ;;
     esac
   fi
 
-  helm repo update syndicate || die_with_support "helm repo update failed"
-  echo "Upgrading $r_name chart to $latest_tag version. It should not take more than $((HELM_UPGRADE_TIMEOUT / 60)) minutes"
+  echo "Upgrading $r_name chart to $latest_tag version"
+  echo "Making helm upgrade. It should not take more than $((HELM_UPGRADE_TIMEOUT / 60)) minutes"
+  local helm_values
   helm_values="$(helm get values "$HELM_RELEASE_NAME" -o json)" # preserve only user-set values
   if [ "$mongo_migrated" -eq 1 ]; then
-    # let the chart default drive the mongo image tag again
-    helm_values="$(echo "$helm_values" | jq 'if .mongo.image then .mongo.image |= del(.tag) else . end')"
+    # drop the mongo.image.tag override so the chart default drives it again
+    helm_values="$(jq 'if .mongo.image then .mongo.image |= del(.tag) else . end' <<<"$helm_values")"
   fi
-  if ! helm upgrade "$HELM_RELEASE_NAME" syndicate/rightsizer --version "$latest_tag" --timeout "${HELM_UPGRADE_TIMEOUT}s" --wait --wait-for-jobs --reset-values --values <(echo "$helm_values"); then
+  local patch_logs_pid="" patch_log_file="" upgrade_rc=0
+  if [ "$do_patch" = 'true' ]; then
+    mkdir -p "$R8S_PATCH_LOGS_PATH"
+    patch_log_file="$R8S_PATCH_LOGS_PATH/$latest_tag-$(date +%s).log"
+    follow_patch_job_logs "$patch_log_file" &
+    patch_logs_pid=$!
+  fi
+  helm upgrade "$HELM_RELEASE_NAME" syndicate/rightsizer --version "$latest_tag" --timeout "${HELM_UPGRADE_TIMEOUT}s" --wait --wait-for-jobs --reset-values --values <(echo "$helm_values") --set=patch.enabled="$do_patch" || upgrade_rc=$?
+  if [ -n "$patch_logs_pid" ]; then
+    kill "$patch_logs_pid" 2>/dev/null || true
+    wait "$patch_logs_pid" 2>/dev/null || true
+    if [ -s "$patch_log_file" ]; then
+      echo "----- end of patch job logs (saved to $patch_log_file) -----"
+      echo
+    else
+      warn "patch job was not observed during the upgrade (the chart may not include it or it finished too quickly)"
+    fi
+  fi
+  if [ "$upgrade_rc" -ne 0 ]; then
     warn "helm upgrade failed. Rolling back to the previous version..."
+    local restore_backup_name=""
+    if [ "$do_backup" -eq 1 ] && { [ "$do_patch" = 'true' ] || [ "$mongo_migrated" -eq 1 ]; }; then
+      echo "Data patch or MongoDB migration could've been performed and backup was also created. It will be restored"
+      restore_backup_name="$backup_name"
+    fi
     rollback_and_restore 0 "$restore_backup_name"
     exit 1
   else
@@ -1889,7 +1954,7 @@ cmd_backup_restore() {
 }
 
 # Start
-VERSION="1.2.0"
+VERSION="1.3.0"
 PROGRAM="${0##*/}"
 COMMAND="$1"
 SELF_PATH=/usr/local/bin/r8s-init
@@ -1907,15 +1972,16 @@ R8S_LEGACY_PYTHON_COMPAT_MODE="${R8S_LEGACY_PYTHON_COMPAT_MODE:-warn}"
 R8S_LOCAL_PATH="${R8S_LOCAL_PATH:-/usr/local/r8s}"
 R8S_RELEASES_PATH="${R8S_RELEASES_PATH:-$R8S_LOCAL_PATH/releases}"
 R8S_BACKUPS_PATH="${R8S_BACKUPS_PATH:-$R8S_LOCAL_PATH/backups}"
+R8S_PATCH_LOGS_PATH="${R8S_PATCH_LOGS_PATH:-$R8S_LOCAL_PATH/patch-logs}"
 GITHUB_REPO="${GITHUB_REPO:-epam/r8s}"
 HELM_RELEASE_NAME="${HELM_RELEASE_NAME:-rightsizer}"
 DEFECTDOJO_HELM_RELEASE_NAME="${DEFECTDOJO_HELM_RELEASE_NAME:-defectdojo}"
+HELM_UPGRADE_TIMEOUT="${HELM_UPGRADE_TIMEOUT:-1200}"
 MODULAR_SERVICE_USERNAME="${MODULAR_SERVICE_USERNAME:-customer_admin}"
 RIGHTSIZER_USERNAME="${RIGHTSIZER_USERNAME:-customer_admin}"
 CURRENT_ACCOUNT_TENANT_NAME="${CURRENT_ACCOUNT_TENANT_NAME:-CURRENT_ACCOUNT}"
 AUTO_BACKUP_PREFIX="${AUTO_BACKUP_PREFIX:-autobackup-}"
 FORBID_SELF_UPDATE="${FORBID_SELF_UPDATE:-}"
-HELM_UPGRADE_TIMEOUT="${HELM_UPGRADE_TIMEOUT:-1200}"
 # regions that will be allowed to activate
 AWS_REGIONS="${AWS_REGIONS:-us-east-1 us-east-2 us-west-1 us-west-2 af-south-1 ap-east-1 ap-south-2 ap-southeast-3 ap-southeast-4 ap-south-1 ap-northeast-3 ap-northeast-2 ap-southeast-1 ap-southeast-2 ap-northeast-1 ca-central-1 ca-west-1 eu-central-1 eu-west-1 eu-west-2 eu-south-1 eu-west-3 eu-south-2 eu-north-1 eu-central-2 il-central-1 me-south-1 me-central-1 sa-east-1 us-gov-east-1 us-gov-west-1}"
 
