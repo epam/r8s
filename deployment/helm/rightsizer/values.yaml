@@ -12,6 +12,16 @@ image:
   tag: 3.16.0
   pullPolicy: Always
 
+# data patches executed as a pre-upgrade hook job (see patches/)
+patch:
+  enabled: true
+  backoffLimit: 10
+  ttlSecondsAfterFinished: 3600
+  image:
+    repository: public.ecr.aws/x4s4z8e1/syndicate/patches
+    tag: rightsizer-3.16.0
+    pullPolicy: Always
+
 replicas: 1
 strategy:
   type: RollingUpdate
@@ -47,7 +57,7 @@ modular-api:
   fullnameOverride: modular-api
   disableRateLimiter: "true"
   image:
-    tag: 4.4.0-rightsizer-3.16.0
+    tag: 4.4.2-rightsizer-3.16.0
 metric-collector:
   enabled: true
   fullnameOverride: metric-collector

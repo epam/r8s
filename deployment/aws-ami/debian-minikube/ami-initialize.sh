@@ -336,6 +336,14 @@ log "The first run. Configuring r8s for user $FIRST_USER"
 log "Upgrading system and installing some necessary packages"
 upgrade_and_install_packages
 
+# r8s-init installs CLIs via pipx and only falls back to pip when pipx is missing
+if command -v pipx >/dev/null 2>&1; then
+  log "Configuring pipx for $FIRST_USER"
+  sudo -H -u "$FIRST_USER" pipx ensurepath >/dev/null 2>&1 || log_err "pipx ensurepath failed for $FIRST_USER"
+else
+  log_err "pipx is not available. r8s-init will fall back to pip for CLI installation"
+fi
+
 log "Installing docker $DOCKER_VERSION"
 install_docker "$DOCKER_VERSION"
 
