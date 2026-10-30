@@ -1192,6 +1192,19 @@ run_mongodb_migration() {
   echo "MongoDB migration completed successfully"
 }
 
+follow_patch_job_logs() {
+  # runs in background: waits for the pre-upgrade hook job and streams its logs to console and to file $1.
+  # The job is deleted by helm on success, so this is the only place where its logs are kept
+  local job="${HELM_RELEASE_NAME}-patch" waited=0
+  # kubectl logs fails while the job/pod does not exist yet or the container is still being created, so retry
+  while [ "$waited" -lt "$HELM_UPGRADE_TIMEOUT" ]; do
+    kubectl logs -f "job/$job" 2>/dev/null | tee -a "$1" | awk 'NR == 1 { print "\n----- patch job logs -----" } { print "  [patch] " $0; fflush() }' && return 0
+    sleep 2
+    waited=$((waited + 2))
+  done
+  return 0
+}
+
 cmd_update() {
   local opts auto_yes=0 r_name=$HELM_RELEASE_NAME r_version release_data latest_tag backup_name="" iter_params=() check=0 same_version=0 do_backup=1 do_patch='true' update_defectdojo=0 confirm_migration_token=""
   opts="$(getopt -o "hy" --long "help,yes,check,no-backup,no-patch,defectdojo,allow-prereleases,same-version,backup-name:,helm-release-name:,confirm-migration-token:" -n "$PROGRAM" -- "$@")"
@@ -1320,7 +1333,25 @@ cmd_update() {
     # drop the mongo.image.tag override so the chart default drives it again
     helm_values="$(jq 'if .mongo.image then .mongo.image |= del(.tag) else . end' <<<"$helm_values")"
   fi
-  if ! helm upgrade "$HELM_RELEASE_NAME" syndicate/rightsizer --version "$latest_tag" --timeout "${HELM_UPGRADE_TIMEOUT}s" --wait --wait-for-jobs --reset-values --values <(echo "$helm_values") --set=patch.enabled="$do_patch"; then
+  local patch_logs_pid="" patch_log_file="" upgrade_rc=0
+  if [ "$do_patch" = 'true' ]; then
+    mkdir -p "$R8S_PATCH_LOGS_PATH"
+    patch_log_file="$R8S_PATCH_LOGS_PATH/$latest_tag-$(date +%s).log"
+    follow_patch_job_logs "$patch_log_file" &
+    patch_logs_pid=$!
+  fi
+  helm upgrade "$HELM_RELEASE_NAME" syndicate/rightsizer --version "$latest_tag" --timeout "${HELM_UPGRADE_TIMEOUT}s" --wait --wait-for-jobs --reset-values --values <(echo "$helm_values") --set=patch.enabled="$do_patch" || upgrade_rc=$?
+  if [ -n "$patch_logs_pid" ]; then
+    kill "$patch_logs_pid" 2>/dev/null || true
+    wait "$patch_logs_pid" 2>/dev/null || true
+    if [ -s "$patch_log_file" ]; then
+      echo "----- end of patch job logs (saved to $patch_log_file) -----"
+      echo
+    else
+      warn "patch job was not observed during the upgrade (the chart may not include it or it finished too quickly)"
+    fi
+  fi
+  if [ "$upgrade_rc" -ne 0 ]; then
     warn "helm upgrade failed. Rolling back to the previous version..."
     helm rollback "$HELM_RELEASE_NAME" 0 --wait || die "Helm rollback failed"
     if [ "$do_backup" -eq 1 ] && { [ "$do_patch" = 'true' ] || [ "$mongo_migrated" -eq 1 ]; }; then
@@ -1885,6 +1916,7 @@ R8S_LEGACY_PYTHON_COMPAT_MODE="${R8S_LEGACY_PYTHON_COMPAT_MODE:-warn}"
 R8S_LOCAL_PATH="${R8S_LOCAL_PATH:-/usr/local/r8s}"
 R8S_RELEASES_PATH="${R8S_RELEASES_PATH:-$R8S_LOCAL_PATH/releases}"
 R8S_BACKUPS_PATH="${R8S_BACKUPS_PATH:-$R8S_LOCAL_PATH/backups}"
+R8S_PATCH_LOGS_PATH="${R8S_PATCH_LOGS_PATH:-$R8S_LOCAL_PATH/patch-logs}"
 GITHUB_REPO="${GITHUB_REPO:-epam/r8s}"
 HELM_RELEASE_NAME="${HELM_RELEASE_NAME:-rightsizer}"
 DEFECTDOJO_HELM_RELEASE_NAME="${DEFECTDOJO_HELM_RELEASE_NAME:-defectdojo}"
