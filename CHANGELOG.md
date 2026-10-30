@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `r8s-init update`: automatic rollback with backup restore on failed MongoDB migration or helm upgrade
   - `r8s-init`: CLIs are installed via `pipx` with fallback to `pip --user` when `pipx` is not available; `doctor` reports `pipx` presence
   - `r8s-init init --user`: RightSizer login was skipped due to a wrong variable (`re_username` -> `r8s_username`)
+  - `r8s-init update`: non-interactive runs (no TTY) now require `-y/--yes`, and the MongoDB migration requires `--confirm-migration-token` in this mode instead of being auto-confirmed
+  - `r8s-init update`: MongoDB migration is confirmed before the backup and any changes; if it is declined (or the token is missing in non-interactive mode) the update is aborted
+  - `r8s-init update`: removed `--helm-release-name` option; use the `HELM_RELEASE_NAME` environment variable instead
+  - `r8s-init`: GitHub releases are fetched with pagination (`GITHUB_PER_PAGE`, default 100; `GITHUB_MAX_PAGES`, default 10); fixed "Up-to-date" being reported when all fetched releases were newer than the installed one
+  - `r8s-init`: MongoDB credentials are taken from the mongo container environment instead of being passed as `mongosh` command-line arguments on the host
 - Added `pipx ensurepath` for the first user in the `ami-initialize.sh`
 - Updated versions of dependencies:
   - `mongo` from `5.0.32` to `8.0.28`

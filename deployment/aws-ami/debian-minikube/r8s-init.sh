@@ -82,11 +82,10 @@ Options:
   --no-patch           Do not run data patches (pre-upgrade job) as part of the update
   --same-version       Fetches artifacts for the version currently installed and reinstalls
   --defectdojo         Specify this flag to update Defect Dojo chart instead of RightSizer
-  --helm-release-name  RightSizer helm release name (default "$HELM_RELEASE_NAME")
   --backup-name        Backup name to make before the update (default "$AUTO_BACKUP_PREFIX\$timestamp")
   --confirm-migration-token
-                       Required together with -y/--yes when the target release requires a mandatory MongoDB
-                       major version migration. Run without this flag in interactive mode to see the exact
+                       Required with -y/--yes (or when not running in a terminal) if the target release requires
+                       a MongoDB major version migration. Run without this flag in interactive mode to see the exact
                        token and the migration plan first
 EOF
 }
@@ -322,7 +321,7 @@ github_api_get() {
 }
 iter_github_releases() {
   # iterates only over released versions by default. --prerelease flag includes pre-releases to output. --draft includes drafts
-  local opts draft=0 prerelease=0 per_page=${GITHUB_PER_PAGE:-30} filter
+  local opts draft=0 prerelease=0 per_page=${GITHUB_PER_PAGE:-100} max_pages=${GITHUB_MAX_PAGES:-10} filter page body count
   opts="$(getopt -o "" --long "draft,prerelease,per-page:," -n iter_github_releases -- "$@")"
   eval set -- "$opts"
   while true; do
@@ -342,7 +341,18 @@ iter_github_releases() {
   else
     filter='.[] | select(.prerelease == false and .draft == false)'
   fi
-  github_api_get -H 'Accept: application/vnd.github+json' "${GITHUB_CURL_HEADERS[@]}" "https://api.github.com/repos/$GITHUB_REPO/releases?per_page=$per_page" | jq -c "$filter" || die "Could not make request to GitHub. Probably rate limit exceeded"
+  for ((page = 1; page <= max_pages; page++)); do
+    body="$(github_api_get -H 'Accept: application/vnd.github+json' "${GITHUB_CURL_HEADERS[@]}" "https://api.github.com/repos/$GITHUB_REPO/releases?per_page=$per_page&page=$page")" \
+      || die "Could not make request to GitHub. Probably rate limit exceeded"
+    count="$(jq 'length' <<<"$body")"
+    if [ "$count" -eq 0 ]; then
+      break
+    fi
+    jq -c "$filter" <<<"$body"
+    if [ "$count" -lt "$per_page" ]; then
+      break
+    fi
+  done
 }
 get_github_release_by_tag() {
   local tag_name
@@ -371,6 +381,10 @@ get_new_github_release() {
       break
     fi
   done < <(iter_github_releases "$@")
+  if [ -n "$result" ]; then
+    echo "$result"
+    return 0
+  fi
   return 1
 }
 get_release_type() {
@@ -1015,13 +1029,6 @@ verify_installation() {
 
 # --- MongoDB migration (component: mongodb_migration in release.json) ---
 
-get_mongodb_migration_compat_mode() {
-  release_metadata_exists "$1" || {
-    echo "warn"
-    return 0
-  }
-  get_release_metadata_value "$1" '.components.mongodb_migration.compatibility_mode' || echo "warn"
-}
 get_mongodb_migration_message() {
   release_metadata_exists "$1" || {
     echo ""
@@ -1051,23 +1058,27 @@ get_mongodb_migration_target_fcv() {
 mongo_eval() {
   # evaluates a mongosh javascript expression (first parameter) inside the mongo deployment.
   # Retries to ride out transient kubectl exec/mongosh blips (e.g. pod not Ready yet)
-  local username password attempt max_attempts="${MONGO_EVAL_MAX_ATTEMPTS:-3}" delay="${MONGO_EVAL_RETRY_DELAY:-2}" out rc=1
-  username="$(get_kubectl_secret "$MONGO_SECRET_NAME" username)" || { warn "could not resolve MongoDB credentials"; return 1; }
-  password="$(get_kubectl_secret "$MONGO_SECRET_NAME" password)" || { warn "could not resolve MongoDB credentials"; return 1; }
+  local attempt max_attempts="${MONGO_EVAL_MAX_ATTEMPTS:-3}" delay="${MONGO_EVAL_RETRY_DELAY:-2}" out rc=1
   for ((attempt = 1; attempt <= max_attempts; attempt++)); do
-    if out="$(kubectl exec deployment/mongo -- mongosh --quiet -u "$username" -p "$password" --authenticationDatabase admin --eval "$1" 2>&1)"; then
+    # credentials come from the container env so they never appear in host process args
+    if out="$(kubectl exec deployment/mongo -- sh -c \
+        'exec mongosh --quiet -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval "$1"' \
+        sh "$1" 2>&1)"; then
       printf '%s\n' "$out"
       return 0
     else
       rc=$?
     fi
-    _debug "mongo_eval attempt $attempt/$max_attempts failed (rc=$rc): $out"
+    _debug "mongo_eval attempt $attempt/$max_attempts failed (rc=$rc)"
     [ "$attempt" -lt "$max_attempts" ] && sleep "$delay"
   done
   echo "$out" >&2
   return "$rc"
 }
 get_mongo_db_version() { mongo_eval 'db.version()' 2>/dev/null; }
+get_current_mongo_image() {
+  kubectl get deployment mongo -o jsonpath='{.spec.template.spec.containers[?(@.name=="mongodb")].image}'
+}
 get_mongo_fcv() { mongo_eval 'db.adminCommand({getParameter:1, featureCompatibilityVersion:1}).featureCompatibilityVersion.version' 2>/dev/null; }
 
 wait_for_mongo_ready() {
@@ -1128,22 +1139,20 @@ EOF
     i=$((i + 1))
   done < <(iter_mongodb_migration_steps "$release")
   echo ""
+  echo "To run it non-interactively pass: -y --confirm-migration-token $MONGODB_MIGRATION_CONFIRM_TOKEN"
+  echo ""
 }
 
 confirm_mongodb_migration() {
-  # $1=auto_yes(0/1) $2=compat_mode $3=provided confirmation token
-  if [ "$1" -eq 1 ]; then
-    if [ "$3" = "$MONGODB_MIGRATION_CONFIRM_TOKEN" ]; then
-      return 0
-    fi
-    if [ "$2" = "error" ]; then
-      die "Non-interactive update includes a mandatory MongoDB migration. Re-run with --confirm-migration-token $MONGODB_MIGRATION_CONFIRM_TOKEN to proceed"
-    fi
-    warn "Skipping optional MongoDB migration in non-interactive mode (compatibility_mode=$2). Pass --confirm-migration-token $MONGODB_MIGRATION_CONFIRM_TOKEN to run it"
-    return 1
+  # $1=auto_yes(0/1) $2=provided confirmation token. Returns 0 only if the migration was explicitly confirmed
+  # without a TTY yesno would auto-confirm, so the token is required as with -y
+  if [ "$1" -eq 1 ] || [ ! -t 0 ]; then
+    [ "$2" = "$MONGODB_MIGRATION_CONFIRM_TOKEN" ]
+    return
   fi
-  yesno "Proceed with MongoDB migration now?"
-  return 0
+  local response
+  read -r -p "Proceed with MongoDB migration now? [y/N] " response
+  [[ $response == [yY] ]]
 }
 
 scale_mongo_migration_writers() {
@@ -1160,8 +1169,8 @@ run_mongodb_migration_step() {
 
   echo "Upgrading MongoDB image to $image_tag"
   # patch only the mongo deployment: a full helm upgrade per step would bring the scaled-down writers back up
-  mongo_repo="$(kubectl get deployment mongo -o jsonpath='{.spec.template.spec.containers[?(@.name=="mongodb")].image}')" || return 1
-  mongo_repo="${mongo_repo%%:*}"
+  mongo_repo="$(get_current_mongo_image)" || return 1
+  mongo_repo="${mongo_repo%:*}"
   kubectl set image deployment/mongo "mongodb=${mongo_repo}:${image_tag}" || return 1
   kubectl rollout status deployment/mongo --timeout="${HELM_UPGRADE_TIMEOUT}s" || return 1
 
@@ -1190,19 +1199,9 @@ run_mongodb_migration_step() {
 }
 
 run_mongodb_migration() {
-  # $1=target release, $2=confirm token, $3=auto_yes(0/1), $4=backup name (may be empty)
-  # returns: 0 success, 1 failure (needs rollback+restore), 2 skipped (nothing was changed)
-  local release="$1" compat_mode step image_tag fcv failed=0
-
-  mongodb_migration_defined "$release" || return 2
-  if ! mongodb_migration_required "$release"; then
-    _debug "MongoDB migration is not required: current FCV already satisfies the target for $release"
-    return 2
-  fi
-
-  compat_mode="$(get_mongodb_migration_compat_mode "$release")"
-  print_mongodb_migration_plan "$release" "$4"
-  confirm_mongodb_migration "$3" "$compat_mode" "$2" || return 2
+  # $1=target release. Must be called only after confirm_mongodb_migration
+  # returns: 0 success, 1 failure (needs rollback+restore)
+  local release="$1" step image_tag fcv failed=0
 
   echo "Scaling down writer workloads before MongoDB migration"
   scale_mongo_migration_writers 0
@@ -1253,8 +1252,8 @@ follow_patch_job_logs() {
 }
 
 cmd_update() {
-  local opts auto_yes=0 r_name=$HELM_RELEASE_NAME r_version release_data latest_tag backup_name="" iter_params=() check=0 same_version=0 do_backup=1 do_patch='true' update_defectdojo=0 confirm_migration_token=""
-  opts="$(getopt -o "hy" --long "help,yes,check,no-backup,no-patch,defectdojo,allow-prereleases,same-version,backup-name:,helm-release-name:,confirm-migration-token:" -n "$PROGRAM" -- "$@")"
+  local opts auto_yes=0 r_version release_data latest_tag backup_name="" iter_params=() check=0 same_version=0 do_backup=1 do_patch='true' update_defectdojo=0 confirm_migration_token=""
+  opts="$(getopt -o "hy" --long "help,yes,check,no-backup,no-patch,defectdojo,allow-prereleases,same-version,backup-name:,confirm-migration-token:" -n "$PROGRAM" -- "$@")"
   eval set -- "$opts"
   while true; do
     case "$1" in
@@ -1266,7 +1265,6 @@ cmd_update() {
       '--allow-prereleases') iter_params=(--prerelease --draft); shift ;;
       '--same-version') same_version=1; shift ;;
       '--defectdojo') update_defectdojo=1; shift ;;
-      '--helm-release-name') r_name="$2"; shift 2 ;;
       '--backup-name') backup_name="$2"; shift 2 ;;
       '--confirm-migration-token') confirm_migration_token="$2"; shift 2 ;;
       '--') shift; break ;;
@@ -1296,7 +1294,7 @@ cmd_update() {
     exit 0
   fi
 
-  r_version="$(get_helm_release_version "$r_name")"
+  r_version="$(get_helm_release_version "$HELM_RELEASE_NAME")"
   if [ "$same_version" -eq 1 ]; then
     release_data="$(get_github_release_by_tag "$r_version")" || warn "could not get release by tag $r_version"
     latest_tag="$r_version"
@@ -1313,10 +1311,14 @@ cmd_update() {
     exit 1
   fi
 
+  if [ "$auto_yes" -ne 1 ] && [ ! -t 0 ]; then
+    die "Not running in a terminal. Pass -y/--yes to update non-interactively"
+  fi
+
   # fail fast before any destructive step (backup, self-update, MongoDB migration), if the target release cannot be installed via helm
   echo "Verifying that necessary helm chart exists"
   helm repo update syndicate || die_with_support "helm repo update failed"
-  helm search repo syndicate/rightsizer --version "$latest_tag" --fail-on-no-result >/dev/null 2>&1 || die_with_support "$latest_tag version of $r_name chart not found. Cannot update"
+  helm search repo syndicate/rightsizer --version "$latest_tag" --fail-on-no-result >/dev/null 2>&1 || die_with_support "$latest_tag version of $HELM_RELEASE_NAME chart not found. Cannot update"
 
   if [ -n "$release_data" ] && [ -z "$FORBID_SELF_UPDATE" ]; then
     # self-update swaps this script for the target one (via exec) so newly added logic (e.g. MongoDB migration) actually runs
@@ -1349,6 +1351,11 @@ cmd_update() {
       warn "Ignoring --no-backup: a mandatory MongoDB migration is required for this update and needs a backup for safe rollback"
       do_backup=1
     fi
+    [ -z "$backup_name" ] && backup_name="$AUTO_BACKUP_PREFIX$(date +%s)"
+    # confirmed before the backup so a refusal leaves the installation untouched
+    print_mongodb_migration_plan "$latest_tag" "$backup_name"
+    confirm_mongodb_migration "$auto_yes" "$confirm_migration_token" \
+      || die "Update to $latest_tag requires the MongoDB migration, but it was not confirmed. Update aborted, nothing was changed"
   fi
 
   if [ "$do_backup" -eq 1 ]; then
@@ -1363,19 +1370,17 @@ cmd_update() {
     mongo_migration_pre_revision="$(get_helm_release_revision "$HELM_RELEASE_NAME")" \
       || die_with_support "could not resolve current helm revision before starting MongoDB migration"
 
-    run_mongodb_migration "$latest_tag" "$confirm_migration_token" "$auto_yes" "$backup_name" || mongo_rc=$?
-    case "$mongo_rc" in
-      0) mongo_migrated=1 ;;
-      1)
-        warn "MongoDB migration failed. Rolling back to revision $mongo_migration_pre_revision (the exact state before the migration started)..."
-        rollback_and_restore "$mongo_migration_pre_revision" "$backup_name"
-        exit 1
-        ;;
-      2) warn "Skipping MongoDB migration for this update" ;;
-    esac
+    run_mongodb_migration "$latest_tag" || mongo_rc=$?
+    if [ "$mongo_rc" -eq 0 ]; then
+      mongo_migrated=1
+    else
+      warn "MongoDB migration failed. Rolling back to revision $mongo_migration_pre_revision (the exact state before the migration started)..."
+      rollback_and_restore "$mongo_migration_pre_revision" "$backup_name"
+      exit 1
+    fi
   fi
 
-  echo "Upgrading $r_name chart to $latest_tag version"
+  echo "Upgrading $HELM_RELEASE_NAME chart to $latest_tag version"
   echo "Making helm upgrade. It should not take more than $((HELM_UPGRADE_TIMEOUT / 60)) minutes"
   local helm_values
   helm_values="$(helm get values "$HELM_RELEASE_NAME" -o json)" # preserve only user-set values
