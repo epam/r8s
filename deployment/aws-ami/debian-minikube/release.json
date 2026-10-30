@@ -8,7 +8,6 @@
       "message": "No compatibility-breaking changes in this release."
     },
     "mongodb_migration": {
-      "compatibility_mode": "error",
       "breaking_change": true,
       "message": "This release requires a mandatory MongoDB major version migration with temporary write downtime.",
       "steps": [
