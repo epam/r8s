@@ -342,8 +342,12 @@ iter_github_releases() {
     filter='.[] | select(.prerelease == false and .draft == false)'
   fi
   for ((page = 1; page <= max_pages; page++)); do
-    body="$(github_api_get -H 'Accept: application/vnd.github+json' "${GITHUB_CURL_HEADERS[@]}" "https://api.github.com/repos/$GITHUB_REPO/releases?per_page=$per_page&page=$page")" \
-      || die "Could not make request to GitHub. Probably rate limit exceeded"
+    if ! body="$(github_api_get -H 'Accept: application/vnd.github+json' "${GITHUB_CURL_HEADERS[@]}" "https://api.github.com/repos/$GITHUB_REPO/releases?per_page=$per_page&page=$page")"; then
+      # die would only exit this process substitution, so the reader is signalled with a sentinel line
+      warn "Could not make request to GitHub. Probably rate limit exceeded"
+      echo "$GITHUB_ITER_ERROR"
+      return 1
+    fi
     count="$(jq 'length' <<<"$body")"
     if [ "$count" -eq 0 ]; then
       break
@@ -357,6 +361,9 @@ iter_github_releases() {
 get_github_release_by_tag() {
   local tag_name
   while IFS= read -r item; do
+    if [ "$item" = "$GITHUB_ITER_ERROR" ]; then
+      return 1
+    fi
     tag_name=$(jq -r '.tag_name' <<<"$item")
     if [ "$1" = "$tag_name" ]; then
       echo "$item"
@@ -366,11 +373,14 @@ get_github_release_by_tag() {
   return 1
 }
 get_new_github_release() {
-  # requires one parameter -> current release
+  # requires one parameter -> current release. Returns 0 and prints the release, 1 if up-to-date, 2 if GitHub failed
   local current_release="$1" tag_name result
   shift # all other parameters are passed to iter_github_releases
 
   while IFS= read -r item; do
+    if [ "$item" = "$GITHUB_ITER_ERROR" ]; then
+      return 2
+    fi
     tag_name=$(jq -r '.tag_name' <<<"$item")
     if dpkg --compare-versions "$tag_name" gt "$current_release"; then
       result="$item"
@@ -473,8 +483,7 @@ ensure_in_path() {
 }
 # shellcheck disable=SC2120
 generate_password() {
-  chars="20"
-  typ='-base64'
+  local chars="20" typ='-base64'
   if [ -n "$1" ]; then
     chars="$1"
   fi
@@ -486,7 +495,7 @@ generate_password() {
 get_imds_token () {
   curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 20"
 }
-account_id() { curl -s curl -s -H "X-aws-ec2-metadata-token: $(get_imds_token)" http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r ".accountId"; }
+account_id() { curl -s -H "X-aws-ec2-metadata-token: $(get_imds_token)" http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r ".accountId"; }
 user_exists() { id "$1" &>/dev/null; }
 is_initialized() { [ -f "$R8S_LOCAL_PATH/success" ] || [ -f "$R8S_LOCAL_PATH/.success" ]; }
 get_kubectl_secret() {
@@ -508,11 +517,13 @@ patch_kubectl_secret() {
   kubectl patch secret "$1" -p="{\"data\":{\"$2\":\"$secret\"}}"
 }
 update_modular_api_policy() {
+  local modular_api_pod_name policy_file
   modular_api_pod_name=$(kubectl get pods -n default -l app.kubernetes.io/name=modular-api -o jsonpath='{.items[0].metadata.name}')
-  echo $MODULAR_ADMIN_POLICY > /tmp/modular-admin-policy.json
-  kubectl cp /tmp/modular-admin-policy.json $modular_api_pod_name:/src/admin_policy.json
+  policy_file="$(mktemp)"
+  printf '%s' "$MODULAR_ADMIN_POLICY" >"$policy_file"
+  kubectl cp "$policy_file" "$modular_api_pod_name:/src/admin_policy.json"
   kubectl exec service/modular-api -- ./modular.py policy update --policy admin_policy --policy_path /src/admin_policy.json
-  rm /tmp/modular-admin-policy.json
+  rm -f "$policy_file"
 }
 
 build_multiple_params() {
@@ -942,6 +953,13 @@ update_r8s_init() {
     }
   fi
 }
+get_script_version() { sed -n 's/^VERSION="\([^"]*\)".*/\1/p' "$1" | head -n 1; }
+release_script_is_older() {
+  # true if the r8s-init script at $1 has a lower (or unknown) VERSION than the running one
+  local version
+  version="$(get_script_version "$1")"
+  [ -z "$version" ] || dpkg --compare-versions "$version" lt "$VERSION"
+}
 perform_self_update() {
   # returns 0 if already current, 2 if the release ships no r8s-init artifact, 1 on failure; execs the new script on success
   local tag asset new_version max_attempts delay attempt err
@@ -965,11 +983,17 @@ perform_self_update() {
   delay="${R8S_SELF_UPDATE_RETRY_DELAY:-5}"
   attempt=1
   while [ "$attempt" -le "$max_attempts" ]; do
-    if err="$(pull_artifact "$R8S_RELEASES_PATH/$tag" "$asset" 2>&1)" \
-      && err="$(update_r8s_init "$tag" 2>&1)"; then
-      new_version=$("$SELF_PATH" --version)
-      echo "Automatically updated r8s-init from $VERSION to $new_version"
-      _R8S_SELF_UPDATED=1 exec "$SELF_PATH" "${_ORIGINAL_ARGS[@]}"
+    if err="$(pull_artifact "$R8S_RELEASES_PATH/$tag" "$asset" 2>&1)"; then
+      if release_script_is_older "$R8S_RELEASES_PATH/$tag/$R8S_INIT_ARTIFACT_NAME"; then
+        # exec passes the current options as is, and an older script may not know them
+        warn "r8s-init shipped with $tag is older than the current one ($VERSION). Continuing with the current script"
+        return 0
+      fi
+      if err="$(update_r8s_init "$tag" 2>&1)"; then
+        new_version="$(get_script_version "$R8S_RELEASES_PATH/$tag/$R8S_INIT_ARTIFACT_NAME")"
+        echo "Automatically updated r8s-init from $VERSION to $new_version"
+        _R8S_SELF_UPDATED=1 exec "$SELF_PATH" "${_ORIGINAL_ARGS[@]}"
+      fi
     fi
     warn "r8s-init self-update to $tag failed (attempt $attempt/$max_attempts): ${err:-unknown error}"
     attempt=$((attempt + 1))
@@ -1155,12 +1179,27 @@ confirm_mongodb_migration() {
   [[ $response == [yY] ]]
 }
 
+scale_deployment() {
+  # $1=deployment $2=replicas. Scaling to 0 remembers the current count and a later non-zero call restores it
+  local replicas="$2"
+  if [ "$replicas" -eq 0 ]; then
+    _SAVED_REPLICAS["$1"]="$(kubectl get deployment "$1" -o jsonpath='{.spec.replicas}' 2>/dev/null)"
+  elif [ -n "${_SAVED_REPLICAS[$1]}" ]; then
+    replicas="${_SAVED_REPLICAS[$1]}"
+    unset "_SAVED_REPLICAS[$1]"
+  fi
+  kubectl scale deployment "$1" --replicas="$replicas"
+}
+
 scale_mongo_migration_writers() {
-  # accepts target replica count
+  # $1=0 pauses the writers, any other value restores their original replica count
   local deploy
   for deploy in "${MONGO_MIGRATION_WRITER_DEPLOYMENTS[@]}"; do
-    kubectl get deployment "$deploy" >/dev/null 2>&1 || continue
-    kubectl scale deployment "$deploy" --replicas="$1" || warn "could not scale deployment $deploy to $1 replicas"
+    if ! kubectl get deployment "$deploy" >/dev/null 2>&1; then
+      [ "$1" -eq 0 ] && warn "deployment $deploy was not found, it will not be paused"
+      continue
+    fi
+    scale_deployment "$deploy" "$1" || warn "could not scale deployment $deploy"
   done
 }
 
@@ -1299,10 +1338,13 @@ cmd_update() {
     release_data="$(get_github_release_by_tag "$r_version")" || warn "could not get release by tag $r_version"
     latest_tag="$r_version"
   else
-    if ! release_data="$(get_new_github_release "$r_version" "${iter_params[@]}")"; then
-      echo "Up-to-date"
-      exit 0
-    fi
+    local new_release_rc=0
+    release_data="$(get_new_github_release "$r_version" "${iter_params[@]}")" || new_release_rc=$?
+    case "$new_release_rc" in
+      0) ;;
+      1) echo "Up-to-date"; exit 0 ;;
+      *) die "Could not check for new releases on GitHub" ;;
+    esac
     latest_tag="$(jq -r '.tag_name' <<<"$release_data")"
   fi
 
@@ -1320,6 +1362,14 @@ cmd_update() {
   helm repo update syndicate || die_with_support "helm repo update failed"
   helm search repo syndicate/rightsizer --version "$latest_tag" --fail-on-no-result >/dev/null 2>&1 || die_with_support "$latest_tag version of $HELM_RELEASE_NAME chart not found. Cannot update"
 
+  if [ -z "$_R8S_SELF_UPDATED" ]; then
+    echo "The current installed version is $r_version"
+    echo "New github $(get_release_type "$release_data") $latest_tag is available"
+    echo "Going to update to $latest_tag"
+    # asked before the self-update so declining leaves r8s-init untouched; the re-executed script skips it
+    [[ $auto_yes -eq 1 ]] || yesno "Do you want to update?"
+  fi
+
   if [ -n "$release_data" ] && [ -z "$FORBID_SELF_UPDATE" ]; then
     # self-update swaps this script for the target one (via exec) so newly added logic (e.g. MongoDB migration) actually runs
     local self_update_rc=0
@@ -1329,10 +1379,6 @@ cmd_update() {
     fi
   fi
 
-  echo "The current installed version is $r_version"
-  echo "New github $(get_release_type "$release_data") $latest_tag is available"
-  echo "Going to update to $latest_tag"
-  [[ $auto_yes -eq 1 ]] || yesno "Do you want to update?"
   echo "Updating to $latest_tag"
   if [ -n "$release_data" ]; then
     echo "Pulling new artifacts"
@@ -1342,6 +1388,19 @@ cmd_update() {
 
   if [ -f "$R8S_RELEASES_PATH/$latest_tag/$MODULAR_CLI_ARTIFACT_NAME" ]; then
     check_modular_cli_python_compatibility "$latest_tag" >/dev/null
+  fi
+
+  local helm_values patch_present=0
+  # preserve only user-set values; helm prints null when there are none
+  helm_values="$(helm get values "$HELM_RELEASE_NAME" -o json | jq 'if . == null then {} else . end')"
+  # the chart renders the patch job only when the release ships a patch image (patch.image.tag)
+  if [ "$do_patch" = 'true' ] && helm template "$HELM_RELEASE_NAME" syndicate/rightsizer --version "$latest_tag" \
+      --values <(echo "$helm_values") --set=patch.enabled=true --show-only templates/patch-job.yaml >/dev/null 2>&1; then
+    patch_present=1
+    if [ "$do_backup" -eq 0 ]; then
+      warn "Ignoring --no-backup: release $latest_tag contains a data patch and needs a backup for safe rollback"
+      do_backup=1
+    fi
   fi
 
   local mongo_migration_needed=0 mongo_migrated=0
@@ -1382,14 +1441,15 @@ cmd_update() {
 
   echo "Upgrading $HELM_RELEASE_NAME chart to $latest_tag version"
   echo "Making helm upgrade. It should not take more than $((HELM_UPGRADE_TIMEOUT / 60)) minutes"
-  local helm_values
-  helm_values="$(helm get values "$HELM_RELEASE_NAME" -o json)" # preserve only user-set values
   if [ "$mongo_migrated" -eq 1 ]; then
     # drop the mongo.image.tag override so the chart default drives it again
     helm_values="$(jq 'if .mongo.image then .mongo.image |= del(.tag) else . end' <<<"$helm_values")"
   fi
   local patch_logs_pid="" patch_log_file="" upgrade_rc=0
-  if [ "$do_patch" = 'true' ]; then
+  if [ "$patch_present" -eq 1 ]; then
+    # the pre-upgrade patch job must not race with live writers; helm upgrade/rollback scales them back
+    echo "Scaling down writer workloads before the data patch"
+    scale_mongo_migration_writers 0
     mkdir -p "$R8S_PATCH_LOGS_PATH"
     patch_log_file="$R8S_PATCH_LOGS_PATH/$latest_tag-$(date +%s).log"
     follow_patch_job_logs "$patch_log_file" &
@@ -1397,26 +1457,33 @@ cmd_update() {
   fi
   helm upgrade "$HELM_RELEASE_NAME" syndicate/rightsizer --version "$latest_tag" --timeout "${HELM_UPGRADE_TIMEOUT}s" --wait --wait-for-jobs --reset-values --values <(echo "$helm_values") --set=patch.enabled="$do_patch" || upgrade_rc=$?
   if [ -n "$patch_logs_pid" ]; then
+    # kill the kubectl/tee/awk children too, otherwise they keep printing after the script exits
+    pkill -P "$patch_logs_pid" 2>/dev/null || true
     kill "$patch_logs_pid" 2>/dev/null || true
     wait "$patch_logs_pid" 2>/dev/null || true
     if [ -s "$patch_log_file" ]; then
       echo "----- end of patch job logs (saved to $patch_log_file) -----"
       echo
     else
-      warn "patch job was not observed during the upgrade (the chart may not include it or it finished too quickly)"
+      warn "patch job logs were not captured during the upgrade"
     fi
   fi
   if [ "$upgrade_rc" -ne 0 ]; then
     warn "helm upgrade failed. Rolling back to the previous version..."
     local restore_backup_name=""
-    if [ "$do_backup" -eq 1 ] && { [ "$do_patch" = 'true' ] || [ "$mongo_migrated" -eq 1 ]; }; then
-      echo "Data patch or MongoDB migration could've been performed and backup was also created. It will be restored"
+    if [ "$do_backup" -eq 1 ] && { [ "$patch_present" -eq 1 ] || [ "$mongo_migrated" -eq 1 ]; }; then
+      echo "Data patch or MongoDB migration could've been performed. Backup $backup_name will be restored"
       restore_backup_name="$backup_name"
     fi
     rollback_and_restore 0 "$restore_backup_name"
+    if [ "$patch_present" -eq 1 ]; then
+      scale_mongo_migration_writers 1
+    fi
     exit 1
-  else
-    echo "helm upgrade was successful"
+  fi
+  echo "helm upgrade was successful"
+  if [ "$patch_present" -eq 1 ]; then
+    scale_mongo_migration_writers 1
   fi
   local cli_python_bin=""
   cli_python_bin="$(check_modular_cli_python_compatibility "$latest_tag")"
@@ -1427,7 +1494,8 @@ cmd_update() {
     MODULAR_CLI_ENTRY_POINT=$MODULAR_CLI_ENTRY_POINT cli_install_artifact "$cli_python_bin" "$MODULAR_CLI_APP_NAME" "$R8S_RELEASES_PATH/$latest_tag/$MODULAR_CLI_ARTIFACT_NAME" >/dev/null \
       || die_with_support "Failed to upgrade modular CLI"
   fi
-  if [ -f "$R8S_RELEASES_PATH/$latest_tag/$R8S_INIT_ARTIFACT_NAME" ]; then
+  if [ -f "$R8S_RELEASES_PATH/$latest_tag/$R8S_INIT_ARTIFACT_NAME" ] \
+    && ! release_script_is_older "$R8S_RELEASES_PATH/$latest_tag/$R8S_INIT_ARTIFACT_NAME"; then
     echo "Updating r8s-init"
     update_r8s_init "$latest_tag" || true
   fi
@@ -1449,6 +1517,9 @@ cmd_update_list() {
   local tag_name current_release
   current_release="$(get_helm_release_version "$HELM_RELEASE_NAME")"
   while IFS= read -r item; do
+    if [ "$item" = "$GITHUB_ITER_ERROR" ]; then
+      die "Could not list releases from GitHub"
+    fi
     tag_name=$(jq -r '.tag_name' <<<"$item")
     if [[ "$current_release" == "$tag_name" ]]; then
       jq -rj '"\(.tag_name)* \(.published_at) \(.html_url) \(.prerelease) \(.draft)"' <<<"$item" | colorize GREEN
@@ -1621,7 +1692,7 @@ scale_for_volume() {
   [ ! -v PV_TO_DEPLOYMENTS["$1"] ] && return
   local deploy
   while read -r -d ',' deploy; do
-    kubectl scale deployment "$deploy" --replicas="$2"
+    scale_deployment "$deploy" "$2"
   done <<<"${PV_TO_DEPLOYMENTS["$1"]}," # comma added here to make sure read catches the last segment
 }
 
@@ -1634,8 +1705,9 @@ make_backup() {
     return 1
   fi
   minikube ssh "sudo tar -czf /tmp/$1.tar.gz -C $host_path ."
-  minikube cp "$HELM_RELEASE_NAME:/tmp/$1.tar.gz" "$2/"
-  sha256sum "$2/$1.tar.gz" > "$2/$1.sha256"
+  minikube cp "$MINIKUBE_NODE_NAME:/tmp/$1.tar.gz" "$2/"
+  # relative path so the backup folder can be moved
+  (cd "$2" && sha256sum "$1.tar.gz" >"$1.sha256")
 }
 restore_backup() {
   # accepts k8s persistent volume name as first parameter and folder with backup as second parameter
@@ -1650,11 +1722,12 @@ restore_backup() {
     return 1
   fi
   if [ ! -f "$2/$1.sha256" ]; then
-    warn "sha256 sum does not match for volume $1"
+    warn "sha256 file does not exist for volume $1"
     return 1
   fi
-  sha256sum "$2/$1.sha256" --check || return 1
-  minikube cp "$2/$1.tar.gz" "$HELM_RELEASE_NAME:/tmp/$1.tar.gz"
+  # older backups store an absolute path, which still works from any directory
+  (cd "$2" && sha256sum --check "$1.sha256") || return 1
+  minikube cp "$2/$1.tar.gz" "$MINIKUBE_NODE_NAME:/tmp/$1.tar.gz"
   minikube ssh "sudo rm -rf $host_path; sudo mkdir -p $host_path ; sudo tar --same-owner --overwrite -xzf /tmp/$1.tar.gz -C $host_path"
 }
 make_secrets_backup() {
@@ -1693,7 +1766,7 @@ restore_helm_values_backup() {
   fi
   warn 'helm values will not be restored automatically. Use the following command to restore them: '
   cat <<EOF
-helm upgrade -f "$target_file" "$HELM_RELEASE_NAME" syndicate/rule-engine --version "$(get_helm_release_version "$HELM_RELEASE_NAME")"
+helm upgrade -f "$target_file" "$HELM_RELEASE_NAME" syndicate/rightsizer --version "$(get_helm_release_version "$HELM_RELEASE_NAME")"
 EOF
 }
 cmd_backup() {
@@ -1720,7 +1793,7 @@ resolve_backup_path() {
 }
 
 cmd_backup_list() {
-  local opts version="" path="" pvs size
+  local opts version="" path="" pvs size secrets helm_values
   opts="$(getopt -o "hv:p:" --long "help,version:,path:" -n "$PROGRAM" -- "$@")"
   eval set -- "$opts"
   while true; do
@@ -1738,9 +1811,11 @@ cmd_backup_list() {
   fi
   find "$path/"* -maxdepth 1 -type d -print0 | xargs -0 stat --format "%W %n" | sort -r | while IFS=' ' read -r ts fp; do
     pvs=$(find "$fp" -name '*.tar.gz' -type f -exec basename --suffix='.tar.gz' '{}' \; | sort | tr '\n' ',' | sed 's/,$//')
-    size="$(du -hsc "$fp"/*.tar.gz 2>/dev/null | grep total | cut -f1 || true)"
-    printf "%s|%s|%s|%s\n" "$(basename "$fp")" "$(date --date="@$ts")" "${size:-0}" "$pvs"
-  done | column --table -s "|" --table-columns NAME,DATE,SIZE,PVs
+    size="$(du -hsc "$fp"/*.tar.gz "$fp/$BACKUP_HELM_VALUES_FILENAME" "$fp/$BACKUP_SECRETS_FILENAME" 2>/dev/null | grep total | cut -f1 || true)"
+    [ -f "$fp/$BACKUP_SECRETS_FILENAME" ] && secrets=yes || secrets=no
+    [ -f "$fp/$BACKUP_HELM_VALUES_FILENAME" ] && helm_values=yes || helm_values=no
+    printf "%s|%s|%s|%s|%s|%s\n" "$(basename "$fp")" "$(date --date="@$ts")" "${size:-0}" "$pvs" "$secrets" "$helm_values"
+  done | column --table -s "|" --table-columns NAME,DATE,SIZE,PVS,SECRETS,"HELM VALUES"
 }
 
 cmd_backup_rm() {
@@ -1980,6 +2055,8 @@ R8S_BACKUPS_PATH="${R8S_BACKUPS_PATH:-$R8S_LOCAL_PATH/backups}"
 R8S_PATCH_LOGS_PATH="${R8S_PATCH_LOGS_PATH:-$R8S_LOCAL_PATH/patch-logs}"
 GITHUB_REPO="${GITHUB_REPO:-epam/r8s}"
 HELM_RELEASE_NAME="${HELM_RELEASE_NAME:-rightsizer}"
+# minikube node (single-node profile name from ami-initialize.sh) used by backups, independent of the helm release name
+MINIKUBE_NODE_NAME="${MINIKUBE_NODE_NAME:-rightsizer}"
 DEFECTDOJO_HELM_RELEASE_NAME="${DEFECTDOJO_HELM_RELEASE_NAME:-defectdojo}"
 HELM_UPGRADE_TIMEOUT="${HELM_UPGRADE_TIMEOUT:-1200}"
 MODULAR_SERVICE_USERNAME="${MODULAR_SERVICE_USERNAME:-customer_admin}"
@@ -2018,8 +2095,12 @@ declare -rA PV_TO_DEPLOYMENTS=(
   ["defectdojo-media"]="defectdojo-nginx,defectdojo-uwsgi,defectdojo-celeryworker"
 )
 
-# Deployments that write to MongoDB and must be paused during a mongodb_migration run
-readonly MONGO_MIGRATION_WRITER_DEPLOYMENTS=(rightsizer modular-service modular-api metric-collector)
+# Deployments that write to MongoDB and are paused during a MongoDB migration or a data patch (space separated)
+read -r -a MONGO_MIGRATION_WRITER_DEPLOYMENTS <<<"${MONGO_MIGRATION_WRITERS:-rightsizer modular-service modular-api metric-collector}"
+readonly MONGO_MIGRATION_WRITER_DEPLOYMENTS
+# replica counts remembered by scale_deployment while deployments are scaled down
+declare -A _SAVED_REPLICAS=()
+readonly GITHUB_ITER_ERROR="__GITHUB_REQUEST_FAILED__"
 # Must be passed via --confirm-migration-token together with -y/--yes to run a mandatory MongoDB migration non-interactively
 readonly MONGODB_MIGRATION_CONFIRM_TOKEN="${MONGODB_MIGRATION_CONFIRM_TOKEN:-MIGRATE_MONGODB}"
 
