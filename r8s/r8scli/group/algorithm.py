@@ -279,8 +279,6 @@ def update_clustering_settings(algorithm_name, max_clusters, wcss_kmeans_init,
 @click.option('--analysis_price', '-ap', required=False,
               type=click.Choice(AVAILABLE_ANALYSIS_PRICE),
               help='Price strategy used to calculate possible savings')
-@click.option('--ignore_action', '-ia', multiple=True, required=False,
-              help='Force r8s to skip specific recommendation types')
 @click.option('--target_timezone_name', '-ttz', type=str, required=False,
               help='Adjust metrics for specific timezone before processing')
 @click.option('--discard_initial_zeros', '-did', type=bool, required=False,
@@ -299,7 +297,6 @@ def update_recommendation_settings(algorithm_name, record_step_minutes,
                                    shape_compatibility_rule,
                                    shape_sorting, use_past_recommendations,
                                    use_instance_tags, analysis_price,
-                                   ignore_action,
                                    target_timezone_name, discard_initial_zeros,
                                    forbid_change_series, forbid_change_family):
     """
@@ -311,13 +308,12 @@ def update_recommendation_settings(algorithm_name, record_step_minutes,
     if thresholds and not len(thresholds) == 3:
         response = {'message': "Exactly 3 threshold values required"}
         return LocalCommandResponse(body=response)
-    ignore_actions = cast_to_list(ignore_action)
     optional_parameters = (record_step_minutes, thresholds,
                            min_allowed_days, max_days,
                            min_allowed_days_schedule, ignore_savings,
                            max_recommended_shapes, shape_compatibility_rule,
                            shape_sorting, use_past_recommendations,
-                           use_instance_tags, analysis_price, ignore_actions,
+                           use_instance_tags, analysis_price,
                            target_timezone_name, discard_initial_zeros,
                            forbid_change_series, forbid_change_family)
     if not any(parameter_not_specified(param) for param
@@ -340,7 +336,6 @@ def update_recommendation_settings(algorithm_name, record_step_minutes,
         use_past_recommendations=use_past_recommendations,
         use_instance_tags=use_instance_tags,
         analysis_price=analysis_price,
-        ignore_actions=ignore_actions,
         target_timezone_name=target_timezone_name,
         discard_initial_zeros=discard_initial_zeros,
         forbid_change_series=forbid_change_series,

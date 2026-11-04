@@ -27,7 +27,15 @@ class BaseExecutorTest(TestCase, ABC):
         self.instance_id = None
         self._init_algorithm()
         self._init_dirs()
+        self._reset_database()
         self._init_services()
+
+    @staticmethod
+    def _reset_database() -> None:
+        import mongoengine
+
+        connection = mongoengine.get_connection()
+        connection.drop_database(connection.get_default_database().name)
 
     # def tearDown(self) -> None:
         # shutil.rmtree(self.reports_path)
