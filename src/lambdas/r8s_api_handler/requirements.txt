@@ -1,4 +1,4 @@
-modular-sdk[jwt]==8.1.0
+modular-sdk[jwt] @ git+https://github.com/epam/modular-sdk.git@develop
 boto3==1.36.11
 botocore==1.36.11
 certifi==2023.7.22
