@@ -7,7 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.17.0] - 2026-11-19
 - Fixed CommandInjection security vulnerability.
 
-
 ## [3.16.0] - 2026-11-02
 - Removed optional parameter `ignore_action` from `POST /algorithms` and `PATCH /algorithms` endpoints
 - Updated dev requirements:
