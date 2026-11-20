@@ -86,6 +86,30 @@ ALLOWED_ENV_KEYS = (
 )
 
 
+def _validate_path(raw: str, kind: str, executable: bool = False,
+                   suffix: str | None = None) -> str:
+    """
+    Validates a path received from an environment variable before it is
+    used to spawn a subprocess. Returns the resolved absolute path.
+    """
+    if not raw or any(ord(c) < 32 or ord(c) == 127 for c in raw):
+        raise ValueError(f'Invalid {kind} path: empty or contains '
+                         f'control characters')
+    try:
+        path = pathlib.Path(raw).resolve(strict=True)
+    except (OSError, RuntimeError):
+        raise ValueError(f'Invalid {kind} path: {raw!r} does not exist')
+    if not path.is_file():
+        raise ValueError(f'Invalid {kind} path: {str(path)!r} is not a file')
+    if executable and not os.access(path, os.X_OK):
+        raise ValueError(f'Invalid {kind} path: {str(path)!r} '
+                         f'is not executable')
+    if suffix and path.suffix.lower() != suffix:
+        raise ValueError(f'Invalid {kind} path: {str(path)!r} '
+                         f'must have {suffix} extension')
+    return str(path)
+
+
 class BatchToSubprocessAdapter:
     """
     Before using this class, please set up next env vars:
@@ -115,7 +139,10 @@ class BatchToSubprocessAdapter:
         1. EXECUTOR_PATH env
         2. custodian-as-a-service/docker/executor.py
         """
-        return os.environ.get('EXECUTOR_PATH') or str(executor_path)
+        from_env = os.environ.get('EXECUTOR_PATH')
+        if from_env:
+            return _validate_path(from_env, 'EXECUTOR_PATH', suffix='.py')
+        return str(executor_path)
 
     @staticmethod
     def resolve_executor_venv() -> str:
@@ -128,7 +155,7 @@ class BatchToSubprocessAdapter:
         """
         from_env = os.environ.get('VENV_PATH')
         if from_env:
-            return from_env
+            return _validate_path(from_env, 'VENV_PATH', executable=True)
         for folder in EXECUTABLE_VENV_FOLDER_PRIORITY:
             venv_path = docker_path / folder
             if venv_path.exists():
